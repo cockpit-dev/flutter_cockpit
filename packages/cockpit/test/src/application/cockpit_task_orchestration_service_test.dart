@@ -12,6 +12,7 @@ import 'package:cockpit/src/application/cockpit_task_gate.dart';
 import 'package:cockpit/src/application/cockpit_task_orchestration_service.dart';
 import 'package:cockpit/src/application/cockpit_task_stage.dart';
 import 'package:cockpit/src/cli/cockpit_control_script.dart';
+import 'package:cockpit/src/session/cockpit_flutter_launch_configuration.dart';
 import 'package:cockpit/src/session/cockpit_remote_session_handle.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -30,16 +31,20 @@ void main() {
       });
 
       final handle = _sessionHandle(platform: 'android');
+      CockpitLaunchRemoteSessionRequest? capturedLaunchRequest;
       CockpitRunRemoteControlScriptRequest? capturedRunScriptRequest;
       final service = CockpitTaskOrchestrationService(
-        launch: (_) async => CockpitLaunchRemoteSessionResult(
-          sessionHandle: handle,
-          health: _status(
-            sessionId: 'task-orchestration-launch-demo',
-            platform: 'android',
-            route: '/editor',
-          ),
-        ),
+        launch: (request) async {
+          capturedLaunchRequest = request;
+          return CockpitLaunchRemoteSessionResult(
+            sessionHandle: handle,
+            health: _status(
+              sessionId: 'task-orchestration-launch-demo',
+              platform: 'android',
+              route: '/editor',
+            ),
+          );
+        },
         query: (_) async => throw UnimplementedError(),
         runScript: (request) async {
           capturedRunScriptRequest = request;
@@ -62,12 +67,19 @@ void main() {
 
       final result = await service.orchestrate(
         CockpitRunTaskRequest(
-          launch: const CockpitRunTaskLaunchRequest(
+          launch: CockpitRunTaskLaunchRequest(
             projectDir: '/workspace/examples/cockpit_demo',
             target: 'lib/main.dart',
+            flavor: 'staging',
             platform: 'android',
             deviceId: 'emulator-5554',
             sessionPort: 47331,
+            launchConfiguration: CockpitFlutterLaunchConfiguration(
+              dartDefines: const <String>['API_URL=https://example.test'],
+              dartDefineFromFiles: const <String>['config/dev.json'],
+              flutterArgs: const <String>['--track-widget-creation'],
+              environment: const <String, String>{'API_TOKEN': 'secret'},
+            ),
           ),
           script: _script(platform: 'android'),
           outputRoot: bundleDir.path,
@@ -110,6 +122,21 @@ void main() {
       expect(
         result.isGateSatisfied(CockpitTaskGate.finalAssertionPassed),
         isTrue,
+      );
+      expect(capturedLaunchRequest?.flavor, 'staging');
+      expect(capturedLaunchRequest?.launchConfiguration.dartDefines, <String>[
+        'API_URL=https://example.test',
+      ]);
+      expect(
+        capturedLaunchRequest?.launchConfiguration.dartDefineFromFiles,
+        <String>['config/dev.json'],
+      );
+      expect(capturedLaunchRequest?.launchConfiguration.flutterArgs, <String>[
+        '--track-widget-creation',
+      ]);
+      expect(
+        capturedLaunchRequest?.launchConfiguration.environment,
+        <String, String>{'API_TOKEN': 'secret'},
       );
       expect(
         capturedRunScriptRequest?.liveRunId,

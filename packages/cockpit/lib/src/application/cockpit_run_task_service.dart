@@ -1,6 +1,7 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../cli/cockpit_control_script.dart';
+import '../session/cockpit_flutter_launch_configuration.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_launch_remote_session_service.dart';
 import 'cockpit_query_remote_session_service.dart';
@@ -56,32 +57,47 @@ final class CockpitRunTaskLaunchRequest {
     required this.deviceId,
     required this.sessionPort,
     this.target,
+    this.flavor,
     this.launchTimeout = const Duration(seconds: 120),
     this.persistHandlePath,
+    this.launchConfiguration = CockpitFlutterLaunchConfiguration.empty,
   });
 
   final String projectDir;
   final String? target;
+  final String? flavor;
   final String platform;
   final String deviceId;
   final int sessionPort;
   final Duration launchTimeout;
   final String? persistHandlePath;
+  final CockpitFlutterLaunchConfiguration launchConfiguration;
 
-  Map<String, Object?> toJson() => <String, Object?>{
-    'projectDir': projectDir,
-    if (target != null) 'target': target,
-    'platform': platform,
-    'deviceId': deviceId,
-    'sessionPort': sessionPort,
-    'launchTimeoutSeconds': launchTimeout.inSeconds,
-    if (persistHandlePath != null) 'persistHandlePath': persistHandlePath,
-  };
+  Map<String, Object?> toJson({bool includeEnvironmentValues = false}) =>
+      <String, Object?>{
+        'projectDir': projectDir,
+        if (target != null) 'target': target,
+        if (flavor != null) 'flavor': flavor,
+        'platform': platform,
+        'deviceId': deviceId,
+        'sessionPort': sessionPort,
+        'launchTimeoutSeconds': launchTimeout.inSeconds,
+        if (persistHandlePath != null) 'persistHandlePath': persistHandlePath,
+        if (!launchConfiguration.isEmpty)
+          'launchConfiguration': launchConfiguration.toJson(
+            includeEnvironmentValues: includeEnvironmentValues,
+          ),
+      };
 
   factory CockpitRunTaskLaunchRequest.fromJson(Map<String, Object?> json) {
+    final launchConfigurationJson = _readOptionalObject(
+      json,
+      'launchConfiguration',
+    );
     return CockpitRunTaskLaunchRequest(
       projectDir: _readRequiredString(json, 'projectDir'),
       target: _readOptionalString(json, 'target'),
+      flavor: _readOptionalString(json, 'flavor'),
       platform: _readRequiredString(json, 'platform'),
       deviceId: _readRequiredString(json, 'deviceId'),
       sessionPort: _readRequiredPositiveInt(json, 'sessionPort'),
@@ -89,6 +105,9 @@ final class CockpitRunTaskLaunchRequest {
         seconds: _readOptionalPositiveInt(json, 'launchTimeoutSeconds') ?? 120,
       ),
       persistHandlePath: _readOptionalString(json, 'persistHandlePath'),
+      launchConfiguration: launchConfigurationJson == null
+          ? CockpitFlutterLaunchConfiguration.empty
+          : CockpitFlutterLaunchConfiguration.fromJson(launchConfigurationJson),
     );
   }
 }
@@ -170,8 +189,13 @@ final class CockpitRunTaskRequest {
   final CockpitRunTaskBaselineRequest baseline;
   final CockpitRunTaskEvidenceRequirements requirements;
 
-  Map<String, Object?> toJson() => <String, Object?>{
-    if (launch != null) 'launch': launch!.toJson(),
+  Map<String, Object?> toJson({
+    bool includeEnvironmentValues = false,
+  }) => <String, Object?>{
+    if (launch != null)
+      'launch': launch!.toJson(
+        includeEnvironmentValues: includeEnvironmentValues,
+      ),
     if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
     if (sessionHandlePath != null) 'sessionHandlePath': sessionHandlePath,
     'script': script.toJson(),

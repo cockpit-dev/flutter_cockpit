@@ -64,6 +64,7 @@ final class CockpitFlutterRunMachineClient {
     String? flavor,
     String? flutterExecutable,
     List<String> extraArgs = const <String>[],
+    Map<String, String>? environment,
   }) async {
     final resolvedFlutterExecutable =
         flutterExecutable ?? cockpitFlutterExecutable();
@@ -83,6 +84,7 @@ final class CockpitFlutterRunMachineClient {
         ...extraArgs,
       ],
       workingDirectory: projectDir,
+      environment: environment,
       runInShell: cockpitShouldRunExecutableInShell(resolvedFlutterExecutable),
     );
 
@@ -110,6 +112,7 @@ final class CockpitFlutterRunMachineClient {
     String? flavor,
     String? flutterExecutable,
     List<String> extraArgs = const <String>[],
+    Map<String, String>? environment,
   }) async {
     final resolvedFlutterExecutable =
         flutterExecutable ?? cockpitFlutterExecutable();
@@ -131,6 +134,7 @@ final class CockpitFlutterRunMachineClient {
         ...extraArgs,
       ],
       workingDirectory: projectDir,
+      environment: environment,
       runInShell: cockpitShouldRunExecutableInShell(resolvedFlutterExecutable),
     );
 

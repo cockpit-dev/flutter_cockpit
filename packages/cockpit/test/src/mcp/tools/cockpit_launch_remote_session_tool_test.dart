@@ -354,4 +354,69 @@ void main() {
       expect(record?.recommendedNextStep, 'ready_for_commands');
     },
   );
+
+  test('launch tool accepts launch configuration payloads', () async {
+    CockpitLaunchRemoteSessionRequest? capturedRequest;
+    final tool = CockpitLaunchRemoteSessionTool(
+      launch: (request) async {
+        capturedRequest = request;
+        return CockpitLaunchRemoteSessionResult(
+          sessionHandle: CockpitRemoteSessionHandle(
+            platform: 'android',
+            deviceId: 'emulator-5554',
+            projectDir: request.projectDir,
+            target: request.target ?? 'cockpit/main.dart',
+            appId: 'dev.cockpit.cockpit_demo',
+            host: '127.0.0.1',
+            hostPort: 58421,
+            devicePort: request.sessionPort,
+            baseUrl: 'http://127.0.0.1:58421',
+            launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
+          ),
+          health: CockpitRemoteSessionStatus(
+            sessionId: 'launch-tool-demo',
+            platform: 'android',
+            transportType: 'remoteHttp',
+            currentRouteName: '/home',
+            capabilities: CockpitCapabilities(
+              platform: 'android',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: true,
+              supportsHostAutomation: false,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: true,
+            ),
+            snapshot: CockpitSnapshot(routeName: '/home'),
+          ),
+        );
+      },
+    );
+
+    await tool.call(<String, Object?>{
+      'projectDir': '/workspace/examples/cockpit_demo',
+      'platform': 'android',
+      'deviceId': 'emulator-5554',
+      'sessionPort': 47331,
+      'dartDefines': <String>['API_URL=https://example.test'],
+      'dartDefineFromFiles': <String>['config/dev.json'],
+      'flutterArgs': <String>['--track-widget-creation'],
+      'environment': <String, Object?>{'API_TOKEN': 'secret'},
+    });
+
+    expect(capturedRequest?.launchConfiguration.dartDefines, <String>[
+      'API_URL=https://example.test',
+    ]);
+    expect(capturedRequest?.launchConfiguration.dartDefineFromFiles, <String>[
+      'config/dev.json',
+    ]);
+    expect(capturedRequest?.launchConfiguration.flutterArgs, <String>[
+      '--track-widget-creation',
+    ]);
+    expect(capturedRequest?.launchConfiguration.environment, <String, String>{
+      'API_TOKEN': 'secret',
+    });
+  });
 }

@@ -129,6 +129,7 @@ export 'src/devtools/cockpit_sensitive_data_redactor.dart';
 export 'src/devtools/cockpit_devtools_asset_provider.dart';
 export 'src/devtools/cockpit_devtools_server.dart';
 export 'src/session/cockpit_android_remote_session_launcher.dart';
+export 'src/session/cockpit_flutter_launch_configuration.dart';
 export 'src/session/cockpit_ios_physical_remote_session_launcher.dart';
 export 'src/session/cockpit_ios_simulator_remote_session_launcher.dart';
 export 'src/session/cockpit_linux_remote_session_launcher.dart';

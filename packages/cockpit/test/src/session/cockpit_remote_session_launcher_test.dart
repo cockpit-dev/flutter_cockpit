@@ -132,7 +132,12 @@ exit 0
       final launcher = CockpitAndroidRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               invocations.add('$executable ${arguments.join(' ')}');
               return ProcessResult(0, 0, '', '');
             },
@@ -213,7 +218,12 @@ exit 0
         flutterVersionReader: () async =>
             throw StateError('legacy version reader should not be used'),
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               invocations.add('$executable ${arguments.join(' ')}');
               if (executable == '/opt/flutter/bin/flutter' &&
                   arguments.join(' ') == '--version --machine') {
@@ -266,7 +276,12 @@ exit 0
       final launcher = CockpitIosSimulatorRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               invocations.add('$executable ${arguments.join(' ')}');
               return ProcessResult(0, 0, '', '');
             },
@@ -342,7 +357,12 @@ exit 0
         flutterVersionReader: () async =>
             throw StateError('legacy version reader should not be used'),
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               invocations.add('$executable ${arguments.join(' ')}');
               if (executable == '/opt/flutter/bin/flutter' &&
                   arguments.join(' ') == '--version --machine') {
@@ -387,8 +407,13 @@ exit 0
     () async {
       final launcher = CockpitIosSimulatorRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
-        processRunner: (executable, arguments, {String? workingDirectory}) =>
-            Completer<ProcessResult>().future,
+        processRunner:
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) => Completer<ProcessResult>().future,
         appBundlePathResolver: ({required projectDir, String? flavor}) async =>
             '/workspace/examples/cockpit_demo/build/ios/iphonesimulator/Runner.app',
         bundleIdResolver: ({required String appBundlePath}) async =>
@@ -428,7 +453,12 @@ exit 0
         flutterVersionReader: () async =>
             throw StateError('legacy version reader should not be used'),
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               invocations.add('$executable ${arguments.join(' ')}');
               if (executable == '/opt/flutter/bin/flutter' &&
                   arguments.join(' ') == '--version --machine') {
@@ -479,7 +509,12 @@ exit 0
       final launcher = CockpitIosPhysicalRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               invocations.add('$executable ${arguments.join(' ')}');
               return ProcessResult(0, 0, '', '');
             },
@@ -547,8 +582,13 @@ exit 0
     () async {
       final launcher = CockpitIosPhysicalRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
-        processRunner: (executable, arguments, {String? workingDirectory}) =>
-            Completer<ProcessResult>().future,
+        processRunner:
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) => Completer<ProcessResult>().future,
         deviceConnectionResolver: (_) async => const CockpitIosDeviceConnection(
           isPhysical: true,
           tunnelIpAddress: 'fd69:8f18:f0a9::1',
@@ -612,7 +652,12 @@ exit 0
       final launcher = CockpitAndroidRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               invocations.add('$executable ${arguments.join(' ')}');
               return ProcessResult(0, 0, '', '');
             },
@@ -651,8 +696,13 @@ exit 0
   test('Android remote session launcher times out slow build stages', () async {
     final launcher = CockpitAndroidRemoteSessionLauncher(
       flutterVersionReader: () async => '3.38.9',
-      processRunner: (executable, arguments, {String? workingDirectory}) =>
-          Completer<ProcessResult>().future,
+      processRunner:
+          (
+            executable,
+            arguments, {
+            String? workingDirectory,
+            Map<String, String>? environment,
+          }) => Completer<ProcessResult>().future,
       buildArtifactResolver:
           ({
             required String projectDir,
@@ -716,7 +766,12 @@ exit 0
       final launcher = CockpitIosSimulatorRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               invocations.add('$executable ${arguments.join(' ')}');
               return ProcessResult(0, 0, '', '');
             },
@@ -778,9 +833,15 @@ exit 0
     String? resolvedAppBundlePath;
     final launcher = CockpitIosSimulatorRemoteSessionLauncher(
       flutterVersionReader: () async => '3.38.9',
-      processRunner: (executable, arguments, {String? workingDirectory}) async {
-        return ProcessResult(0, 0, '', '');
-      },
+      processRunner:
+          (
+            executable,
+            arguments, {
+            String? workingDirectory,
+            Map<String, String>? environment,
+          }) async {
+            return ProcessResult(0, 0, '', '');
+          },
       bundleIdResolver: ({required String appBundlePath}) async {
         resolvedAppBundlePath = appBundlePath;
         return 'dev.cockpit.cockpitDemo';
@@ -824,9 +885,15 @@ exit 0
     String? resolvedAppBundlePath;
     final launcher = CockpitIosPhysicalRemoteSessionLauncher(
       flutterVersionReader: () async => '3.38.9',
-      processRunner: (executable, arguments, {String? workingDirectory}) async {
-        return ProcessResult(0, 0, '', '');
-      },
+      processRunner:
+          (
+            executable,
+            arguments, {
+            String? workingDirectory,
+            Map<String, String>? environment,
+          }) async {
+            return ProcessResult(0, 0, '', '');
+          },
       deviceConnectionResolver: (_) async => const CockpitIosDeviceConnection(
         isPhysical: true,
         tunnelIpAddress: 'fd69:8f18:f0a9::1',
@@ -1126,6 +1193,77 @@ exit 0
 
       expect(reads, 2);
       expect(status.sessionId, 'new-session');
+    },
+  );
+
+  test(
+    'android remote session launcher forwards user Flutter arguments and environment',
+    () async {
+      final invocations = <Map<String, Object?>>[];
+      final launcher = CockpitAndroidRemoteSessionLauncher(
+        flutterVersionReader: () async => '3.38.9',
+        processRunner:
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              environment,
+            }) async {
+              invocations.add(<String, Object?>{
+                'executable': executable,
+                'arguments': arguments,
+                'environment': environment,
+              });
+              return ProcessResult(0, 0, '', '');
+            },
+        portForwarder: const _FakeAndroidPortForwarder(
+          forwardedHostPort: 58331,
+        ),
+        buildArtifactResolver:
+            ({required projectDir, required buildDirectory, flavor}) async =>
+                const CockpitAndroidBuildArtifact(
+                  applicationId: 'dev.cockpit.demo',
+                  apkPath: '/tmp/app-debug.apk',
+                ),
+        statusReader: (_) async => _readyStatus('android'),
+      );
+
+      await launcher.launch(
+        CockpitRemoteSessionLaunchOptions(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          sessionPort: 47331,
+          launchConfiguration: CockpitFlutterLaunchConfiguration(
+            dartDefines: const <String>['API_URL=https://example.test'],
+            dartDefineFromFiles: const <String>['config/dev.json'],
+            flutterArgs: const <String>['--track-widget-creation'],
+            environment: const <String, String>{'API_TOKEN': 'secret'},
+          ),
+        ),
+      );
+
+      final buildInvocation = invocations.singleWhere(
+        (invocation) => invocation['executable'] == cockpitFlutterExecutable(),
+      );
+      expect(buildInvocation['arguments'], <String>[
+        'build',
+        'apk',
+        '--debug',
+        '--target',
+        'cockpit/main.dart',
+        '--dart-define=API_URL=https://example.test',
+        '--dart-define-from-file=config/dev.json',
+        '--track-widget-creation',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=0.0.0.0',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331',
+        '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.38.9',
+      ]);
+      expect(buildInvocation['environment'], <String, String>{
+        'API_TOKEN': 'secret',
+      });
     },
   );
 }

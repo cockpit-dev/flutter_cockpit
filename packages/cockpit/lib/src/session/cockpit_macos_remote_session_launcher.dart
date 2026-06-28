@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import 'cockpit_android_remote_session_launcher.dart';
 import 'cockpit_apple_bundle_support.dart';
+import 'cockpit_flutter_launch_configuration.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
@@ -16,6 +17,15 @@ typedef CockpitMacosBundleIdResolver =
 
 typedef CockpitMacosAppBundlePathResolver =
     Future<String> Function({required String projectDir, String? flavor});
+typedef CockpitMacosBundleExecutablePathResolver =
+    Future<String> Function({required String appBundlePath});
+typedef CockpitMacosAppStarter =
+    Future<int?> Function({
+      required String appBundlePath,
+      required String? executablePath,
+      required Map<String, String>? environment,
+      required Duration timeout,
+    });
 
 final class CockpitMacosRemoteSessionLauncher
     implements CockpitRemoteSessionLauncher {
@@ -24,6 +34,9 @@ final class CockpitMacosRemoteSessionLauncher
     CockpitMacosBundleIdResolver bundleIdResolver = _resolveBundleId,
     CockpitMacosAppBundlePathResolver appBundlePathResolver =
         _resolveAppBundlePath,
+    CockpitMacosBundleExecutablePathResolver bundleExecutablePathResolver =
+        cockpitResolveMacosBundleExecutablePath,
+    CockpitMacosAppStarter appStarter = _startMacosApp,
     CockpitRemoteSessionStatusReader statusReader =
         cockpitReadRemoteSessionStatus,
     CockpitFlutterVersionReader flutterVersionReader =
@@ -34,6 +47,8 @@ final class CockpitMacosRemoteSessionLauncher
        _useKillableProcessRunner = processRunner == null,
        _bundleIdResolver = bundleIdResolver,
        _appBundlePathResolver = appBundlePathResolver,
+       _bundleExecutablePathResolver = bundleExecutablePathResolver,
+       _appStarter = appStarter,
        _statusReader = statusReader,
        _flutterVersionReader = flutterVersionReader,
        _flutterVersionForExecutableReader =
@@ -49,6 +64,8 @@ final class CockpitMacosRemoteSessionLauncher
   final bool _useKillableProcessRunner;
   final CockpitMacosBundleIdResolver _bundleIdResolver;
   final CockpitMacosAppBundlePathResolver _appBundlePathResolver;
+  final CockpitMacosBundleExecutablePathResolver _bundleExecutablePathResolver;
+  final CockpitMacosAppStarter _appStarter;
   final CockpitRemoteSessionStatusReader _statusReader;
   final CockpitFlutterVersionReader _flutterVersionReader;
   final CockpitFlutterExecutableVersionReader
@@ -86,14 +103,18 @@ final class CockpitMacosRemoteSessionLauncher
         options.target,
         if (options.flavor case final flavor?
             when flavor.isNotEmpty) ...<String>['--flavor', flavor],
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1',
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=${options.sessionPort}',
-        if (options.launchId case final launchId? when launchId.isNotEmpty)
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_LAUNCH_ID=$launchId',
-        '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=$flutterVersion',
+        ...cockpitBuildFlutterLaunchArguments(
+          userConfiguration: options.launchConfiguration,
+          internalArguments: cockpitBuildRemoteControlDartDefineArguments(
+            host: '127.0.0.1',
+            port: options.sessionPort,
+            flutterVersion: flutterVersion,
+            launchId: options.launchId,
+          ),
+        ),
       ],
       workingDirectory: options.projectDir,
+      environment: options.launchConfiguration.processEnvironment,
       deadline: deadline,
     );
 
@@ -102,15 +123,22 @@ final class CockpitMacosRemoteSessionLauncher
       flavor: options.flavor,
     );
     final bundleId = await _bundleIdResolver(appBundlePath: appBundlePath);
+    final processEnvironment = options.launchConfiguration.processEnvironment;
+    final executablePath =
+        processEnvironment == null || processEnvironment.isEmpty
+        ? null
+        : await _bundleExecutablePathResolver(appBundlePath: appBundlePath);
     await _bestEffortStopRunningApp(
       bundleId,
       timeout: _capTimeout(_remaining(deadline), const Duration(seconds: 5)),
     );
 
-    await _runRequired('open', <String>[
-      '-n',
-      appBundlePath,
-    ], timeout: _remaining(deadline));
+    final processId = await _appStarter(
+      appBundlePath: appBundlePath,
+      executablePath: executablePath,
+      environment: processEnvironment,
+      timeout: _remaining(deadline),
+    );
 
     final baseUri = Uri.parse('http://127.0.0.1:${options.sessionPort}');
     try {
@@ -126,6 +154,7 @@ final class CockpitMacosRemoteSessionLauncher
         target: options.target,
         deviceId: options.deviceId,
         appId: bundleId,
+        processId: processId,
         host: '127.0.0.1',
         hostPort: options.sessionPort,
         devicePort: options.sessionPort,
@@ -160,12 +189,14 @@ final class CockpitMacosRemoteSessionLauncher
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    Map<String, String>? environment,
     required Duration timeout,
   }) async {
     final result = await _runProcessResult(
       executable,
       arguments,
       workingDirectory: workingDirectory,
+      environment: environment,
       timeout: timeout,
     );
     if (result.exitCode != 0) {
@@ -177,12 +208,14 @@ final class CockpitMacosRemoteSessionLauncher
     String flutterExecutable,
     List<String> buildArguments, {
     required String workingDirectory,
+    Map<String, String>? environment,
     required DateTime deadline,
   }) async {
     final firstResult = await _runProcessResult(
       flutterExecutable,
       buildArguments,
       workingDirectory: workingDirectory,
+      environment: environment,
       timeout: _remaining(deadline),
     );
     if (firstResult.exitCode == 0) {
@@ -207,6 +240,7 @@ final class CockpitMacosRemoteSessionLauncher
       flutterExecutable,
       buildArguments,
       workingDirectory: workingDirectory,
+      environment: environment,
       timeout: _remaining(deadline),
     );
     if (retryResult.exitCode != 0) {
@@ -222,6 +256,7 @@ final class CockpitMacosRemoteSessionLauncher
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    Map<String, String>? environment,
     required Duration timeout,
   }) {
     if (_useKillableProcessRunner) {
@@ -229,6 +264,7 @@ final class CockpitMacosRemoteSessionLauncher
         executable,
         arguments,
         workingDirectory: workingDirectory,
+        environment: environment,
         timeout: timeout,
       );
     }
@@ -236,6 +272,7 @@ final class CockpitMacosRemoteSessionLauncher
       executable,
       arguments,
       workingDirectory: workingDirectory,
+      environment: environment,
     ).timeout(
       timeout,
       onTimeout: () => throw TimeoutException(
@@ -287,12 +324,50 @@ final class CockpitMacosRemoteSessionLauncher
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    Map<String, String>? environment,
   }) {
     return cockpitRunShortProcess(
       executable,
       arguments,
       workingDirectory: workingDirectory,
+      environment: environment,
     );
+  }
+
+  static Future<int?> _startMacosApp({
+    required String appBundlePath,
+    required String? executablePath,
+    required Map<String, String>? environment,
+    required Duration timeout,
+  }) async {
+    if (environment == null || environment.isEmpty) {
+      await cockpitRunProcessWithTimeout('open', <String>[
+        '-n',
+        appBundlePath,
+      ], timeout: timeout);
+      return null;
+    }
+    if (executablePath == null || executablePath.isEmpty) {
+      throw StateError(
+        'macOS runtime environment requires a bundle executable path.',
+      );
+    }
+    final pathContext = cockpitSessionPathContext(executablePath);
+    final process =
+        await Process.start(
+          executablePath,
+          const <String>[],
+          workingDirectory: pathContext.dirname(executablePath),
+          environment: environment,
+          mode: ProcessStartMode.detached,
+        ).timeout(
+          timeout,
+          onTimeout: () => throw TimeoutException(
+            'Launching $executablePath timed out.',
+            timeout,
+          ),
+        );
+    return process.pid == 0 ? null : process.pid;
   }
 
   static Future<String> _resolveBundleId({required String appBundlePath}) =>

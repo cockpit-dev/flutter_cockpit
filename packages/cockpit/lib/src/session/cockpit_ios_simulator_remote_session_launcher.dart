@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import 'cockpit_apple_bundle_support.dart';
 import 'cockpit_android_remote_session_launcher.dart';
+import 'cockpit_flutter_launch_configuration.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
@@ -88,14 +89,18 @@ final class CockpitIosSimulatorRemoteSessionLauncher
         options.target,
         if (options.flavor case final flavor?
             when flavor.isNotEmpty) ...<String>['--flavor', flavor],
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=$bindHost',
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=${options.sessionPort}',
-        if (options.launchId case final launchId? when launchId.isNotEmpty)
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_LAUNCH_ID=$launchId',
-        '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=$flutterVersion',
+        ...cockpitBuildFlutterLaunchArguments(
+          userConfiguration: options.launchConfiguration,
+          internalArguments: cockpitBuildRemoteControlDartDefineArguments(
+            host: bindHost,
+            port: options.sessionPort,
+            flutterVersion: flutterVersion,
+            launchId: options.launchId,
+          ),
+        ),
       ],
       workingDirectory: options.projectDir,
+      environment: options.launchConfiguration.processEnvironment,
       timeout: _remaining(deadline),
     );
 
@@ -181,6 +186,7 @@ final class CockpitIosSimulatorRemoteSessionLauncher
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    Map<String, String>? environment,
     required Duration timeout,
   }) async {
     final result = _useKillableProcessRunner
@@ -188,12 +194,14 @@ final class CockpitIosSimulatorRemoteSessionLauncher
             executable,
             arguments,
             workingDirectory: workingDirectory,
+            environment: environment,
             timeout: timeout,
           )
         : await _processRunner(
             executable,
             arguments,
             workingDirectory: workingDirectory,
+            environment: environment,
           ).timeout(
             timeout,
             onTimeout: () => throw TimeoutException(
@@ -222,11 +230,13 @@ final class CockpitIosSimulatorRemoteSessionLauncher
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    Map<String, String>? environment,
   }) {
     return cockpitRunShortProcess(
       executable,
       arguments,
       workingDirectory: workingDirectory,
+      environment: environment,
     );
   }
 

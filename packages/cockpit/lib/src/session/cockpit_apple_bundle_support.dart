@@ -55,9 +55,36 @@ Future<String> cockpitResolveMacosBundleId({required String appBundlePath}) {
   );
 }
 
+Future<String> cockpitResolveMacosBundleExecutablePath({
+  required String appBundlePath,
+}) async {
+  final executableName = await cockpitResolveAppleBundleValue(
+    appBundlePath: appBundlePath,
+    infoPlistPathSegments: const <String>['Contents', 'Info.plist'],
+    key: 'CFBundleExecutable',
+    platformLabel: 'macOS',
+  );
+  final pathContext = cockpitSessionPathContext(appBundlePath);
+  return pathContext.join(appBundlePath, 'Contents', 'MacOS', executableName);
+}
+
 Future<String> cockpitResolveAppleBundleId({
   required String appBundlePath,
   required List<String> infoPlistPathSegments,
+  required String platformLabel,
+}) {
+  return cockpitResolveAppleBundleValue(
+    appBundlePath: appBundlePath,
+    infoPlistPathSegments: infoPlistPathSegments,
+    key: 'CFBundleIdentifier',
+    platformLabel: platformLabel,
+  );
+}
+
+Future<String> cockpitResolveAppleBundleValue({
+  required String appBundlePath,
+  required List<String> infoPlistPathSegments,
+  required String key,
   required String platformLabel,
 }) async {
   final pathContext = cockpitSessionPathContext(appBundlePath);
@@ -65,14 +92,14 @@ Future<String> cockpitResolveAppleBundleId({
     '/usr/libexec/PlistBuddy',
     <String>[
       '-c',
-      'Print :CFBundleIdentifier',
+      'Print :$key',
       pathContext.joinAll(<String>[appBundlePath, ...infoPlistPathSegments]),
     ],
     timeout: const Duration(seconds: 5),
   );
   if (result.exitCode != 0) {
     throw StateError(
-      'Unable to resolve $platformLabel bundle identifier from '
+      'Unable to resolve $platformLabel bundle $key from '
       '$appBundlePath: ${result.stderr ?? result.stdout}',
     );
   }

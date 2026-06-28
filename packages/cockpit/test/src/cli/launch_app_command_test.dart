@@ -202,6 +202,102 @@ void main() {
     expect(exitCode, 0);
     expect(capturedRequest?.flavor, 'staging');
   });
+
+  test('launch-app forwards Flutter launch configuration flags', () async {
+    CockpitLaunchAppRequest? capturedRequest;
+    final runner = CommandRunner<int>('cockpit', 'test')
+      ..addCommand(
+        LaunchAppCommand(
+          launch: (request) async {
+            capturedRequest = request;
+            return CockpitLaunchAppResult(
+              app: CockpitAppHandle(
+                appId: 'dev.cockpit.demo',
+                mode: CockpitAppMode.development,
+                platform: 'android',
+                deviceId: 'emulator-5554',
+                projectDir: request.projectDir,
+                target: request.target ?? 'cockpit/main.dart',
+                baseUrl: 'http://127.0.0.1:57331',
+                launchedAt: DateTime.utc(2026, 4, 12),
+              ),
+            );
+          },
+        ),
+      );
+
+    final exitCode =
+        await runner.run(<String>[
+          'launch-app',
+          '--project-dir',
+          'examples/cockpit_demo',
+          '--platform',
+          'android',
+          '--device-id',
+          'emulator-5554',
+          '--dart-define',
+          'API_URL=https://example.test',
+          '--dart-define',
+          'EMPTY=',
+          '--dart-define-from-file',
+          'config/dev.json',
+          '--flutter-arg',
+          '--web-renderer=canvaskit',
+          '--flutter-arg',
+          '--enable-experiment records',
+          '--flutter-arg',
+          '--build-name "AI Build"',
+          '--env',
+          'API_TOKEN=secret',
+          '--env',
+          'EMPTY_ENV=',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedRequest?.launchConfiguration.dartDefines, <String>[
+      'API_URL=https://example.test',
+      'EMPTY=',
+    ]);
+    expect(capturedRequest?.launchConfiguration.dartDefineFromFiles, <String>[
+      'config/dev.json',
+    ]);
+    expect(capturedRequest?.launchConfiguration.flutterArgs, <String>[
+      '--web-renderer=canvaskit',
+      '--enable-experiment',
+      'records',
+      '--build-name',
+      'AI Build',
+    ]);
+    expect(capturedRequest?.launchConfiguration.environment, <String, String>{
+      'API_TOKEN': 'secret',
+      'EMPTY_ENV': '',
+    });
+  });
+
+  test('launch-app rejects cockpit-managed raw Flutter arguments', () async {
+    final runner = CommandRunner<int>('cockpit', 'test')
+      ..addCommand(
+        LaunchAppCommand(
+          launch: (_) async => throw StateError('launch should not run'),
+        ),
+      );
+
+    await expectLater(
+      runner.run(<String>[
+        'launch-app',
+        '--project-dir',
+        'examples/cockpit_demo',
+        '--platform',
+        'android',
+        '--device-id',
+        'emulator-5554',
+        '--flutter-arg',
+        '--dart-define FLUTTER_COCKPIT_REMOTE_PORT=1',
+      ]),
+      throwsA(isA<UsageException>()),
+    );
+  });
 }
 
 String _hostDesktopPlatform() {

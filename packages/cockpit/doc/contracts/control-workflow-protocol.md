@@ -345,3 +345,34 @@ task config `script` field and run:
 dart run cockpit run-task --config /tmp/flutter_cockpit/run_task.yaml
 dart run cockpit validate-task --config /tmp/flutter_cockpit/validate_task.yaml
 ```
+
+Task launch configs accept the same Flutter launch inputs as the CLI launch
+commands:
+
+```yaml
+launch:
+  projectDir: /abs/path/to/flutter_app
+  target: cockpit/main.dart
+  flavor: staging
+  platform: android
+  deviceId: emulator-5554
+  sessionPort: 47331
+  launchConfiguration:
+    dartDefines:
+      - API_URL=https://example.test
+    dartDefineFromFiles:
+      - config/dev.json
+    flutterArgs:
+      - --track-widget-creation
+      - --build-name
+      - AI Build
+    environment:
+      API_TOKEN: secret
+```
+
+`launchConfiguration.environment` is an input-only child-process environment.
+Default result JSON redacts environment values to keys, and app/session handles
+do not persist launch environment values. YAML and MCP `flutterArgs` are final
+argv tokens; put paired flag values in separate list items. Use structured
+fields for cockpit-managed target, device, flavor, dart-define, and environment
+inputs.

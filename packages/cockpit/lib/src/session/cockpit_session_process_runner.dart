@@ -7,12 +7,14 @@ Future<ProcessResult> cockpitRunProcessWithTimeout(
   String executable,
   List<String> arguments, {
   String? workingDirectory,
+  Map<String, String>? environment,
   required Duration timeout,
 }) async {
   final process = await Process.start(
     executable,
     arguments,
     workingDirectory: workingDirectory,
+    environment: environment,
     runInShell: cockpitShouldRunExecutableInShell(executable),
   );
   final stdoutCollector = CockpitProcessOutputCollector(process.stdout);
@@ -54,11 +56,13 @@ Future<ProcessResult> cockpitRunShortProcess(
   String executable,
   List<String> arguments, {
   String? workingDirectory,
+  Map<String, String>? environment,
 }) {
   return cockpitRunProcessWithTimeout(
     executable,
     arguments,
     workingDirectory: workingDirectory,
+    environment: environment,
     timeout: const Duration(seconds: 30),
   );
 }

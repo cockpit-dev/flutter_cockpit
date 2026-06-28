@@ -357,6 +357,29 @@ dart run cockpit \
   --app-json /tmp/flutter_cockpit/app.json
 ```
 
+When the app needs Flutter build/run inputs, use the same launch flags on
+`launch-app`, `launch-development-session`, `launch-remote-session`, and
+`launch-target`:
+
+```bash
+dart run cockpit launch-app \
+  --project-dir <project-dir> \
+  --platform <platform> \
+  --device-id <device-id> \
+  --dart-define API_URL=https://example.test \
+  --dart-define-from-file config/dev.json \
+  --env API_TOKEN=secret \
+  --flutter-arg=--web-renderer=canvaskit
+```
+
+Use structured flags for `target`, `device-id`, `flavor`, dart defines, and
+environment values.
+`--flutter-arg` is repeatable and accepts one CLI argument string; quote it
+when a Flutter flag needs a separate value, for example
+`--flutter-arg "--enable-experiment records"`. It rejects cockpit-managed
+Flutter flags such as `--target`, `-d`, `--flavor`, `--machine`,
+`--debug`, `--profile`, `--release`, and dart-define flags.
+
 ```bash
 dart run cockpit \
   read-app \

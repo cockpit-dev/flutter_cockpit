@@ -1,3 +1,5 @@
+import 'cockpit_flutter_launch_configuration.dart';
+
 final class CockpitRemoteSessionLaunchOptions {
   const CockpitRemoteSessionLaunchOptions({
     required this.projectDir,
@@ -10,6 +12,7 @@ final class CockpitRemoteSessionLaunchOptions {
     this.flutterVersion,
     this.flutterExecutable,
     this.launchId,
+    this.launchConfiguration = CockpitFlutterLaunchConfiguration.empty,
   });
 
   final String projectDir;
@@ -22,4 +25,5 @@ final class CockpitRemoteSessionLaunchOptions {
   final String? flutterVersion;
   final String? flutterExecutable;
   final String? launchId;
+  final CockpitFlutterLaunchConfiguration launchConfiguration;
 }

@@ -293,6 +293,27 @@ dart run cockpit \
   --app-json /tmp/flutter_cockpit/web_app.json
 ```
 
+Project launch inputs are shared across launch commands:
+
+```bash
+dart run cockpit launch-app \
+  --project-dir <project-dir> \
+  --platform <platform> \
+  --device-id <device-id> \
+  --flavor staging \
+  --dart-define API_URL=https://example.test \
+  --dart-define-from-file config/dev.json \
+  --env API_TOKEN=secret \
+  --flutter-arg=--web-renderer=canvaskit
+```
+
+`--env` is passed to the child Flutter/build process and is not written into
+app or session handles. `--flutter-arg` is repeatable and accepts one CLI
+argument string; quote it when a Flutter flag needs a separate value, for
+example `--flutter-arg "--enable-experiment records"`. It rejects
+cockpit-managed flags such as `--target`, `-d`, `--flavor`, `--machine`,
+`--debug`, `--profile`, `--release`, and dart-define flags.
+
 ```bash
 dart run cockpit \
   read-app \

@@ -2,6 +2,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_app_handle.dart';
 import '../../application/cockpit_launch_target_service.dart';
+import '../cockpit_flutter_launch_configuration_mcp.dart';
 import '../cockpit_mcp_error.dart';
 import '../cockpit_mcp_tool.dart';
 
@@ -63,6 +64,7 @@ final class CockpitLaunchTargetTool extends CockpitMcpTool {
       },
       'launchTimeoutSeconds': <String, Object?>{'type': 'integer'},
       'targetJson': <String, Object?>{'type': 'string'},
+      ...cockpitFlutterLaunchConfigurationMcpProperties,
     },
   };
 
@@ -94,6 +96,9 @@ final class CockpitLaunchTargetTool extends CockpitMcpTool {
                 120,
           ),
           targetHandlePath: cockpitReadOptionalString(arguments, 'targetJson'),
+          launchConfiguration: cockpitReadMcpFlutterLaunchConfiguration(
+            arguments,
+          ),
         ),
       );
       return cockpitMcpResult(

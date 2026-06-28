@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'cockpit_entrypoint_resolver.dart';
 import '../platform/ios/cockpit_ios_device_connection.dart';
 import '../development/cockpit_development_session_machine_launcher.dart';
+import '../session/cockpit_flutter_launch_configuration.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import '../session/cockpit_remote_session_launcher.dart';
 import 'cockpit_app_handle.dart';
@@ -30,6 +31,7 @@ final class CockpitLaunchAppRequest {
     this.mode = CockpitAppMode.development,
     this.launchTimeout = const Duration(seconds: 600),
     this.appHandlePath,
+    this.launchConfiguration = CockpitFlutterLaunchConfiguration.empty,
   });
 
   final String projectDir;
@@ -41,6 +43,7 @@ final class CockpitLaunchAppRequest {
   final CockpitAppMode mode;
   final Duration launchTimeout;
   final String? appHandlePath;
+  final CockpitFlutterLaunchConfiguration launchConfiguration;
 }
 
 final class CockpitLaunchAppResult {
@@ -105,6 +108,7 @@ final class CockpitLaunchAppService {
           sessionPort: request.sessionPort,
           launchTimeout: request.launchTimeout,
           persistAppHandlePath: request.appHandlePath,
+          launchConfiguration: request.launchConfiguration,
         ),
       );
       _registry?.recordDevelopmentSession(
@@ -204,6 +208,7 @@ final class CockpitLaunchAppService {
         deviceId: request.deviceId,
         sessionPort: request.sessionPort,
         launchTimeout: request.launchTimeout,
+        launchConfiguration: request.launchConfiguration,
       ),
     );
     _registry?.recordRemoteSession(

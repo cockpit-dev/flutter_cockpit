@@ -7,6 +7,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart'
 import '../remote/cockpit_android_port_forwarder.dart';
 import '../platform/ios/cockpit_ios_device_connection.dart';
 import '../session/cockpit_apple_bundle_support.dart';
+import '../session/cockpit_flutter_launch_configuration.dart';
 import '../session/cockpit_platform_app_identity.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import '../session/cockpit_remote_session_launcher.dart';
@@ -22,6 +23,7 @@ typedef CockpitDevelopmentMachineClientStarter =
       String? flavor,
       String? flutterExecutable,
       List<String> extraArgs,
+      Map<String, String>? environment,
     });
 typedef CockpitDevelopmentMachineClientStarted =
     FutureOr<void> Function(CockpitFlutterRunMachineClient machineClient);
@@ -60,6 +62,7 @@ final class CockpitLaunchDevelopmentMachineSessionRequest {
     this.flavor,
     this.flutterExecutable,
     this.launchId,
+    this.launchConfiguration = CockpitFlutterLaunchConfiguration.empty,
   });
 
   final String projectDir;
@@ -73,6 +76,7 @@ final class CockpitLaunchDevelopmentMachineSessionRequest {
   final String? flavor;
   final String? flutterExecutable;
   final String? launchId;
+  final CockpitFlutterLaunchConfiguration launchConfiguration;
 }
 
 final class CockpitLaunchDevelopmentMachineSessionResult {
@@ -238,6 +242,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
       flavor: request.flavor,
       flutterExecutable: request.flutterExecutable,
       extraArgs: _buildRemoteSessionExtraArgs(request, endpoint: endpoint),
+      environment: request.launchConfiguration.processEnvironment,
     );
   }
 
@@ -330,23 +335,20 @@ final class CockpitDevelopmentSessionMachineLauncher {
     CockpitLaunchDevelopmentMachineSessionRequest request, {
     required CockpitResolvedRemoteSessionEndpoint endpoint,
   }) {
-    final extraArgs = <String>[
-      '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
-      '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=${endpoint.bindHost}',
-      '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=${request.sessionPort}',
-      if (request.launchId case final launchId? when launchId.isNotEmpty)
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_LAUNCH_ID=$launchId',
-    ];
-    if (request.platform == 'ios' && endpoint.bindHost == '::') {
-      extraArgs.addAll(const <String>[
-        '--dart-define=FLUTTER_COCKPIT_ENABLE_HTTP_NETWORK_OBSERVER=false',
-        '--dart-define=FLUTTER_COCKPIT_ENABLE_RUNTIME_OBSERVER=false',
-      ]);
-    }
-    extraArgs.add(
-      '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=${request.flutterVersion}',
+    final disableIpv6UnsafeObservers =
+        request.platform == 'ios' && endpoint.bindHost == '::';
+    final internalArgs = cockpitBuildRemoteControlDartDefineArguments(
+      host: endpoint.bindHost,
+      port: request.sessionPort,
+      flutterVersion: request.flutterVersion,
+      launchId: request.launchId,
+      disableHttpNetworkObserver: disableIpv6UnsafeObservers,
+      disableRuntimeObserver: disableIpv6UnsafeObservers,
     );
-    return extraArgs;
+    return cockpitBuildFlutterLaunchArguments(
+      userConfiguration: request.launchConfiguration,
+      internalArguments: internalArgs,
+    );
   }
 
   Future<CockpitResolvedRemoteSessionEndpoint> resolveRemoteSessionEndpoint(

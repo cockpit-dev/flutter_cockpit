@@ -5,6 +5,7 @@ import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_app_handle.dart';
 import '../../application/cockpit_launch_app_service.dart';
+import '../cockpit_flutter_launch_configuration_cli.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
@@ -66,6 +67,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
         help:
             'Optional path where the normalized app handle JSON should be written.',
       );
+    cockpitAddFlutterLaunchConfigurationOptions(argParser);
   }
 
   final CockpitLaunchAppFunction _launch;
@@ -128,6 +130,10 @@ final class LaunchAppCommand extends CockpitCliCommand {
         appHandlePath:
             (argResults?['app-json'] as String?) ??
             cockpitDefaultAppHandlePath(),
+        launchConfiguration: cockpitReadFlutterLaunchConfiguration(
+          argResults,
+          usage,
+        ),
       ),
     );
     await cockpitWriteJsonPayload(

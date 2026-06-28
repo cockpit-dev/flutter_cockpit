@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../infrastructure/cockpit_sdk_environment.dart';
 import '../remote/cockpit_android_port_forwarder.dart';
 import '../remote/cockpit_local_session_port_resolver.dart';
+import '../session/cockpit_flutter_launch_configuration.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import '../session/cockpit_remote_session_launch_options.dart';
 import '../session/cockpit_remote_session_launcher.dart';
@@ -22,6 +23,7 @@ final class CockpitLaunchRemoteSessionRequest {
     this.flavor,
     this.launchTimeout = const Duration(seconds: 120),
     this.persistHandlePath,
+    this.launchConfiguration = CockpitFlutterLaunchConfiguration.empty,
   });
 
   final String projectDir;
@@ -32,6 +34,7 @@ final class CockpitLaunchRemoteSessionRequest {
   final int sessionPort;
   final Duration launchTimeout;
   final String? persistHandlePath;
+  final CockpitFlutterLaunchConfiguration launchConfiguration;
 }
 
 final class CockpitLaunchRemoteSessionResult {
@@ -105,6 +108,7 @@ final class CockpitLaunchRemoteSessionService {
         flutterExecutable: flutterExecutable,
         flutterVersion: flutterVersion,
         launchId: _newRemoteLaunchId(request.platform),
+        launchConfiguration: request.launchConfiguration,
       ),
     );
     final health = await _statusReader(sessionHandle.baseUri);

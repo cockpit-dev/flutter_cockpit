@@ -12,6 +12,7 @@ import '../development/cockpit_development_session_supervisor_client.dart';
 import '../infrastructure/cockpit_sdk_environment.dart';
 import '../remote/cockpit_android_port_forwarder.dart';
 import '../remote/cockpit_local_session_port_resolver.dart';
+import '../session/cockpit_flutter_launch_configuration.dart';
 import '../session/cockpit_session_process_runner.dart';
 import '../session/cockpit_remote_session_launcher.dart';
 import 'cockpit_app_handle.dart';
@@ -50,6 +51,7 @@ final class CockpitLaunchDevelopmentSessionRequest {
     this.launchTimeout = const Duration(seconds: 120),
     this.persistHandlePath,
     this.persistAppHandlePath,
+    this.launchConfiguration = CockpitFlutterLaunchConfiguration.empty,
   });
 
   final String projectDir;
@@ -61,6 +63,7 @@ final class CockpitLaunchDevelopmentSessionRequest {
   final Duration launchTimeout;
   final String? persistHandlePath;
   final String? persistAppHandlePath;
+  final CockpitFlutterLaunchConfiguration launchConfiguration;
 }
 
 final class CockpitDevelopmentSessionBootstrap {
@@ -177,6 +180,7 @@ final class CockpitLaunchDevelopmentSessionService {
       launchTimeout: request.launchTimeout,
       persistHandlePath: request.persistHandlePath,
       persistAppHandlePath: request.persistAppHandlePath,
+      launchConfiguration: request.launchConfiguration,
     );
     final bootstrap = await _launcher(resolvedRequest);
     final persistedHandlePath = await _persistHandleIfRequested(
@@ -494,6 +498,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         request.projectDir,
         '--target',
         request.target!,
+        if (!request.launchConfiguration.isEmpty) '--launch-config-stdin',
         if (request.flavor case final flavor?
             when flavor.isNotEmpty) ...<String>['--flavor', flavor],
         '--platform',
@@ -519,6 +524,16 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       mode: ProcessStartMode.detachedWithStdio,
       runInShell: cockpitShouldRunExecutableInShell(dartExecutable),
     );
+    if (!request.launchConfiguration.isEmpty) {
+      process.stdin.writeln(
+        jsonEncode(
+          request.launchConfiguration.toJson(includeEnvironmentValues: true),
+        ),
+      );
+      await process.stdin.close();
+    } else {
+      process.stdin.close();
+    }
     final stdoutSubscription = _pipeSupervisorBootstrapOutput(
       process.stdout,
       supervisorLogFile,
