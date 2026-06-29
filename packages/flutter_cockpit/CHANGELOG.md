@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- Added shared Flutter launch configuration support for `--dart-define`, `--dart-define-from-file`, extra Flutter arguments, and process-scoped environment values across CLI, MCP, development sessions, remote sessions, workflow scripts, and platform launchers.
+- Added centralized internal remote-control dart define generation so cockpit-owned launch flags stay consistent across platforms and cannot be accidentally overridden by user-provided raw Flutter arguments.
+- Improved AI-first runtime evidence flows through app, native, system, host, and recording planes while preserving low-intrusion `cockpit/` entrypoint integration.
+- Improved task and recording artifact traceability with step-attached screenshots, recording evidence metadata, and chronological artifact naming.
+
 ## 1.0.0
 
 - Initial public release of the in-app runtime layer for `flutter_cockpit`

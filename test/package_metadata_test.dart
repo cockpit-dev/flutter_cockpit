@@ -10,11 +10,12 @@ void main() {
     final devtoolsPubspec = File(
       'packages/cockpit/pubspec.yaml',
     ).readAsStringSync();
+    final runtimeVersion = _readPackageVersion('packages/flutter_cockpit');
 
     expect(runtimePubspec, contains('name: flutter_cockpit'));
     expect(runtimePubspec, isNot(contains('name: flutter_pilot')));
     expect(devtoolsPubspec, contains('name: cockpit'));
-    expect(devtoolsPubspec, contains('flutter_cockpit: ^1.0.0'));
+    expect(devtoolsPubspec, contains('flutter_cockpit: ^$runtimeVersion'));
     expect(devtoolsPubspec, isNot(contains('flutter_pilot: ^1.0.0')));
   });
 
@@ -47,6 +48,7 @@ void main() {
     final runtimeLoop = File(
       '.github/workflows/runtime-loop.yml',
     ).readAsStringSync();
+    final devtoolsVersion = _readPackageVersion('packages/cockpit');
 
     expect(
       workspacePubspec,
@@ -104,7 +106,7 @@ void main() {
     expect(devtoolsPubspec, contains('lints: ^6.1.0'));
     expect(demoPubspec, contains('flutter_lints: ^6.0.0'));
     expect(devtoolsPubspec, contains('dart_mcp: ^0.5.1'));
-    expect(demoPubspec, contains('cockpit: ^1.0.0'));
+    expect(demoPubspec, contains('cockpit: ^$devtoolsVersion'));
     expect(
       demoPubspec,
       contains('drift: ">=2.29.0 <2.30.0"'),

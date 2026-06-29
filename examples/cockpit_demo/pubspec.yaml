@@ -14,8 +14,8 @@ dependencies:
   drift_flutter: ">=0.2.7 <0.2.8"
   flutter:
     sdk: flutter
-  flutter_cockpit: ^1.0.0
-  cockpit: ^1.0.0
+  flutter_cockpit: ^1.1.0
+  cockpit: ^1.1.0
   path_provider: ^2.1.5
   sqlite3: ">=2.9.4 <3.0.0"
   sqlite3_flutter_libs: ">=0.5.42 <0.6.0"

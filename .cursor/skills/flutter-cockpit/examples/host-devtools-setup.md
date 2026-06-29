@@ -6,7 +6,7 @@ Use this when the host needs to drive `flutter_cockpit` from outside the app.
 
 ```yaml
 dev_dependencies:
-  cockpit: ^1.0.0
+  cockpit: ^1.1.0
 ```
 
 ```bash

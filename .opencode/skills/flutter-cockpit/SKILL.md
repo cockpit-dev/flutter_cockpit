@@ -47,6 +47,12 @@ dart run cockpit hot-reload
 dart run cockpit read-errors --max-errors 10
 ```
 
+Launch inputs on all launch commands: `--flavor`, repeatable `--dart-define`,
+`--dart-define-from-file`, `--env`, `--flutter-arg`. Keep cockpit-owned
+`--target`, `-d`, `--flavor`, `--machine`, `--debug|--profile|--release`, and
+dart defines out of `--flutter-arg`; quote pairs:
+`--flutter-arg "--enable-experiment records"`.
+
 ```bash
 printf '%s\n' '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}' >/tmp/flutter_cockpit_command.json
 dart run cockpit run-command --command-file /tmp/flutter_cockpit_command.json --profile standard
@@ -155,7 +161,7 @@ Board:
 dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
 ```
 
-Use same `--output-root`. `sessionId` isolates one job, `taskId` names the objective, and `runId` is one attempt. Reuse `sessionId` for retries; use a new one for unrelated work. The board pins latest `sessionId`; use selector/`all runs` for audit and `--scope latest` to follow. Timeline is scope-level, details/bundles stay per-run, and artifact links carry owning run/event. Submitted jobs and completed in-root bundles share the run API. For handoff, click `download bundle` or GET `/api/runs/<runId>/bundle-download`; the streamed tar contains `download_manifest.json`, `run_metadata.json`, `bundle/**`, `live/**`, with absent parts in `missingRoots`. Board launches need executable envelope: `sessionHandle`, `baseUrl`, `outputRoot`, platform ids.
+Use same `--output-root`. `sessionId` isolates one job, `taskId` names it, and `runId` is one attempt. Reuse `sessionId` for retries; use a new one for unrelated work. Board pins latest `sessionId`; use selector/`all runs` for audit and `--scope latest` to follow. Timeline is scope-level, details/bundles stay per-run, and artifact links carry owning run/event. For handoff, click `download bundle` or GET `/api/runs/<runId>/bundle-download`; tar contains `download_manifest.json`, `run_metadata.json`, `bundle/**`, `live/**`, with absent parts in `missingRoots`. Board launches need executable envelope: `sessionHandle`, `baseUrl`, `outputRoot`, platform ids.
 
 ## Development Defaults
 

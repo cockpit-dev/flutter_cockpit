@@ -24,10 +24,20 @@ void main() {
     final examplePubspec = File(
       'examples/cockpit_demo/pubspec.yaml',
     ).readAsStringSync();
+    final runtimeVersion = _readPackageVersion('packages/flutter_cockpit');
+    final devtoolsVersion = _readPackageVersion('packages/cockpit');
 
-    expect(examplePubspec, contains('flutter_cockpit: ^1.0.0'));
-    expect(examplePubspec, contains('cockpit: ^1.0.0'));
+    expect(examplePubspec, contains('flutter_cockpit: ^$runtimeVersion'));
+    expect(examplePubspec, contains('cockpit: ^$devtoolsVersion'));
     expect(examplePubspec, isNot(contains('flutter_pilot: ^1.0.0')));
     expect(examplePubspec, isNot(contains('flutter_pilot_devtools: ^1.0.0')));
   });
+}
+
+String _readPackageVersion(String packageDir) {
+  final pubspec = File('$packageDir/pubspec.yaml').readAsStringSync();
+  return RegExp(
+    r'^version:\s*(.+)$',
+    multiLine: true,
+  ).firstMatch(pubspec)!.group(1)!.trim();
 }
