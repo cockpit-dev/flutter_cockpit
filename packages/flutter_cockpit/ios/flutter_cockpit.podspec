@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'flutter_cockpit'
-  s.version          = '1.0.0'
+  s.version          = '1.1.0'
   s.summary          = 'Native acceptance screenshot support for flutter_cockpit.'
   s.description      = <<-DESC
 Native acceptance screenshot support for flutter_cockpit.

@@ -35,6 +35,15 @@ dart run cockpit \
 If you omit `--app-json`, the CLI writes the reusable handle to `.dart_tool/flutter_cockpit/latest_app.json` in the current working directory and later app commands reuse it automatically.
 When both `--app-json` and `--base-url` are provided, `--app-json` supplies app identity and platform metadata while `--base-url` overrides only the live connection address.
 Add `--flavor <name>` when the app uses a non-default Android flavor or Xcode scheme.
+For project launch inputs, add repeatable `--dart-define KEY=VALUE`,
+`--dart-define-from-file <path>`, `--env KEY=VALUE`, and `--flutter-arg <arg>`.
+The same flags are accepted by `launch-app`, `launch-target`,
+`launch-development-session`, and `launch-remote-session`. Use structured
+flags for `target`, `device-id`, `flavor`, and dart defines; `--flutter-arg`
+is repeatable and accepts one CLI argument string. Quote two-token Flutter
+flags, for example `--flutter-arg "--enable-experiment records"`. It rejects
+cockpit-managed target, device, flavor, machine, debug/profile/release, and
+dart-define flags.
 For web, keep `--mode development`, and use the exact browser `--device-id` reported by `list-targets`.
 Do not append `&` or otherwise background this command. It returns after the
 app is ready; the supervisor continues in the background for logs, reloads, and
@@ -996,6 +1005,30 @@ Run a full task workflow:
 dart run cockpit \
   run-task \
   --config /tmp/flutter_cockpit/run_task.yaml
+```
+
+`run-task` and `validate-task` configs use the same launch configuration under
+`launch.launchConfiguration`:
+
+```yaml
+launch:
+  projectDir: /abs/path/to/flutter_app
+  target: cockpit/main.dart
+  flavor: staging
+  platform: android
+  deviceId: emulator-5554
+  sessionPort: 47331
+  launchConfiguration:
+    dartDefines:
+      - API_URL=https://example.test
+    dartDefineFromFiles:
+      - config/dev.json
+    flutterArgs:
+      - --track-widget-creation
+      - --build-name
+      - AI Build
+    environment:
+      API_TOKEN: secret
 ```
 
 Validate a full task workflow:

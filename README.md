@@ -29,10 +29,10 @@ single dependency graph without `dependency_overrides`.
 
 ```yaml
 dependencies:
-  flutter_cockpit: ^1.0.0
+  flutter_cockpit: ^1.1.0
 
 dev_dependencies:
-  cockpit: ^1.0.0
+  cockpit: ^1.1.0
 ```
 
 If only `cockpit/main.dart` imports the runtime, keep `flutter_cockpit` in

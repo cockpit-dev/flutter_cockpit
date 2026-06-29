@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0
+
+- Added shared Flutter launch configuration support across CLI, MCP, YAML workflows, development sessions, remote sessions, target launch, and platform launchers, including repeatable dart defines, dart define files, process environment values, and safe extra Flutter arguments.
+- Added non-blocking AI development launch flows where `launch-app` returns after readiness while a background supervisor keeps logs, reload, restart, stop, screenshot, and recording control available.
+- Added production workflow execution with YAML/JSON scripts, conditions, branching, loops, retry, step descriptions, traceable step artifacts, issue evidence, and bundle-ready output roots.
+- Added Devtools live observability with scoped sessions, dense timeline ordering, collapsible panels, media previews, bundle download, workflow submission, and per-run artifact linking.
+- Added system-first screenshot and recording orchestration with app-level fallback when allowed, plus representative recording previews and keyframe storyboards.
+- Expanded Native/System Control Plane capability discovery and platform adapters for Android, iOS simulator/device, macOS, Windows, Linux, and web, with truthful availability metadata and explicit blocked-by-environment diagnostics.
+- Improved CLI output rendering with AI-readable defaults, JSON output for pipelines, file output modes, and path-only terminal responses for file writes.
+- Hardened host process, recorder, web bridge, simulator, and artifact download behavior so long-running development loops remain bounded and recoverable.
+
 ## 1.0.0
 
 - Initial public release of the host-side tooling layer for `flutter_cockpit`
