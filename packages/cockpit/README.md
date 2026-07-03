@@ -36,6 +36,12 @@ cockpit --help
 cockpit_mcp
 ```
 
+If you use FVM, asdf, mise, or another SDK switcher, make sure the global
+`cockpit` executable resolves `dart` from the same compatible Flutter/Dart SDK
+you use for the target workspace. Inside a project, `dart run cockpit ...`
+uses that project's package resolution and is the safest machine-scripted
+entrypoint.
+
 `cockpit_mcp` is the global MCP launcher exposed by this package. If you do not need a global command, you can also run MCP directly with:
 
 ```bash

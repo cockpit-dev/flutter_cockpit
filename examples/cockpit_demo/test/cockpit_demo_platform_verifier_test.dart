@@ -663,7 +663,7 @@ void main() {
         ),
       );
 
-      expect(result.success, isTrue);
+      expect(result.success, isTrue, reason: jsonEncode(result.toJson()));
       expect(result.platforms.map((platform) => platform.platform), <String>[
         'macos',
         'ios',
@@ -3738,6 +3738,85 @@ void main() {
       expect(
         platform.failureMessage,
         contains('browser-host recording output is empty'),
+      );
+    },
+  );
+
+  test(
+    'verifier synthesizes an iOS simulator timeline recording when simctl output is missing',
+    () async {
+      final outputRoot = await Directory.systemTemp.createTemp(
+        'cockpit_ios_simctl_timeline_fallback_',
+      );
+      addTearDown(() async {
+        if (await outputRoot.exists()) {
+          await outputRoot.delete(recursive: true);
+        }
+      });
+      final verifier = await _createSinglePlatformVerifier(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        recordingAdapterResolver:
+            ({
+              required platform,
+              required deviceId,
+              required app,
+              required client,
+              required recording,
+            }) {
+              return _FakeRecordingAdapter(
+                onStart: (request) async => CockpitRecordingSession(
+                  request: request,
+                  state: CockpitRecordingState.recording,
+                ),
+                onStop: () async => CockpitRecordingResult(
+                  state: CockpitRecordingState.failed,
+                  purpose: CockpitRecordingPurpose.acceptance,
+                  recordingKind: CockpitRecordingKind.nativeScreen,
+                  failureReason:
+                      'simctl recording output file was missing or empty. '
+                      'outputPath=/tmp/missing-ios-simctl.mp4',
+                ),
+              );
+            },
+        timelineRecordingProcessRunner: (executable, arguments) async {
+          expect(executable, 'ffmpeg');
+          final outputPath = arguments.last;
+          await File(outputPath).writeAsBytes(<int>[1, 2, 3, 4], flush: true);
+          return ProcessResult(0, 0, '', '');
+        },
+      );
+
+      final result = await verifier.verify(
+        CockpitDemoPlatformVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platforms: const <String>['ios'],
+          outputRoot: outputRoot.path,
+        ),
+      );
+
+      expect(result.success, isTrue, reason: jsonEncode(result.toJson()));
+      final platform = result.platforms.single;
+      expect(platform.status, 'passed');
+      expect(
+        platform.recordingArtifactRef,
+        'recordings/verify_ios_loop_timeline_fallback.mp4',
+      );
+      expect(platform.recordingOutputPath, isNotNull);
+      expect(File(platform.recordingOutputPath!).existsSync(), isTrue);
+      expect(platform.recordingDriver, 'simctl-fallback');
+      expect(platform.recordingKind, 'timelineScreenshotFallback');
+      expect(platform.verifiedCommands, contains('start-recording'));
+      expect(platform.verifiedCommands, contains('stop-recording'));
+      expect(
+        platform.verifiedCommands,
+        contains('timeline-recording-fallback'),
+      );
+      expect(platform.exportedScreenshotCount, platform.autoScreenshotCount);
+      expect(platform.warnings, hasLength(1));
+      expect(
+        platform.warnings.single,
+        contains('Host recording could not be finalized'),
       );
     },
   );

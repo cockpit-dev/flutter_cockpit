@@ -213,7 +213,7 @@ final class CockpitSimctlRecordingAdapter
         state: CockpitRecordingState.failed,
         purpose: request.purpose,
         recordingKind: CockpitRecordingKind.nativeScreen,
-        failureReason: _missingOutputFailureReason,
+        failureReason: _missingOutputFailureReasonFor(outputFile),
       );
     }
     final finalized = await _waitForFinalizedOutput(
@@ -366,7 +366,7 @@ final class CockpitSimctlRecordingAdapter
       durationMs: durationMs,
     );
     if (result.state != CockpitRecordingState.failed ||
-        result.failureReason != _missingOutputFailureReason) {
+        !_isMissingOutputFailure(result.failureReason)) {
       return result;
     }
 
@@ -786,3 +786,11 @@ String _formatDuration(Duration duration) {
 
 const String _missingOutputFailureReason =
     'simctl recording output file was missing or empty.';
+
+String _missingOutputFailureReasonFor(File outputFile) {
+  return '$_missingOutputFailureReason outputPath=${outputFile.path}';
+}
+
+bool _isMissingOutputFailure(String? failureReason) {
+  return failureReason?.startsWith(_missingOutputFailureReason) ?? false;
+}

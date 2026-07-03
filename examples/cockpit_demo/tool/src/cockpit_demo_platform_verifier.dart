@@ -735,6 +735,7 @@ final class CockpitDemoPlatformVerifier {
       } on Object catch (error) {
         if (!_shouldAllowHostRecordingPrerequisiteFailure(
           platform: platform,
+          deviceId: deviceId,
           request: request,
           error: error,
         )) {
@@ -805,6 +806,7 @@ final class CockpitDemoPlatformVerifier {
         } on Object catch (error) {
           if (!_shouldAllowHostRecordingPrerequisiteFailure(
             platform: platform,
+            deviceId: deviceId,
             request: request,
             error: error,
           )) {
@@ -2420,7 +2422,7 @@ final class CockpitDemoPlatformVerifier {
 
   bool _canBuildTimelineRecordingFallback(String platform) {
     return switch (platform) {
-      'linux' || 'macos' || 'web' || 'windows' => true,
+      'ios' || 'linux' || 'macos' || 'web' || 'windows' => true,
       _ => false,
     };
   }
@@ -3288,11 +3290,13 @@ String _recordingDriverForVerification({
 
 bool _shouldAllowHostRecordingPrerequisiteFailure({
   required String platform,
+  required String deviceId,
   required CockpitDemoPlatformVerificationRequest request,
   required Object error,
 }) {
   if (!_canSynthesizeHostRecordingFallback(
     platform: platform,
+    deviceId: deviceId,
     request: request,
   )) {
     return false;
@@ -3325,9 +3329,11 @@ bool _shouldAllowHostRecordingPrerequisiteFailure({
 
 bool _canSynthesizeHostRecordingFallback({
   required String platform,
+  required String deviceId,
   required CockpitDemoPlatformVerificationRequest request,
 }) {
   return switch (platform) {
+    'ios' => cockpitLooksLikeIosSimulatorDeviceId(deviceId),
     'linux' || 'macos' || 'windows' => true,
     'web' => !request.strictWebHostRecording,
     _ => false,
