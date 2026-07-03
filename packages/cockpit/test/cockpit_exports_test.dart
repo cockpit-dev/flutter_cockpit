@@ -20,6 +20,35 @@ void main() {
     expect(CockpitAppHandle, isNotNull);
   });
 
+  test('exports launch configuration helpers and args types', () {
+    final parser = ArgParser();
+    cockpitAddFlutterLaunchConfigurationOptions(parser);
+    final results = parser.parse(<String>[
+      '--dart-define',
+      'FOO=bar',
+      '--flutter-arg',
+      '--enable-experiment records',
+      '--env',
+      'FEATURE_FLAG=enabled',
+    ]);
+
+    expect(results, isA<ArgResults>());
+    final config = cockpitReadFlutterLaunchConfiguration(results, parser.usage);
+    expect(config.dartDefines, <String>['FOO=bar']);
+    expect(config.flutterArgs, <String>['--enable-experiment', 'records']);
+    expect(config.environment, <String, String>{'FEATURE_FLAG': 'enabled'});
+    expect(
+      cockpitFlutterLaunchConfigurationMcpProperties,
+      contains('dartDefines'),
+    );
+    expect(
+      cockpitReadMcpFlutterLaunchConfiguration(<String, Object?>{
+        'dartDefines': <Object?>['API_URL=https://example.test'],
+      }).dartDefines,
+      <String>['API_URL=https://example.test'],
+    );
+  });
+
   test('exports workflow and contract models used by delivery tooling', () {
     expect(CockpitControlScript, isNotNull);
     expect(CockpitWorkflowStep, isNotNull);

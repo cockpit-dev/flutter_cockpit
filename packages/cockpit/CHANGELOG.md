@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Fixed the public `package:cockpit/cockpit.dart` export surface so launch configuration CLI/MCP helpers and their `args` types are available to downstream packages.
+
 ## 1.1.0
 
 - Added shared Flutter launch configuration support across CLI, MCP, YAML workflows, development sessions, remote sessions, target launch, and platform launchers, including repeatable dart defines, dart define files, process environment values, and safe extra Flutter arguments.

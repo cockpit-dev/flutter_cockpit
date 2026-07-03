@@ -1,5 +1,8 @@
 library;
 
+export 'package:args/args.dart' show ArgParser, ArgResults;
+export 'package:args/command_runner.dart' show UsageException;
+
 export 'src/infrastructure/cockpit_clock.dart';
 export 'src/infrastructure/cockpit_file_system.dart';
 export 'src/infrastructure/cockpit_http_client.dart';
@@ -92,7 +95,9 @@ export 'src/application/cockpit_workspace_document.dart';
 export 'src/application/cockpit_workspace_command_result.dart';
 export 'src/validation/cockpit_bundle_artifact_validator.dart';
 export 'src/cli/cockpit_command_runner.dart';
+export 'src/cli/cockpit_flutter_launch_configuration_cli.dart';
 export 'src/mcp/cockpit_mcp_error.dart';
+export 'src/mcp/cockpit_flutter_launch_configuration_mcp.dart';
 export 'src/mcp/cockpit_mcp_server.dart';
 export 'src/mcp/cockpit_mcp_server_runtime.dart';
 export 'src/mcp/cockpit_mcp_tool.dart';
