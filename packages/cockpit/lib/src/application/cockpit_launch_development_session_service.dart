@@ -37,6 +37,15 @@ typedef CockpitSupervisorSpawner =
       required int supervisorPort,
       required File supervisorLogFile,
     });
+typedef CockpitSupervisorPackageConfigResolver = Future<String> Function();
+typedef CockpitSupervisorProcessStarter =
+    Future<Process> Function(
+      String executable,
+      List<String> arguments, {
+      String? workingDirectory,
+      required ProcessStartMode mode,
+      required bool runInShell,
+    });
 typedef CockpitSupervisorLogDirectoryReader = String? Function();
 typedef CockpitDelay = Future<void> Function(Duration duration);
 
@@ -259,6 +268,8 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     required Future<String> Function() flutterExecutableReader,
     Future<String> Function()? dartExecutableReader,
     CockpitSupervisorSpawner? spawnSupervisor,
+    CockpitSupervisorPackageConfigResolver? supervisorPackageConfigResolver,
+    CockpitSupervisorProcessStarter? supervisorProcessStarter,
     CockpitSupervisorLogDirectoryReader? supervisorLogDirectoryReader,
     Future<int> Function()? allocatePort,
     CockpitDelay? delay,
@@ -269,7 +280,30 @@ final class CockpitDevelopmentSessionDaemonLauncher {
        _flutterExecutableReader = flutterExecutableReader,
        _dartExecutableReader =
            dartExecutableReader ?? cockpitResolveActiveDartExecutable,
-       _spawnSupervisor = spawnSupervisor ?? _defaultSpawnSupervisor,
+       _spawnSupervisor =
+           spawnSupervisor ??
+           (({
+             required request,
+             required flutterVersion,
+             required flutterExecutable,
+             required dartExecutable,
+             required hostPort,
+             required supervisorPort,
+             required supervisorLogFile,
+           }) => _defaultSpawnSupervisor(
+             request: request,
+             flutterVersion: flutterVersion,
+             flutterExecutable: flutterExecutable,
+             dartExecutable: dartExecutable,
+             hostPort: hostPort,
+             supervisorPort: supervisorPort,
+             supervisorLogFile: supervisorLogFile,
+             supervisorPackageConfigResolver:
+                 supervisorPackageConfigResolver ??
+                 _resolveSupervisorPackageConfig,
+             supervisorProcessStarter:
+                 supervisorProcessStarter ?? _startSupervisorProcess,
+           )),
        _supervisorLogDirectoryReader =
            supervisorLogDirectoryReader ?? _defaultSupervisorLogDirectory,
        _allocatePort = allocatePort ?? _defaultAllocatePort,
@@ -482,17 +516,21 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     required int hostPort,
     required int supervisorPort,
     required File supervisorLogFile,
+    required CockpitSupervisorPackageConfigResolver
+    supervisorPackageConfigResolver,
+    required CockpitSupervisorProcessStarter supervisorProcessStarter,
   }) async {
     await supervisorLogFile.parent.create(recursive: true);
     await supervisorLogFile.create(recursive: true);
     final supervisorEntrypoint = await _resolveSupervisorEntrypoint();
+    final supervisorPackageConfig = await supervisorPackageConfigResolver();
     final supervisorLaunchTimeout = _childSupervisorLaunchTimeout(
       request.launchTimeout,
     );
-    final process = await Process.start(
+    final process = await supervisorProcessStarter(
       dartExecutable,
       <String>[
-        'run',
+        '--packages=$supervisorPackageConfig',
         supervisorEntrypoint,
         '--project-dir',
         request.projectDir,
@@ -619,6 +657,22 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     }
   }
 
+  static Future<Process> _startSupervisorProcess(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    required ProcessStartMode mode,
+    required bool runInShell,
+  }) {
+    return Process.start(
+      executable,
+      arguments,
+      workingDirectory: workingDirectory,
+      mode: mode,
+      runInShell: runInShell,
+    );
+  }
+
   static Future<String> _resolveSupervisorEntrypoint() async {
     final packageLibUri = await Isolate.resolvePackageUri(
       Uri.parse('package:cockpit/cockpit.dart'),
@@ -633,6 +687,57 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     return p.normalize(
       p.join(packageRoot, 'bin', 'cockpit_development_supervisor.dart'),
     );
+  }
+
+  static Future<String> _resolveSupervisorPackageConfig() async {
+    final packageConfigUri = await Isolate.packageConfig;
+    if (packageConfigUri != null && packageConfigUri.scheme == 'file') {
+      final packageConfigPath = p.normalize(p.fromUri(packageConfigUri));
+      if (File(packageConfigPath).existsSync()) {
+        return packageConfigPath;
+      }
+    }
+
+    final packageLibUri = await Isolate.resolvePackageUri(
+      Uri.parse('package:cockpit/cockpit.dart'),
+    );
+    if (packageLibUri == null || packageLibUri.scheme != 'file') {
+      throw StateError(
+        'Unable to resolve the cockpit package configuration for the '
+        'development supervisor.',
+      );
+    }
+    final packageRoot = p.normalize(
+      p.join(p.dirname(p.fromUri(packageLibUri)), '..'),
+    );
+    final packageConfig = await _findNearestPackageConfig(packageRoot);
+    if (packageConfig != null) {
+      return packageConfig;
+    }
+    throw StateError(
+      'Unable to locate .dart_tool/package_config.json for the cockpit '
+      'development supervisor. Run dart pub get for the package that provides '
+      'the cockpit command, then retry.',
+    );
+  }
+
+  static Future<String?> _findNearestPackageConfig(
+    String startDirectory,
+  ) async {
+    var current = Directory(p.normalize(startDirectory));
+    while (true) {
+      final packageConfig = File(
+        p.join(current.path, '.dart_tool', 'package_config.json'),
+      );
+      if (await packageConfig.exists()) {
+        return p.normalize(packageConfig.path);
+      }
+      final parent = current.parent;
+      if (parent.path == current.path) {
+        return null;
+      }
+      current = parent;
+    }
   }
 
   static bool _isStartupLockContention(String? error) {

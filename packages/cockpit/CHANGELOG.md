@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2
+
+- Fixed development supervisor startup so the background Dart process uses the `cockpit` tool package resolution context instead of the launched Flutter app workspace.
+
 ## 1.1.1
 
 - Fixed the public `package:cockpit/cockpit.dart` export surface so launch configuration CLI/MCP helpers and their `args` types are available to downstream packages.

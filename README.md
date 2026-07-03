@@ -32,7 +32,7 @@ dependencies:
   flutter_cockpit: ^1.1.0
 
 dev_dependencies:
-  cockpit: ^1.1.1
+  cockpit: ^1.1.2
 ```
 
 If only `cockpit/main.dart` imports the runtime, keep `flutter_cockpit` in

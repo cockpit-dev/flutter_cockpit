@@ -1,6 +1,6 @@
 name: cockpit
 description: Host-side tooling for flutter_cockpit task execution and artifact handling.
-version: 1.1.1
+version: 1.1.2
 homepage: https://github.com/cockpit-dev/flutter_cockpit
 repository: https://github.com/cockpit-dev/flutter_cockpit
 issue_tracker: https://github.com/cockpit-dev/flutter_cockpit/issues

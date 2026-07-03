@@ -138,7 +138,7 @@ final class CockpitMcpServer {
     CockpitSessionRegistry? sessionRegistry,
     CockpitLatestTaskStore? latestTaskStore,
     this.serverName = 'cockpit',
-    this.serverVersion = '1.1.1',
+    this.serverVersion = '1.1.2',
   }) : rootsTracker = rootsTracker ?? CockpitMcpRootsTracker(),
        sessionRegistry = sessionRegistry ?? CockpitSessionRegistry(),
        latestTaskStore = latestTaskStore ?? CockpitLatestTaskStore(),
@@ -148,7 +148,7 @@ final class CockpitMcpServer {
 
   factory CockpitMcpServer.standard({
     String serverName = 'cockpit',
-    String serverVersion = '1.1.1',
+    String serverVersion = '1.1.2',
     String protocolPath = 'docs/contracts/flutter-cockpit-protocol.md',
     String aiDevelopmentProtocolPath =
         'docs/contracts/ai-development-protocol.md',

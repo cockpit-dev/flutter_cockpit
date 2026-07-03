@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -352,6 +353,86 @@ void main() {
 
       expect(capturedLogPath, startsWith(tempDir.path));
       expect(result.supervisorLogPath, capturedLogPath);
+    },
+  );
+
+  test(
+    'daemon launcher starts the supervisor with the tool package resolution context',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit-supervisor-package-config-',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final packageConfigFile = File(
+        p.join(tempDir.path, 'tool', '.dart_tool', 'package_config.json'),
+      );
+      await packageConfigFile.parent.create(recursive: true);
+      await packageConfigFile.writeAsString(
+        '{"configVersion":2,"packages":[]}',
+      );
+      final appProjectDir = p.join(tempDir.path, 'app_without_cockpit_dep');
+      await Directory(appProjectDir).create(recursive: true);
+
+      String? startedExecutable;
+      List<String>? startedArguments;
+      String? startedWorkingDirectory;
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (_) async =>
+            CockpitDevelopmentSessionSupervisorResponse(
+              sessionHandle: _handle().copyWith(
+                projectDir: appProjectDir,
+                supervisorBaseUrl: 'http://127.0.0.1:60031',
+              ),
+              status: _readyStatus(_handle()),
+            ),
+        portForwarder: const _StubPortForwarder(57331),
+        flutterVersionReader: () async => '3.32.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
+        supervisorPackageConfigResolver: () async => packageConfigFile.path,
+        supervisorLogDirectoryReader: () => tempDir.path,
+        allocatePort: () async => 60031,
+        delay: (_) async {},
+        supervisorProcessStarter:
+            (
+              executable,
+              arguments, {
+              workingDirectory,
+              mode = ProcessStartMode.normal,
+              runInShell = false,
+            }) async {
+              startedExecutable = executable;
+              startedArguments = List<String>.of(arguments);
+              startedWorkingDirectory = workingDirectory;
+              return _FakeSupervisorProcess();
+            },
+      );
+
+      await launcher.launch(
+        CockpitLaunchDevelopmentSessionRequest(
+          projectDir: appProjectDir,
+          target: 'cockpit/main.dart',
+          platform: 'macos',
+          deviceId: 'macos',
+          sessionPort: 47331,
+          launchTimeout: const Duration(seconds: 1),
+        ),
+      );
+
+      expect(startedExecutable, '/opt/flutter/bin/cache/dart-sdk/bin/dart');
+      expect(startedArguments?[0], '--packages=${packageConfigFile.path}');
+      expect(
+        startedArguments?[1],
+        endsWith('cockpit_development_supervisor.dart'),
+      );
+      expect(startedArguments, isNot(contains('run')));
+      expect(startedWorkingDirectory, appProjectDir);
     },
   );
 
@@ -1414,6 +1495,34 @@ final class _ThrowingPortForwarder extends CockpitAndroidPortForwarder {
   }) async {
     throw StateError('macos bootstrap must not request Android forwarding');
   }
+}
+
+final class _FakeSupervisorProcess implements Process {
+  final StreamController<List<int>> _stdoutController =
+      StreamController<List<int>>();
+  final StreamController<List<int>> _stderrController =
+      StreamController<List<int>>();
+  final StreamController<List<int>> _stdinController =
+      StreamController<List<int>>();
+  final Completer<int> _exitCode = Completer<int>()..complete(0);
+
+  @override
+  int get pid => 4242;
+
+  @override
+  IOSink get stdin => IOSink(_stdinController.sink);
+
+  @override
+  Stream<List<int>> get stdout => _stdoutController.stream;
+
+  @override
+  Stream<List<int>> get stderr => _stderrController.stream;
+
+  @override
+  Future<int> get exitCode => _exitCode.future;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) => true;
 }
 
 CockpitDevelopmentSessionHandle _handle({String target = 'lib/main.dart'}) {
