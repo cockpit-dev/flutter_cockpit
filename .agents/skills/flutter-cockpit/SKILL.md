@@ -37,9 +37,7 @@ Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoi
 ## Fast Command Pack
 
 Default stdout is AI-readable. Add `--stdout-format json` only for `jq`; add `--output <path>` for files, `--output-format json` for machine-readable files.
-Use `dart run cockpit` inside a project. If `cockpit` is globally activated,
-the same commands may use `cockpit` directly, but the `dart` on `PATH` must be
-from a Flutter/Dart SDK compatible with the target workspace.
+`dart run cockpit`; global `cockpit`; align SDK.
 
 ```bash
 dart run cockpit list-targets
