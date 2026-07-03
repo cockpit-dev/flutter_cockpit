@@ -6,7 +6,7 @@ import 'package:cockpit/src/application/cockpit_read_target_service.dart';
 import 'package:cockpit/src/cli/cockpit_interactive_cli_support.dart';
 import 'package:cockpit/src/cli/commands/read_target_command.dart';
 import 'package:cockpit/src/targets/cockpit_target_handle.dart';
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:test/test.dart';
 
 void main() {

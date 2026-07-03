@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/cockpit.dart';
 import 'package:cockpit/src/mcp/tools/cockpit_collect_development_probe_tool.dart';
 import 'package:test/test.dart';

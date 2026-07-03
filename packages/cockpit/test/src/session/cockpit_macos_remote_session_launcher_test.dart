@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/src/session/cockpit_flutter_launch_configuration.dart';
 import 'package:cockpit/src/session/cockpit_macos_remote_session_launcher.dart';
 import 'package:cockpit/src/session/cockpit_remote_session_launch_options.dart';

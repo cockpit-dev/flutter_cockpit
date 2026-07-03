@@ -63,7 +63,7 @@ void main() {
     }
 
     final runtimeConfig = File(
-      '$root/packages/flutter_cockpit/lib/src/remote/cockpit_remote_session_configuration.dart',
+      '$root/packages/flutter_cockpit_protocol/lib/src/remote/cockpit_remote_session_configuration.dart',
     ).readAsStringSync();
     expect(runtimeConfig, contains('FLUTTER_COCKPIT_REMOTE_ENABLED'));
     expect(runtimeConfig, contains('FLUTTER_COCKPIT_REMOTE_HOST'));

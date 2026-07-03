@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_read_network_service.dart';
 import 'package:cockpit/src/application/cockpit_session_registry.dart';
 import 'package:cockpit/src/mcp/tools/cockpit_read_network_tool.dart';

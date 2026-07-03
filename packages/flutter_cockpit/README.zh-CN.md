@@ -24,7 +24,7 @@
 
 ```yaml
 dependencies:
-  flutter_cockpit: ^1.1.0
+  flutter_cockpit: ^1.1.3
 ```
 
 如果只有 `cockpit/main.dart` import runtime，优先把 `flutter_cockpit`

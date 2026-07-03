@@ -1,16 +1,1 @@
-import 'dart:typed_data';
-
-import '../model/cockpit_artifact_ref.dart';
-import '../runtime/cockpit_snapshot.dart';
-
-final class CockpitCapturedScreenshot {
-  const CockpitCapturedScreenshot({
-    required this.artifact,
-    required this.bytes,
-    this.snapshot,
-  });
-
-  final CockpitArtifactRef artifact;
-  final Uint8List bytes;
-  final CockpitSnapshot? snapshot;
-}
+export 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';

@@ -2,7 +2,7 @@
 
 import 'dart:io';
 
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:path/path.dart' as p;
 
 typedef CockpitTimelineVideoProcessRunner =

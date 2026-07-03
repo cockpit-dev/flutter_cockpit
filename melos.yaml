@@ -1,6 +1,7 @@
 name: flutter_cockpit_workspace
 
 packages:
+  - packages/flutter_cockpit_protocol
   - packages/flutter_cockpit
   - packages/cockpit
   - examples/cockpit_demo

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.3
+
+- Removed the hosted CLI/MCP package dependency on the Flutter SDK by moving shared control, evidence, recording, runtime, and bridge DTOs to the pure Dart `flutter_cockpit_protocol` package.
+- Fixed pub.dev global activation and project-local `dart run cockpit:cockpit` so development supervisor startup works from both installation modes.
+
 ## 1.1.2
 
 - Fixed development supervisor startup so the background Dart process uses the `cockpit` tool package resolution context instead of the launched Flutter app workspace.

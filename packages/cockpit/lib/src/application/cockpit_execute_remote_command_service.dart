@@ -2,7 +2,7 @@ export 'cockpit_application_service_exception.dart';
 
 import 'dart:io';
 
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:path/path.dart' as p;
 
 import '../control_core/cockpit_control_planner.dart';

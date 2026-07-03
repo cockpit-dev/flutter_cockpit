@@ -1,12 +1,1 @@
-enum CockpitExecutionPolicy {
-  auto,
-  preferFlutter,
-  preferNative,
-  preferSystem,
-  forcePlane,
-  noFallback;
-
-  static CockpitExecutionPolicy fromJson(Object? json) {
-    return values.byName(json! as String);
-  }
-}
+export 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';

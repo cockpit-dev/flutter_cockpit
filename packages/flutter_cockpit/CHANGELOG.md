@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.3
+
+- Re-exported shared AI control, evidence, recording, and runtime protocol models from the pure Dart `flutter_cockpit_protocol` package so host tooling can run without a Flutter SDK dependency.
+
 ## 1.1.0
 
 - Added shared Flutter launch configuration support for `--dart-define`, `--dart-define-from-file`, extra Flutter arguments, and process-scoped environment values across CLI, MCP, development sessions, remote sessions, workflow scripts, and platform launchers.

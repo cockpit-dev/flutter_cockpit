@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_cockpit/flutter_cockpit.dart';
-import 'package:flutter_cockpit/flutter_cockpit_remote_bridge.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_remote_bridge_protocol.dart';
 
 import 'cockpit_browser_recording_adapter_resolver.dart';
 import '../remote/cockpit_remote_command_timeout_budget.dart';

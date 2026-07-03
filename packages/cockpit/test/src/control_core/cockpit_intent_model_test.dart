@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/src/control_core/cockpit_intent.dart';
 import 'package:cockpit/src/control_core/cockpit_intent_action.dart';
 import 'package:cockpit/src/control_core/cockpit_intent_subject.dart';

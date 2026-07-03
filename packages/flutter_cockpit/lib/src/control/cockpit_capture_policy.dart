@@ -1,10 +1,1 @@
-enum CockpitCapturePolicy {
-  none,
-  afterAction,
-  onFailure,
-  afterActionAndFailure;
-
-  static CockpitCapturePolicy fromJson(Object? json) {
-    return values.byName(json! as String);
-  }
-}
+export 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';

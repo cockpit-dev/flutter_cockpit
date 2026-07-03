@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 
 import '../capture/cockpit_capture_strategy_resolver.dart';
 import '../remote/cockpit_remote_session_client.dart';

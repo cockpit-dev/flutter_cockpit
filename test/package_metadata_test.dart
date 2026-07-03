@@ -7,21 +7,47 @@ void main() {
     final runtimePubspec = File(
       'packages/flutter_cockpit/pubspec.yaml',
     ).readAsStringSync();
+    final protocolPubspec = File(
+      'packages/flutter_cockpit_protocol/pubspec.yaml',
+    ).readAsStringSync();
     final devtoolsPubspec = File(
       'packages/cockpit/pubspec.yaml',
     ).readAsStringSync();
     final runtimeVersion = _readPackageVersion('packages/flutter_cockpit');
+    final protocolVersion = _readPackageVersion(
+      'packages/flutter_cockpit_protocol',
+    );
 
     expect(runtimePubspec, contains('name: flutter_cockpit'));
     expect(runtimePubspec, isNot(contains('name: flutter_pilot')));
+    expect(protocolPubspec, contains('name: flutter_cockpit_protocol'));
     expect(devtoolsPubspec, contains('name: cockpit'));
-    expect(devtoolsPubspec, contains('flutter_cockpit: ^$runtimeVersion'));
+    expect(
+      runtimePubspec,
+      contains('flutter_cockpit_protocol: ^$protocolVersion'),
+    );
+    expect(
+      devtoolsPubspec,
+      contains('flutter_cockpit_protocol: ^$protocolVersion'),
+    );
+    expect(
+      devtoolsPubspec,
+      isNot(contains('flutter_cockpit: ^$runtimeVersion')),
+    );
+    expect(
+      devtoolsPubspec,
+      isNot(contains('flutter:\n    sdk: flutter')),
+      reason: 'The hosted cockpit executable must support pub global run.',
+    );
     expect(devtoolsPubspec, isNot(contains('flutter_pilot: ^1.0.0')));
   });
 
   test('supported Flutter floor matches package, tooling, and CI bounds', () {
     final workspacePubspec = File('pubspec.yaml').readAsStringSync();
     final workspaceLockfile = File('pubspec.lock').readAsStringSync();
+    final protocolPubspec = File(
+      'packages/flutter_cockpit_protocol/pubspec.yaml',
+    ).readAsStringSync();
     final runtimePubspec = File(
       'packages/flutter_cockpit/pubspec.yaml',
     ).readAsStringSync();
@@ -67,6 +93,7 @@ void main() {
     );
     for (final pubspec in <String>[
       workspacePubspec,
+      protocolPubspec,
       runtimePubspec,
       devtoolsPubspec,
       demoPubspec,
@@ -95,6 +122,7 @@ void main() {
     expect(devtoolsReadmeZh, contains('Dart 3.8.0'));
     expect(devtoolsReadmeZh, contains('Flutter 3.32.0'));
     expect(workspacePubspec, contains('lints: ^6.1.0'));
+    expect(protocolPubspec, contains('lints: ^6.1.0'));
     expect(
       workspacePubspec,
       contains('melos: 6.3.3'),
@@ -103,6 +131,7 @@ void main() {
     );
     expect(runtimePubspec, contains('web_socket_channel: ^3.0.3'));
     expect(runtimePubspec, contains('flutter_lints: ^6.0.0'));
+    expect(protocolPubspec, contains('collection: ^1.18.0'));
     expect(devtoolsPubspec, contains('lints: ^6.1.0'));
     expect(demoPubspec, contains('flutter_lints: ^6.0.0'));
     expect(devtoolsPubspec, contains('dart_mcp: ^0.5.1'));

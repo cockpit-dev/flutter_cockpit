@@ -1,7 +1,7 @@
 import '../development/cockpit_development_session_handle.dart';
 import '../development/cockpit_development_session_status.dart';
 import '../session/cockpit_remote_session_handle.dart';
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 
 final class CockpitDevelopmentSessionRecord {
   const CockpitDevelopmentSessionRecord({

@@ -6,7 +6,7 @@ import 'package:test/test.dart';
 
 void main() {
   test(
-    'package:flutter_cockpit/flutter_cockpit.dart stays pure Dart importable',
+    'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart stays pure Dart importable',
     () async {
       final packageDir = _resolvePackageDir();
       final fixturePath = p.join(

@@ -1,8 +1,1 @@
-enum CockpitCommandStatus {
-  succeeded,
-  failed;
-
-  static CockpitCommandStatus fromJson(Object? json) {
-    return values.byName(json! as String);
-  }
-}
+export 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';

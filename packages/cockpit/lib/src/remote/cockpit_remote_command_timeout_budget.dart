@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 
 const Duration cockpitRemoteCommandDefaultExecutionTimeout = Duration(
   seconds: 4,

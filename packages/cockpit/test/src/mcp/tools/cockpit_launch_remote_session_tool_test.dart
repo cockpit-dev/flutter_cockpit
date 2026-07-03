@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_application_service_exception.dart';
 import 'package:cockpit/src/application/cockpit_launch_remote_session_service.dart';
 import 'package:cockpit/src/application/cockpit_session_registry.dart';

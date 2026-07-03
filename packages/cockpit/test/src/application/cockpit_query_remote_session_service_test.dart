@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_query_remote_session_service.dart';
 import 'package:cockpit/src/session/cockpit_remote_session_handle.dart';
 import 'package:path/path.dart' as p;

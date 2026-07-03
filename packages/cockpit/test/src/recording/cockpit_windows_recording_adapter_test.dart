@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/src/platform/windows/cockpit_windows_window_target.dart';
 import 'package:cockpit/src/recording/cockpit_windows_recording_adapter.dart';
 import 'package:test/test.dart';

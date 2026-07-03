@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter_cockpit/flutter_cockpit.dart'
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart'
     show CockpitRemoteSessionStatus;
 
 import '../remote/cockpit_android_port_forwarder.dart';

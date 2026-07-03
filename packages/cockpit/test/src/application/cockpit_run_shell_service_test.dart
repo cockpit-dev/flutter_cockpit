@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_application_service_exception.dart';
 import 'package:cockpit/src/application/cockpit_run_shell_service.dart';
 import 'package:cockpit/src/infrastructure/cockpit_process_manager.dart';

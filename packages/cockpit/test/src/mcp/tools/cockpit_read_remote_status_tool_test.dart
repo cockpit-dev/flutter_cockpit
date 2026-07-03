@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_read_remote_status_service.dart';
 import 'package:cockpit/src/mcp/tools/cockpit_read_remote_status_tool.dart';
 import 'package:test/test.dart';

@@ -19,7 +19,7 @@ From pub for the non-intrusive `cockpit/` entrypoint pattern:
 
 ```yaml
 dev_dependencies:
-  flutter_cockpit: ^1.1.0
+  flutter_cockpit: ^1.1.3
 ```
 
 Or directly from Git:

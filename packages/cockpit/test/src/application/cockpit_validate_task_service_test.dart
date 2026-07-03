@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_bundle_artifact_paths.dart';
 import 'package:cockpit/src/application/cockpit_read_task_bundle_summary_service.dart';
 import 'package:cockpit/src/application/cockpit_run_task_service.dart';

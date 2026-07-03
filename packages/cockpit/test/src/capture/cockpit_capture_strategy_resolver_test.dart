@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/cockpit.dart';
 import 'package:cockpit/src/capture/cockpit_host_preferred_capture_adapter.dart';
 import 'package:cockpit/src/platform/web/cockpit_browser_host_app_id.dart';

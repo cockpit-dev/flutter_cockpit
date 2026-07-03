@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:cockpit/src/application/cockpit_validate_task_service.dart';
 import 'package:cockpit/src/cli/cockpit_control_script.dart';
 import 'package:cockpit/src/runner/cockpit_workflow_step.dart';
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';

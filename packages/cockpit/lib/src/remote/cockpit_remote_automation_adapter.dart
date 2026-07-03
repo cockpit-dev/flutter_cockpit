@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 
 import '../adapters/cockpit_automation_adapter.dart';
 import 'cockpit_remote_session_client.dart';

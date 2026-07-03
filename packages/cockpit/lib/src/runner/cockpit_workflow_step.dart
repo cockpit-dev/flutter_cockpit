@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:yaml/yaml.dart';
 
 sealed class CockpitWorkflowStep {

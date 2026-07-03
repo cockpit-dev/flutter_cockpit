@@ -9,11 +9,13 @@ void main() {
 
     expect(rootPubspec, contains('name: flutter_cockpit_workspace'));
     expect(rootPubspec, contains('workspace:'));
+    expect(rootPubspec, contains('- packages/flutter_cockpit_protocol'));
     expect(rootPubspec, contains('- packages/flutter_cockpit'));
     expect(rootPubspec, contains('- packages/cockpit'));
     expect(rootPubspec, contains('- examples/cockpit_demo'));
     expect(melosConfig, contains('name: flutter_cockpit_workspace'));
     expect(melosConfig, contains('packages:'));
+    expect(melosConfig, contains('- packages/flutter_cockpit_protocol'));
     expect(melosConfig, contains('- packages/flutter_cockpit'));
     expect(melosConfig, contains('- packages/cockpit'));
     expect(melosConfig, contains('- examples/cockpit_demo'));

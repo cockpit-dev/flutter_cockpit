@@ -1,9 +1,1 @@
-enum CockpitTaskStatus {
-  running,
-  completed,
-  failed;
-
-  static CockpitTaskStatus fromJson(Object? value) {
-    return CockpitTaskStatus.values.byName(value! as String);
-  }
-}
+export 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';

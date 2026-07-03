@@ -24,7 +24,7 @@ Requires Flutter 3.32.0 or newer.
 
 ```yaml
 dependencies:
-  flutter_cockpit: ^1.1.0
+  flutter_cockpit: ^1.1.3
 ```
 
 If only `cockpit/main.dart` imports the runtime, prefer putting

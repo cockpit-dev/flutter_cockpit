@@ -1,6 +1,6 @@
 export 'cockpit_application_service_exception.dart';
 
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_execute_remote_command_service.dart';

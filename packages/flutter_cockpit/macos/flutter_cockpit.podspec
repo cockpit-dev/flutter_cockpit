@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'flutter_cockpit'
-  s.version          = '1.1.0'
+  s.version          = '1.1.3'
   s.summary          = 'In-app runtime primitives for AI-driven Flutter development workflows.'
   s.description      = <<-DESC
 In-app runtime primitives for AI-driven Flutter development workflows.

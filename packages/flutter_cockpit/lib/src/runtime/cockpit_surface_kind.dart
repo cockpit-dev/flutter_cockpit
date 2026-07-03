@@ -1,13 +1,1 @@
-enum CockpitSurfaceKind {
-  flutterSemantic,
-  nativeUi,
-  systemUi,
-  desktopWindow,
-  browserDom,
-  deviceShell,
-  hostShell;
-
-  static CockpitSurfaceKind fromJson(Object? json) {
-    return values.byName(json! as String);
-  }
-}
+export 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/src/mcp/cockpit_mcp_error.dart';
 import 'package:cockpit/src/application/cockpit_launch_target_service.dart';
 import 'package:cockpit/src/mcp/tools/cockpit_launch_target_tool.dart';

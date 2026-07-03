@@ -1,13 +1,1 @@
-enum CockpitQualityFlag {
-  experimental,
-  simulatorOnly,
-  realDeviceOnly,
-  requiresAccessibility,
-  requiresDeveloperMode,
-  requiresBrowserDriver,
-  requiresForegroundWindow;
-
-  static CockpitQualityFlag fromJson(Object? json) {
-    return values.byName(json! as String);
-  }
-}
+export 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
