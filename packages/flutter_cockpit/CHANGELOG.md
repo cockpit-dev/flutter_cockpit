@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.4
+
+- Updated published package metadata and documentation for the 1.1.4 host tooling release.
+
 ## 1.1.3
 
 - Re-exported shared AI control, evidence, recording, and runtime protocol models from the pure Dart `flutter_cockpit_protocol` package so host tooling can run without a Flutter SDK dependency.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.4
+
+- Fixed development supervisor startup from global and project-local entrypoints by preserving the tool package resolution context for the detached supervisor process.
+- Hardened iOS simulator recorded validation so simulator recording finalization gaps can still use traceable timeline evidence instead of failing completed flows without useful diagnostics.
+- Synced packaged MCP contract fallback documents with the repository contracts for AI development, workflow, and task-run bundle traceability.
+
 ## 1.1.3
 
 - Removed the hosted CLI/MCP package dependency on the Flutter SDK by moving shared control, evidence, recording, runtime, and bridge DTOs to the pure Dart `flutter_cockpit_protocol` package.

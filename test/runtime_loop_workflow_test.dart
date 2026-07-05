@@ -38,12 +38,16 @@ void main() {
     expect(
       workflow,
       contains(
-        'flutter analyze packages/flutter_cockpit packages/cockpit examples/cockpit_demo test',
+        'flutter analyze packages/flutter_cockpit_protocol packages/flutter_cockpit packages/cockpit examples/cockpit_demo test',
       ),
     );
     expect(workflow, contains('flutter pub publish --dry-run'));
     expect(workflow, contains('dart pub publish --dry-run'));
     expect(workflow, contains('dart test test'));
+    expect(
+      workflow,
+      contains('(cd packages/flutter_cockpit_protocol && dart test)'),
+    );
     expect(workflow, contains('(cd packages/flutter_cockpit && flutter test)'));
     expect(workflow, contains('(cd packages/cockpit && dart test)'));
     expect(workflow, contains('(cd examples/cockpit_demo && flutter test)'));
@@ -575,6 +579,12 @@ void main() {
     );
 
     expect(readinessBlock, contains('flutter pub get'));
+    expect(
+      readinessBlock,
+      contains(
+        '(cd packages/flutter_cockpit_protocol && dart pub publish --dry-run)',
+      ),
+    );
     expect(readinessBlock, contains('git diff --exit-code pubspec.lock'));
   });
 
@@ -587,6 +597,10 @@ void main() {
         'Run full shared regression suite',
       );
 
+      expect(
+        regressionBlock,
+        contains('(cd packages/flutter_cockpit_protocol && dart test)'),
+      );
       expect(regressionBlock, contains('(cd packages/cockpit && dart test)'));
       expect(regressionBlock, contains('flutter pub get'));
       expect(regressionBlock, contains('git diff --exit-code pubspec.lock'));

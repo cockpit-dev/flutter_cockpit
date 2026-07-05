@@ -369,12 +369,15 @@ void main() {
     ];
 
     for (final fileName in contractFiles) {
+      final rootContract = File('docs/contracts/$fileName');
+      final packageContract = File('packages/cockpit/doc/contracts/$fileName');
+      expect(packageContract.existsSync(), isTrue);
       expect(
-        File('packages/cockpit/doc/contracts/$fileName').existsSync(),
-        isTrue,
+        packageContract.readAsBytesSync(),
+        rootContract.readAsBytesSync(),
         reason:
             'MCP workspace contract resources must work from a published '
-            'cockpit package, not only from the monorepo root.',
+            'cockpit package with the same contract text as the monorepo root.',
       );
     }
   });

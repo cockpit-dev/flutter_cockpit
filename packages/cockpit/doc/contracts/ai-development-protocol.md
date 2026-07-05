@@ -108,7 +108,11 @@ links carry the owning run and event key so repeated relative paths stay
 traceable. Use `--scope latest` only when a live operations board should keep
 following the newest job. API clients may pass `scope=current` or
 `scope=latest`; both resolve to the current latest scope and report `scopeMode`
-so readers can distinguish pinned and following views.
+so readers can distinguish pinned and following views. Use `download bundle` or
+`GET /api/runs/<runId>/bundle-download` when a complete portable handoff is
+needed. The response is a streamed tar containing `download_manifest.json`,
+`run_metadata.json`, `bundle/**`, and `live/**`; absent roots are recorded in
+`missingRoots`.
 
 For tool-owned bootstrap and validation, embed the same script object under the
 task config `script` field:
@@ -117,6 +121,30 @@ task config `script` field:
 dart run cockpit run-task --config /tmp/flutter_cockpit/run_task.yaml
 dart run cockpit validate-task --config /tmp/flutter_cockpit/validate_task.yaml
 ```
+
+If the app needs build/run inputs, use the shared launch configuration in CLI
+flags or under `launch.launchConfiguration` in `run-task` / `validate-task`
+YAML:
+
+```yaml
+launchConfiguration:
+  dartDefines:
+    - API_URL=https://example.test
+  dartDefineFromFiles:
+    - config/dev.json
+  flutterArgs:
+    - --track-widget-creation
+    - --build-name
+    - AI Build
+  environment:
+    API_TOKEN: secret
+```
+
+Environment values are for the child process only. Default result JSON redacts
+them to keys, and app/session handles do not persist them. YAML and MCP
+`flutterArgs` are final argv tokens; put paired flag values in separate list
+items. Use structured fields for cockpit-managed target, device, flavor,
+dart-define, and environment inputs.
 
 Workflow nodes and schema are defined by
 [`control-workflow-protocol.md`](control-workflow-protocol.md).
