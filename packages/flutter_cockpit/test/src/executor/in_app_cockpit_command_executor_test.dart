@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,7 +28,7 @@ void main() {
               role: 'screenshot',
               relativePath: 'screenshots/capabilities.png',
             ),
-            bytes: Uint8List.fromList(const <int>[137, 80, 78, 71]),
+            bytes: _opaquePng,
           ),
           requestedProfile: CockpitCaptureProfile.acceptance,
           resolvedCaptureKind: CockpitCaptureKind.flutterView,
@@ -3803,6 +3804,7 @@ void main() {
     final executor = InAppCockpitCommandExecutor(
       registry: registry,
       snapshotProvider: surfaceState.snapshot,
+      screenshotInspector: const _PassThroughScreenshotInspector(),
       captureHandler: (request) async {
         capturedRequestName = request.name;
         return CockpitCaptureResult(
@@ -3811,7 +3813,7 @@ void main() {
               role: 'screenshot',
               relativePath: 'screenshots/${request.name}.png',
             ),
-            bytes: Uint8List.fromList(const <int>[137, 80, 78, 71]),
+            bytes: _opaquePng,
             snapshot: surfaceState.snapshot(),
           ),
           requestedProfile: CockpitCaptureProfile.acceptance,
@@ -5449,6 +5451,7 @@ void main() {
 
       final executor = InAppCockpitCommandExecutor(
         registry: CockpitTargetRegistry(routeName: '/success'),
+        screenshotInspector: const _PassThroughScreenshotInspector(),
         postActionSettler: () async {
           settled = true;
         },
@@ -5470,7 +5473,7 @@ void main() {
                 role: 'screenshot',
                 relativePath: 'screenshots/acceptance.png',
               ),
-              bytes: Uint8List.fromList(const <int>[137, 80, 78, 71]),
+              bytes: _opaquePng,
               snapshot: CockpitSnapshot(routeName: '/success'),
             ),
             requestedProfile: CockpitCaptureProfile.acceptance,
@@ -5552,6 +5555,7 @@ void main() {
   test('captureScreenshot forwards explicit snapshot options', () async {
     final executor = InAppCockpitCommandExecutor(
       registry: CockpitTargetRegistry(routeName: '/success'),
+      screenshotInspector: const _PassThroughScreenshotInspector(),
       captureHandler: (request) async {
         expect(
           request.snapshotOptions?.profile,
@@ -5563,7 +5567,7 @@ void main() {
               role: 'screenshot',
               relativePath: 'screenshots/investigate.png',
             ),
-            bytes: Uint8List.fromList(const <int>[137, 80, 78, 71]),
+            bytes: _opaquePng,
             snapshot: CockpitSnapshot(
               routeName: '/success',
               diagnosticLevel:
@@ -5594,6 +5598,23 @@ void main() {
     expect(result.success, isTrue);
     expect(result.snapshot?['diagnosticLevel'], 'investigate');
   });
+}
+
+final Uint8List _opaquePng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVQI12O8rmb7n4GBgQEADj0CO1/m6EIAAAAASUVORK5CYII=',
+);
+
+final class _PassThroughScreenshotInspector
+    implements CockpitScreenshotInspector {
+  const _PassThroughScreenshotInspector();
+
+  @override
+  Future<CockpitScreenshotInspection> inspect(
+    Uint8List bytes, {
+    required bool requireVisiblePixels,
+  }) async {
+    return const CockpitScreenshotInspection(width: 1, height: 1);
+  }
 }
 
 Widget _legacyRadioListTile({

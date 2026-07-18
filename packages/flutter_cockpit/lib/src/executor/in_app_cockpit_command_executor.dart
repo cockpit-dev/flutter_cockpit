@@ -12,6 +12,7 @@ import 'package:flutter/widgets.dart';
 
 import '../capture/cockpit_capture_kind.dart';
 import '../capture/cockpit_capture_profile.dart';
+import '../capture/cockpit_screenshot_inspector.dart';
 import '../control/cockpit_capture_failure_policy.dart';
 import '../control/cockpit_command.dart';
 import '../control/cockpit_command_execution.dart';
@@ -84,6 +85,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     CockpitBackNavigationHandler? backNavigationHandler,
     CockpitWaitTickHandler? waitTickHandler,
     CockpitKeyEventHandler? keyEventHandler,
+    CockpitScreenshotInspector? screenshotInspector,
     CockpitInteractionPolicy interactionPolicy =
         const CockpitInteractionPolicy(),
     CockpitRecordingActivityProbe? isRecordingActive,
@@ -120,6 +122,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         );
       },
       defaultSnapshotOptionsForReason: _defaultSnapshotOptionsForReason,
+      screenshotInspector: screenshotInspector,
     );
     _semanticCommandExecutor = CockpitSemanticCommandExecutor(
       tap: _executeTap,

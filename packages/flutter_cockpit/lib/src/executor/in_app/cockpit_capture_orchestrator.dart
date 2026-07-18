@@ -1,5 +1,6 @@
 import '../../capture/cockpit_capture_kind.dart';
 import '../../capture/cockpit_capture_profile.dart';
+import '../../capture/cockpit_screenshot_inspector.dart';
 import '../../control/cockpit_capture_policy.dart';
 import '../../control/cockpit_command.dart';
 import '../../control/cockpit_screenshot_request.dart';
@@ -39,17 +40,21 @@ final class CockpitCaptureOrchestrator {
     required CockpitPostActionSettler settleBeforeObservation,
     required CockpitBestEffortWaitForUiIdle bestEffortWaitForUiIdle,
     required CockpitSnapshotOptionsForReason defaultSnapshotOptionsForReason,
+    CockpitScreenshotInspector? screenshotInspector,
   }) : _captureHandler = captureHandler,
        _postActionSettler = postActionSettler,
        _settleBeforeObservation = settleBeforeObservation,
        _bestEffortWaitForUiIdle = bestEffortWaitForUiIdle,
-       _defaultSnapshotOptionsForReason = defaultSnapshotOptionsForReason;
+       _defaultSnapshotOptionsForReason = defaultSnapshotOptionsForReason,
+       _screenshotInspector =
+           screenshotInspector ?? const CockpitDartUiScreenshotInspector();
 
   final CockpitCaptureHandler? _captureHandler;
   final CockpitPostActionSettler _postActionSettler;
   final CockpitPostActionSettler _settleBeforeObservation;
   final CockpitBestEffortWaitForUiIdle _bestEffortWaitForUiIdle;
   final CockpitSnapshotOptionsForReason _defaultSnapshotOptionsForReason;
+  final CockpitScreenshotInspector _screenshotInspector;
 
   Future<CockpitCaptureArtifacts?> captureAfterAction(CockpitCommand command) {
     final shouldCapture = switch (command.capturePolicy) {
@@ -105,12 +110,11 @@ final class CockpitCaptureOrchestrator {
       ),
     );
     final bytes = capture.screenshot.bytes;
-    if (bytes.isEmpty) {
-      throw StateError(
-        'Screenshot capture produced an empty artifact for '
-        '${capture.screenshot.artifact.relativePath}.',
-      );
-    }
+    await _screenshotInspector.inspect(
+      bytes,
+      requireVisiblePixels:
+          request.reason == CockpitScreenshotReason.acceptance,
+    );
 
     return CockpitCaptureArtifacts(
       artifacts: <CockpitArtifactRef>[capture.screenshot.artifact],

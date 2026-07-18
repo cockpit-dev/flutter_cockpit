@@ -47,6 +47,9 @@ final class CockpitNativeCapture {
     if (bytes is! Uint8List) {
       throw StateError('Native capture did not return PNG bytes.');
     }
+    if (bytes.isEmpty) {
+      throw StateError('Native capture returned empty PNG bytes.');
+    }
 
     return CockpitCapturedScreenshot(
       artifact: CockpitArtifactRef(
