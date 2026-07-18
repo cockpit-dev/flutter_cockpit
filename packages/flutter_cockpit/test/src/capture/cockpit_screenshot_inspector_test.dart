@@ -67,10 +67,10 @@ void main() {
       );
     });
 
-    test('zero-width PNG reports screenshotInvalidDimensions', () async {
+    test('corrupt zero-width PNG reports screenshotDecodeFailed', () async {
       await _expectValidationFailure(
-        inspector.inspect(_zeroWidthPng, requireVisiblePixels: false),
-        'screenshotInvalidDimensions',
+        inspector.inspect(_corruptZeroWidthPng, requireVisiblePixels: false),
+        'screenshotDecodeFailed',
       );
     });
   });
@@ -160,7 +160,7 @@ final Uint8List _transparentPng = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIAAAUAAeImBZsAAAAASUVORK5CYII=',
 );
 final Uint8List _truncatedPng = Uint8List.sublistView(_opaquePng, 0, 50);
-final Uint8List _zeroWidthPng = base64Decode(
+final Uint8List _corruptZeroWidthPng = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAAAAAABCAYAAADw16+3AAAAAElFTkSuQmCC',
 );
 final Uint8List _malformedBytes = Uint8List.fromList(const <int>[

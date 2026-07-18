@@ -92,12 +92,6 @@ final class CockpitDartUiScreenshotInspector
     } on CockpitScreenshotValidationException {
       rethrow;
     } on Object catch (error) {
-      if (_hasInvalidPngDimensions(bytes)) {
-        throw const CockpitScreenshotValidationException(
-          'screenshotInvalidDimensions',
-          'Screenshot dimensions must be positive.',
-        );
-      }
       throw CockpitScreenshotValidationException(
         'screenshotDecodeFailed',
         'Screenshot bytes could not be decoded: $error',
@@ -107,25 +101,4 @@ final class CockpitDartUiScreenshotInspector
       codec?.dispose();
     }
   }
-}
-
-bool _hasInvalidPngDimensions(Uint8List bytes) {
-  const pngHeader = <int>[137, 80, 78, 71, 13, 10, 26, 10];
-  if (bytes.length < 24) {
-    return false;
-  }
-  for (var index = 0; index < pngHeader.length; index += 1) {
-    if (bytes[index] != pngHeader[index]) {
-      return false;
-    }
-  }
-  if (bytes[12] != 73 ||
-      bytes[13] != 72 ||
-      bytes[14] != 68 ||
-      bytes[15] != 82) {
-    return false;
-  }
-
-  final dimensions = ByteData.sublistView(bytes, 16, 24);
-  return dimensions.getUint32(0) == 0 || dimensions.getUint32(4) == 0;
 }
