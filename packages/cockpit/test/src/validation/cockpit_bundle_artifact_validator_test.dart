@@ -1,43 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cockpit/src/recording/cockpit_video_artifact_inspector.dart';
 import 'package:cockpit/src/validation/cockpit_bundle_artifact_validator.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
-  test('uses ffprobe metadata to validate screenshot artifacts', () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'cockpit_bundle_artifact_validator_png',
-    );
-    addTearDown(() async => _deleteDir(tempDir));
-
-    final file = File(p.join(tempDir.path, 'sample.png'));
-    await file.writeAsBytes(_validPngBytes);
-
-    final validator = CockpitBundleArtifactValidator(
-      processRunner: (executable, arguments) async {
-        expect(executable, 'ffprobe');
-        expect(arguments.last, file.path);
-        return ProcessResult(0, 0, _ffprobeImageJson, '');
-      },
-    );
-
-    final result = await validator.validateScreenshot(file.path);
-
-    expect(result.isValid, isTrue);
-    expect(result.validator, 'ffprobe');
-    expect(result.details['width'], 2);
-    expect(result.details['height'], 2);
-    expect(result.details['codecName'], 'png');
-  });
-
   test(
-    'falls back to built-in PNG validation when ffprobe is unavailable',
+    'uses local image inspection to validate screenshot artifacts',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
-        'cockpit_bundle_artifact_validator_png_fallback',
+        'cockpit_bundle_artifact_validator_png',
       );
       addTearDown(() async => _deleteDir(tempDir));
 
@@ -45,19 +20,44 @@ void main() {
       await file.writeAsBytes(_validPngBytes);
 
       final validator = CockpitBundleArtifactValidator(
-        processRunner: (executable, arguments) {
-          throw ProcessException(executable, arguments, 'ffprobe missing');
+        processRunner: (executable, arguments) async {
+          fail('ordinary screenshot validation must not run $executable');
         },
       );
 
       final result = await validator.validateScreenshot(file.path);
 
       expect(result.isValid, isTrue);
-      expect(result.validator, 'builtinPng');
+      expect(result.validator, 'image');
       expect(result.details['width'], 2);
       expect(result.details['height'], 2);
     },
   );
+
+  test('rejects screenshots without visible pixels', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_artifact_validator_png_fallback',
+    );
+    addTearDown(() async => _deleteDir(tempDir));
+
+    final file = File(p.join(tempDir.path, 'sample.png'));
+    await file.writeAsBytes(
+      img.encodePng(img.Image(width: 2, height: 2, numChannels: 4)),
+    );
+
+    final validator = CockpitBundleArtifactValidator(
+      processRunner: (executable, arguments) async {
+        fail('ordinary screenshot validation must not run $executable');
+      },
+    );
+
+    final result = await validator.validateScreenshot(file.path);
+
+    expect(result.isValid, isFalse);
+    expect(result.code, 'invalidScreenshotArtifact');
+    expect(result.validator, 'image');
+    expect(result.details['inspectionCode'], 'screenshotFullyTransparent');
+  });
 
   test('rejects invalid screenshot artifacts', () async {
     final tempDir = await Directory.systemTemp.createTemp(
@@ -69,8 +69,8 @@ void main() {
     await file.writeAsBytes(const <int>[1, 2, 3, 4]);
 
     final validator = CockpitBundleArtifactValidator(
-      processRunner: (executable, arguments) {
-        throw ProcessException(executable, arguments, 'ffprobe missing');
+      processRunner: (executable, arguments) async {
+        fail('ordinary screenshot validation must not run $executable');
       },
     );
 
@@ -80,7 +80,7 @@ void main() {
     expect(result.code, 'invalidScreenshotArtifact');
   });
 
-  test('uses ffprobe metadata to validate recording artifacts', () async {
+  test('keeps ordinary recording validation process-free', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'cockpit_bundle_artifact_validator_mp4',
     );
@@ -91,22 +91,19 @@ void main() {
 
     final validator = CockpitBundleArtifactValidator(
       processRunner: (executable, arguments) async {
-        expect(executable, 'ffprobe');
-        expect(arguments.last, file.path);
-        return ProcessResult(0, 0, _ffprobeVideoJson, '');
+        fail('ordinary recording validation must not run $executable');
       },
     );
 
     final result = await validator.validateRecording(file.path);
 
     expect(result.isValid, isTrue);
-    expect(result.validator, 'ffprobe');
-    expect(result.details['codecType'], 'video');
-    expect(result.details['formatName'], contains('mp4'));
+    expect(result.validator, 'builtinMp4');
+    expect(result.details['majorBrand'], 'isom');
   });
 
   test(
-    'falls back to built-in MP4 validation when ffprobe is unavailable',
+    'strict acceptance video validation delegates to the video inspector',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'cockpit_bundle_artifact_validator_mp4_fallback',
@@ -117,17 +114,80 @@ void main() {
       await file.writeAsBytes(_validMp4Bytes);
 
       final validator = CockpitBundleArtifactValidator(
-        processRunner: (executable, arguments) {
-          throw ProcessException(executable, arguments, 'ffprobe missing');
-        },
+        videoArtifactInspector: CockpitVideoArtifactInspector(
+          processRunner: (executable, arguments, {required timeout}) async {
+            if (executable == 'ffprobe') {
+              return ProcessResult(51, 0, _strictVideoProbeJson, '');
+            }
+            return ProcessResult(52, 0, '', '');
+          },
+        ),
       );
 
-      final result = await validator.validateRecording(file.path);
+      final result = await validator.validateAcceptanceVideo(file.path);
 
       expect(result.isValid, isTrue);
-      expect(result.validator, 'builtinMp4');
+      expect(result.validator, 'ffprobe+ffmpeg');
+      expect(result.details['codecName'], 'h264');
+      expect(result.details['durationSeconds'], 2.5);
     },
   );
+
+  test('strict validation forwards configured executable paths', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_artifact_validator_executables',
+    );
+    addTearDown(() async => _deleteDir(tempDir));
+    final recordingFile = File(p.join(tempDir.path, 'sample.mp4'));
+    await recordingFile.writeAsBytes(_validMp4Bytes);
+    final ffprobePath = await _writeVideoProbeExecutable(tempDir);
+    final ffmpegPath = p.join(
+      tempDir.path,
+      Platform.isWindows ? 'missing-ffmpeg.exe' : 'missing-ffmpeg',
+    );
+    final validator = CockpitBundleArtifactValidator(
+      ffprobeExecutable: ffprobePath,
+      ffmpegExecutable: ffmpegPath,
+    );
+
+    final result = await validator.validateAcceptanceVideo(recordingFile.path);
+
+    expect(result.isValid, isFalse);
+    expect(result.code, 'videoValidatorUnavailable');
+    expect(result.details['executable'], ffmpegPath);
+  });
+
+  test('strict acceptance video preserves invalid-media failures', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_artifact_validator_strict_invalid',
+    );
+    addTearDown(() async => _deleteDir(tempDir));
+
+    final file = File(p.join(tempDir.path, 'sample.mp4'));
+    await file.writeAsBytes(_validMp4Bytes);
+    final validator = CockpitBundleArtifactValidator(
+      videoArtifactInspector: CockpitVideoArtifactInspector(
+        processRunner: (executable, arguments, {required timeout}) async {
+          if (executable == 'ffprobe') {
+            return ProcessResult(53, 0, _strictVideoProbeJson, '');
+          }
+          return ProcessResult(
+            54,
+            1,
+            '',
+            'Invalid data found when processing input',
+          );
+        },
+      ),
+    );
+
+    final result = await validator.validateAcceptanceVideo(file.path);
+
+    expect(result.isValid, isFalse);
+    expect(result.code, 'videoDecodeFailed');
+    expect(result.validator, 'ffprobe+ffmpeg');
+    expect(result.details['failureKind'], 'invalidMedia');
+  });
 
   test('rejects invalid recording artifacts', () async {
     final tempDir = await Directory.systemTemp.createTemp(
@@ -139,8 +199,8 @@ void main() {
     await file.writeAsBytes(const <int>[1, 2, 3, 4]);
 
     final validator = CockpitBundleArtifactValidator(
-      processRunner: (executable, arguments) {
-        throw ProcessException(executable, arguments, 'ffprobe missing');
+      processRunner: (executable, arguments) async {
+        fail('ordinary recording validation must not run $executable');
       },
     );
 
@@ -452,6 +512,22 @@ Future<void> _deleteDir(Directory dir) async {
   }
 }
 
+Future<String> _writeVideoProbeExecutable(Directory directory) async {
+  final file = File(
+    p.join(directory.path, Platform.isWindows ? 'ffprobe.cmd' : 'ffprobe'),
+  );
+  if (Platform.isWindows) {
+    await file.writeAsString('@echo off\r\necho $_strictVideoProbeJson\r\n');
+  } else {
+    await file.writeAsString(
+      "#!/bin/sh\nprintf '%s\\n' '$_strictVideoProbeJson'\n",
+    );
+    final chmod = await Process.run('chmod', <String>['+x', file.path]);
+    expect(chmod.exitCode, 0, reason: '${chmod.stderr}');
+  }
+  return file.path;
+}
+
 final List<int> _validPngBytes = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAAABAAAAAQBPJcTWAAAADklEQVR4nGNkAAMWCAUAADgABkRoBWYAAAAASUVORK5CYII=',
 );
@@ -460,11 +536,8 @@ final List<int> _validMp4Bytes = base64Decode(
   'AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAuVtZGF0AAACrgYF//+q3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NSByMzIyMiBiMzU2MDVhIC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyNSAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTEgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTI1IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAAD2WIhAAz//727L4FNhTIwQAAAAhBmiJsQr/+wAAAAAgBnkF5Cv/EgQAAA1xtb292AAAAbG12aGQAAAAAAAAAAAAAAAAAAAPoAAAAeAABAAABAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAACh3RyYWsAAABcdGtoZAAAAAMAAAAAAAAAAAAAAAEAAAAAAAAAeAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAEAAAABAAAAAAACRlZHRzAAAAHGVsc3QAAAAAAAAAAQAAAHgAAAQAAAEAAAAAAf9tZGlhAAAAIG1kaGQAAAAAAAAAAAAAAAAAADIAAAAIAFXEAAAAAAAtaGRscgAAAAAAAAAAdmlkZQAAAAAAAAAAAAAAAFZpZGVvSGFuZGxlcgAAAAGqbWluZgAAABR2bWhkAAAAAQAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAABanN0YmwAAAC+c3RzZAAAAAAAAAABAAAArmF2YzEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAEAAQAEgAAABIAAAAAAAAAAEVTGF2YzYyLjExLjEwMCBsaWJ4MjY0AAAAAAAAAAAAAAAY//8AAAA0YXZjQwFkAAr/4QAXZ2QACqzZXsBEAAADAAQAAAMAyDxIllgBAAZo6+PLIsD9+PgAAAAAEHBhc3AAAAABAAAAAQAAABRidHJ0AAAAAAAAvuIAAAAAAAAAGHN0dHMAAAAAAAAAAQAAAAMAAAIAAAAAFHN0c3MAAAAAAAAAAQAAAAEAAAAoY3R0cwAAAAAAAAADAAAAAQAABAAAAAABAAAGAAAAAAEAAAIAAAAAHHN0c2MAAAAAAAAAAQAAAAEAAAADAAAAAQAAACBzdHN6AAAAAAAAAAAAAAADAAACxQAAAAwAAAAMAAAAFHN0Y28AAAAAAAAAAQAAADAAAABhdWR0YQAAAFltZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAACxpbHN0AAAAJKl0b28AAAAcZGF0YQAAAAEAAAAATGF2ZjYyLjMuMTAw',
 );
 
-const String _ffprobeImageJson =
-    '{"streams":[{"codec_name":"png","codec_type":"video","width":2,"height":2}],"format":{"format_name":"png_pipe"}}';
-
-const String _ffprobeVideoJson =
-    '{"streams":[{"codec_name":"h264","codec_type":"video","width":16,"height":16}],"format":{"format_name":"mov,mp4,m4a,3gp,3g2,mj2"}}';
+const String _strictVideoProbeJson =
+    '{"streams":[{"index":0,"codec_name":"h264","codec_long_name":"H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10","codec_type":"video","width":16,"height":16,"pix_fmt":"yuv420p","r_frame_rate":"30/1"}],"format":{"filename":"sample.mp4","nb_streams":1,"format_name":"mov,mp4,m4a,3gp,3g2,mj2","duration":"2.500000","size":"2048","bit_rate":"6553"}}';
 
 List<int> _encodedPng(img.Image image) => img.encodePng(image);
 

@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import '../artifacts/cockpit_recording_keyframe_extractor.dart';
+import '../capture/cockpit_screenshot_inspector.dart';
+import '../recording/cockpit_video_artifact_inspector.dart';
 import 'package:image/image.dart' as img;
 
 typedef CockpitArtifactValidationProcessRunner =
@@ -29,13 +31,25 @@ final class CockpitBundleArtifactValidator {
     String ffprobeExecutable = 'ffprobe',
     String ffmpegExecutable = 'ffmpeg',
     CockpitArtifactValidationProcessRunner processRunner = Process.run,
+    CockpitScreenshotInspector screenshotInspector =
+        const CockpitImageScreenshotInspector(),
+    CockpitVideoArtifactInspector? videoArtifactInspector,
   }) : _ffprobeExecutable = ffprobeExecutable,
        _ffmpegExecutable = ffmpegExecutable,
-       _processRunner = processRunner;
+       _processRunner = processRunner,
+       _screenshotInspector = screenshotInspector,
+       _videoArtifactInspector =
+           videoArtifactInspector ??
+           CockpitVideoArtifactInspector(
+             ffprobeExecutable: ffprobeExecutable,
+             ffmpegExecutable: ffmpegExecutable,
+           );
 
   final String _ffprobeExecutable;
   final String _ffmpegExecutable;
   final CockpitArtifactValidationProcessRunner _processRunner;
+  final CockpitScreenshotInspector _screenshotInspector;
+  final CockpitVideoArtifactInspector _videoArtifactInspector;
 
   Future<CockpitBundleArtifactValidationResult> validateScreenshot(
     String path,
@@ -54,15 +68,28 @@ final class CockpitBundleArtifactValidator {
       );
     }
 
-    final ffprobeResult = await _validateWithFfprobe(
-      path,
-      expectedKind: _ExpectedArtifactKind.screenshot,
-    );
-    if (ffprobeResult != null) {
-      return ffprobeResult;
+    try {
+      final inspection = await _screenshotInspector.inspect(
+        bytes,
+        requireVisiblePixels: true,
+      );
+      return _valid(
+        validator: 'image',
+        message: 'Screenshot artifact is readable and contains visible pixels.',
+        details: <String, Object?>{
+          'path': path,
+          'width': inspection.width,
+          'height': inspection.height,
+        },
+      );
+    } on CockpitScreenshotValidationException catch (error) {
+      return _invalid(
+        code: 'invalidScreenshotArtifact',
+        validator: 'image',
+        message: error.message,
+        details: <String, Object?>{'path': path, 'inspectionCode': error.code},
+      );
     }
-
-    return _validatePng(bytes, path);
   }
 
   Future<CockpitBundleArtifactValidationResult> validateRecording(
@@ -82,15 +109,29 @@ final class CockpitBundleArtifactValidator {
       );
     }
 
-    final ffprobeResult = await _validateWithFfprobe(
-      path,
-      expectedKind: _ExpectedArtifactKind.recording,
-    );
-    if (ffprobeResult != null) {
-      return ffprobeResult;
-    }
-
     return _validateMp4(bytes, path);
+  }
+
+  Future<CockpitBundleArtifactValidationResult> validateAcceptanceVideo(
+    String path,
+  ) async {
+    final inspection = await _videoArtifactInspector.inspect(path);
+    if (inspection.isValid) {
+      return _valid(
+        validator: 'ffprobe+ffmpeg',
+        message: inspection.message,
+        details: inspection.details,
+      );
+    }
+    return _invalid(
+      code: inspection.code,
+      validator: 'ffprobe+ffmpeg',
+      message: inspection.message,
+      details: <String, Object?>{
+        'failureKind': inspection.failureKind?.name,
+        ...inspection.details,
+      },
+    );
   }
 
   Future<CockpitBundleArtifactValidationResult> validateDeliveryConsistency({
@@ -396,192 +437,6 @@ final class CockpitBundleArtifactValidator {
     );
   }
 
-  Future<CockpitBundleArtifactValidationResult?> _validateWithFfprobe(
-    String path, {
-    required _ExpectedArtifactKind expectedKind,
-  }) async {
-    try {
-      final result = await _processRunner(_ffprobeExecutable, <String>[
-        '-v',
-        'error',
-        '-print_format',
-        'json',
-        '-show_streams',
-        '-show_format',
-        path,
-      ]);
-      if (result.exitCode != 0) {
-        return null;
-      }
-
-      final decoded = jsonDecode('${result.stdout}');
-      if (decoded is! Map<Object?, Object?>) {
-        return null;
-      }
-
-      final payload = Map<String, Object?>.from(decoded);
-      final streams =
-          (payload['streams'] as List<Object?>? ?? const <Object?>[])
-              .whereType<Map<Object?, Object?>>()
-              .map((item) => Map<String, Object?>.from(item))
-              .toList(growable: false);
-      final format = payload['format'] is Map<Object?, Object?>
-          ? Map<String, Object?>.from(
-              payload['format'] as Map<Object?, Object?>,
-            )
-          : const <String, Object?>{};
-
-      return switch (expectedKind) {
-        _ExpectedArtifactKind.screenshot => _validateScreenshotProbe(
-          path,
-          streams,
-          format,
-        ),
-        _ExpectedArtifactKind.recording => _validateRecordingProbe(
-          path,
-          streams,
-          format,
-        ),
-      };
-    } on ProcessException {
-      return null;
-    } on FormatException {
-      return null;
-    }
-  }
-
-  CockpitBundleArtifactValidationResult _validateScreenshotProbe(
-    String path,
-    List<Map<String, Object?>> streams,
-    Map<String, Object?> format,
-  ) {
-    final stream = streams.cast<Map<String, Object?>?>().firstWhere(
-      (candidate) =>
-          candidate != null &&
-          candidate['width'] is int &&
-          candidate['height'] is int,
-      orElse: () => null,
-    );
-    if (stream == null) {
-      return _invalid(
-        code: 'invalidScreenshotArtifact',
-        validator: 'ffprobe',
-        message: 'ffprobe could not read screenshot dimensions.',
-        details: <String, Object?>{'path': path},
-      );
-    }
-
-    final width = stream['width'] as int;
-    final height = stream['height'] as int;
-    if (width <= 0 || height <= 0) {
-      return _invalid(
-        code: 'invalidScreenshotArtifact',
-        validator: 'ffprobe',
-        message: 'Screenshot dimensions must be greater than zero.',
-        details: <String, Object?>{
-          'path': path,
-          'width': width,
-          'height': height,
-        },
-      );
-    }
-
-    return _valid(
-      validator: 'ffprobe',
-      message: 'Screenshot artifact is readable.',
-      details: <String, Object?>{
-        'path': path,
-        'codecName': stream['codec_name'],
-        'width': width,
-        'height': height,
-        'formatName': format['format_name'],
-      },
-    );
-  }
-
-  CockpitBundleArtifactValidationResult _validateRecordingProbe(
-    String path,
-    List<Map<String, Object?>> streams,
-    Map<String, Object?> format,
-  ) {
-    final stream = streams.cast<Map<String, Object?>?>().firstWhere(
-      (candidate) => candidate != null && candidate['codec_type'] == 'video',
-      orElse: () => null,
-    );
-    if (stream == null) {
-      return _invalid(
-        code: 'invalidRecordingArtifact',
-        validator: 'ffprobe',
-        message:
-            'ffprobe did not find a video stream in the recording artifact.',
-        details: <String, Object?>{'path': path},
-      );
-    }
-
-    return _valid(
-      validator: 'ffprobe',
-      message: 'Recording artifact is readable.',
-      details: <String, Object?>{
-        'path': path,
-        'codecName': stream['codec_name'],
-        'codecType': stream['codec_type'],
-        'width': stream['width'],
-        'height': stream['height'],
-        'formatName': format['format_name'],
-      },
-    );
-  }
-
-  CockpitBundleArtifactValidationResult _validatePng(
-    Uint8List bytes,
-    String path,
-  ) {
-    const signature = <int>[137, 80, 78, 71, 13, 10, 26, 10];
-    if (bytes.length < 24 || !_startsWith(bytes, signature)) {
-      return _invalid(
-        code: 'invalidScreenshotArtifact',
-        validator: 'builtinPng',
-        message: 'Screenshot artifact is not a valid PNG file.',
-        details: <String, Object?>{'path': path},
-      );
-    }
-
-    final chunkType = ascii.decode(bytes.sublist(12, 16));
-    if (chunkType != 'IHDR') {
-      return _invalid(
-        code: 'invalidScreenshotArtifact',
-        validator: 'builtinPng',
-        message: 'PNG artifact is missing the IHDR chunk.',
-        details: <String, Object?>{'path': path},
-      );
-    }
-
-    final width = _readUint32(bytes, 16);
-    final height = _readUint32(bytes, 20);
-    if (width <= 0 || height <= 0) {
-      return _invalid(
-        code: 'invalidScreenshotArtifact',
-        validator: 'builtinPng',
-        message: 'PNG artifact dimensions must be greater than zero.',
-        details: <String, Object?>{
-          'path': path,
-          'width': width,
-          'height': height,
-        },
-      );
-    }
-
-    return _valid(
-      validator: 'builtinPng',
-      message: 'Screenshot artifact passed PNG validation.',
-      details: <String, Object?>{
-        'path': path,
-        'width': width,
-        'height': height,
-      },
-    );
-  }
-
   CockpitBundleArtifactValidationResult _validateMp4(
     Uint8List bytes,
     String path,
@@ -692,22 +547,6 @@ final class CockpitBundleArtifactValidator {
     return img.grayscale(resized);
   }
 
-  bool _startsWith(Uint8List bytes, List<int> prefix) {
-    if (bytes.length < prefix.length) {
-      return false;
-    }
-    for (var index = 0; index < prefix.length; index++) {
-      if (bytes[index] != prefix[index]) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  int _readUint32(Uint8List bytes, int offset) {
-    return bytes.buffer.asByteData().getUint32(offset);
-  }
-
   CockpitBundleArtifactValidationResult _missing(String path) {
     return _invalid(
       code: 'missingBundleArtifact',
@@ -746,5 +585,3 @@ final class CockpitBundleArtifactValidator {
     );
   }
 }
-
-enum _ExpectedArtifactKind { screenshot, recording }

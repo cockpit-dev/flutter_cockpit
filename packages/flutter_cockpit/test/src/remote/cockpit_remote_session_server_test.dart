@@ -1710,6 +1710,86 @@ void main() {
     },
   );
 
+  test('remote recording rejects zero-length source files', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_remote_empty_source',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final sourceFile = File(p.join(tempDir.path, 'empty.mp4'));
+    await sourceFile.create();
+    final handler = _recordingEndpointHandler(
+      result: CockpitRecordingResult(
+        state: CockpitRecordingState.completed,
+        purpose: CockpitRecordingPurpose.acceptance,
+        artifact: const CockpitArtifactRef(
+          role: 'recording',
+          relativePath: 'recordings/empty.mp4',
+        ),
+        sourceFilePath: sourceFile.path,
+      ),
+    );
+
+    final response = await handler.handle(
+      CockpitRemoteSessionEndpointRequest(
+        method: 'POST',
+        uri: Uri.parse('/recording/stop'),
+      ),
+    );
+    final recording = CockpitRemoteRecordingResponse.fromJson(
+      response.jsonBody!,
+    );
+
+    expect(recording.result.artifact, isNull);
+    expect(recording.artifactDownloads, isEmpty);
+  });
+
+  test('remote recording never persists empty inline bytes', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_remote_empty_bytes',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final artifactFile = File(p.join(tempDir.path, 'empty.mp4'));
+    var createdArtifactFile = false;
+    final handler = _recordingEndpointHandler(
+      result: CockpitRecordingResult(
+        state: CockpitRecordingState.completed,
+        purpose: CockpitRecordingPurpose.acceptance,
+        artifact: const CockpitArtifactRef(
+          role: 'recording',
+          relativePath: 'recordings/empty.mp4',
+        ),
+        bytes: const <int>[],
+      ),
+      artifactTempFileFactory: (_) async {
+        createdArtifactFile = true;
+        return artifactFile;
+      },
+    );
+
+    final response = await handler.handle(
+      CockpitRemoteSessionEndpointRequest(
+        method: 'POST',
+        uri: Uri.parse('/recording/stop'),
+      ),
+    );
+    final recording = CockpitRemoteRecordingResponse.fromJson(
+      response.jsonBody!,
+    );
+
+    expect(recording.result.artifact, isNull);
+    expect(recording.artifactDownloads, isEmpty);
+    expect(createdArtifactFile, isFalse);
+    expect(artifactFile.existsSync(), isFalse);
+  });
+
   test(
     'remote session server stops an active recording when it closes',
     () async {
@@ -1792,6 +1872,53 @@ void main() {
 
       expect(stopRecordingCount, 1);
     },
+  );
+}
+
+CockpitRemoteSessionEndpointHandler _recordingEndpointHandler({
+  required CockpitRecordingResult result,
+  CockpitRemoteArtifactTempFileFactory? artifactTempFileFactory,
+}) {
+  return CockpitRemoteSessionEndpointHandler(
+    configuration: const CockpitRemoteSessionConfiguration(
+      enabled: true,
+      autoStart: false,
+      port: 0,
+    ),
+    statusProvider: () async => CockpitRemoteSessionStatus(
+      sessionId: 'recording-artifact-contract',
+      platform: 'ios',
+      transportType: 'remoteHttp',
+      currentRouteName: '/home',
+      capabilities: CockpitCapabilities(
+        platform: 'ios',
+        transportType: 'remoteHttp',
+        supportsInAppControl: true,
+        supportsFlutterViewCapture: true,
+        supportsNativeScreenCapture: true,
+        supportsHostAutomation: false,
+      ),
+      recordingCapabilities: CockpitRecordingCapabilities(
+        supportsNativeRecording: true,
+      ),
+      snapshot: CockpitSnapshot(routeName: '/home'),
+    ),
+    snapshotProvider: ({required options}) async =>
+        CockpitSnapshot(routeName: '/home', diagnosticLevel: options.profile),
+    commandExecutor: (command) async => CockpitCommandExecution(
+      result: CockpitCommandResult(
+        success: true,
+        commandId: command.commandId,
+        commandType: command.commandType,
+        durationMs: 0,
+      ),
+    ),
+    startRecording: (request) async => CockpitRecordingSession(
+      request: request,
+      state: CockpitRecordingState.recording,
+    ),
+    stopRecording: () async => result,
+    artifactTempFileFactory: artifactTempFileFactory,
   );
 }
 

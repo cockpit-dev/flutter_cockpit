@@ -213,6 +213,7 @@ void main() {
 
       var probeCall = 0;
       final verifier = CockpitDemoPlatformVerifier(
+        artifactValidator: _passingArtifactValidator(),
         probeDevices: () async {
           probeCall += 1;
           return switch (probeCall) {
@@ -1137,6 +1138,253 @@ void main() {
     expect(json, containsPair('systemSkippedActions', <String>[]));
   });
 
+  test('platform verification JSON reports structured evidence metadata', () {
+    final platform = const CockpitDemoPlatformVerification(
+      platform: 'ios',
+      status: 'passed',
+      deviceId: 'simulator-1',
+      bootstrappedDevice: false,
+      outputDir: '/tmp/ios',
+      screenshotValidation: <String, Object?>{
+        'isValid': true,
+        'validatedCount': 3,
+      },
+      videoValidation: <String, Object?>{
+        'isValid': true,
+        'validator': 'ffprobe+ffmpeg',
+      },
+      targetIdentity: <String, Object?>{
+        'platform': 'ios',
+        'deviceId': 'simulator-1',
+        'target': 'lib/main.dart',
+      },
+      runtimeVersion: 'Dart 3.10.8',
+      capabilitySnapshot: <String, Object?>{'supportsInAppControl': true},
+      appNativeEvidence: <String, Object?>{},
+      hostEvidence: <String, Object?>{'recordingDriver': 'simctl'},
+      flutterEvidence: <String, Object?>{'resolvedCaptureKind': 'flutterView'},
+    );
+    final result = CockpitDemoPlatformVerificationResult(
+      platforms: <CockpitDemoPlatformVerification>[platform],
+      success: true,
+      recommendedNextStep: 'continue',
+      commitSha: 'abc123',
+    ).toJson();
+    final json = platform.toJson();
+
+    expect(json['screenshotValidation'], isA<Map<String, Object?>>());
+    expect(json['videoValidation'], isA<Map<String, Object?>>());
+    expect(json['targetIdentity'], containsPair('deviceId', 'simulator-1'));
+    expect(json['runtimeVersion'], 'Dart 3.10.8');
+    expect(
+      json['capabilitySnapshot'],
+      containsPair('supportsInAppControl', true),
+    );
+    expect(json['appNativeEvidence'], isEmpty);
+    expect(json['hostEvidence'], containsPair('recordingDriver', 'simctl'));
+    expect(
+      json['flutterEvidence'],
+      containsPair('resolvedCaptureKind', 'flutterView'),
+    );
+    expect(result['commitSha'], 'abc123');
+    expect(result, containsPair('reportUrl', null));
+    expect(result, containsPair('ciUrl', null));
+  });
+
+  test('classifies system-layer plugin recordings as app-native', () async {
+    final outputRoot = await Directory.systemTemp.createTemp(
+      'cockpit_demo_app_native_recording_',
+    );
+    final recordingFile = await _createRecordingArtifact();
+    addTearDown(() async {
+      if (await outputRoot.exists()) {
+        await outputRoot.delete(recursive: true);
+      }
+      final recordingTempDir = recordingFile.parent;
+      if (await recordingTempDir.exists()) {
+        await recordingTempDir.delete(recursive: true);
+      }
+    });
+    final verifier = await _createSinglePlatformVerifier(
+      platform: 'ios',
+      deviceId: 'physical-ios-device',
+      describeSystemControl: (request) async {
+        return CockpitSystemControlDescribeResult(
+          profile: CockpitSystemControlProfile(
+            platform: request.platform,
+            deviceId: request.deviceId,
+            appId: request.appId,
+            processId: request.processId,
+            adapter: 'ios.plugin-test',
+            preferredPlane: CockpitPlaneKind.nativeUiPlane,
+            fallbackOrder: const <CockpitPlaneKind>[],
+            capabilities: const <CockpitSystemControlCapability>[
+              CockpitSystemControlCapability(
+                action: CockpitSystemControlAction.readSystemState,
+                plane: CockpitPlaneKind.deviceSystemPlane,
+                availability: CockpitSystemControlAvailability.available,
+                strategy: 'plugin-test',
+              ),
+            ],
+            recommendedNextStep: 'continue',
+          ),
+          recommendedNextStep: 'continue',
+        );
+      },
+      runSystemAction: (request) async {
+        return CockpitSystemControlActionResult(
+          platform: request.platform,
+          deviceId: request.deviceId,
+          appId: request.appId,
+          processId: request.processId,
+          action: request.action,
+          availability: CockpitSystemControlAvailability.available,
+          success: true,
+          recommendedNextStep: 'continue',
+        );
+      },
+      recordingAdapterResolver:
+          ({
+            required platform,
+            required deviceId,
+            required app,
+            required client,
+            required recording,
+          }) {
+            return _FakeRecordingAdapter(
+              onStart: (request) async => CockpitRecordingSession(
+                request: request,
+                state: CockpitRecordingState.recording,
+              ),
+              onStop: () async => CockpitRecordingResult(
+                state: CockpitRecordingState.completed,
+                purpose: CockpitRecordingPurpose.acceptance,
+                recordingKind: CockpitRecordingKind.nativeScreen,
+                effectiveLayer: CockpitRecordingLayer.system,
+                artifact: const CockpitArtifactRef(
+                  role: 'recording',
+                  relativePath: 'recordings/plugin-recording.mp4',
+                ),
+                durationMs: 3200,
+                sourceFilePath: recordingFile.path,
+              ),
+            );
+          },
+    );
+
+    final result = await verifier.verify(
+      CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: const <String>['ios'],
+        outputRoot: outputRoot.path,
+      ),
+    );
+
+    expect(result.success, isTrue, reason: jsonEncode(result.toJson()));
+    final platform = result.platforms.single;
+    expect(platform.recordingDriver, 'remote');
+    expect(platform.hostEvidence, isNot(contains('recording')));
+    expect(platform.appNativeEvidence, contains('recording'));
+    expect(
+      (platform.appNativeEvidence['recording']
+          as Map<String, Object?>)['effectiveLayer'],
+      'system',
+    );
+  });
+
+  test('verifier fails when a nonempty screenshot cannot be decoded', () async {
+    final verifier = await _createSinglePlatformVerifier(
+      platform: 'macos',
+      deviceId: 'macos',
+      malformedScreenshotArtifacts: true,
+      artifactValidator: _passingArtifactValidator(),
+    );
+
+    final result = await verifier.verify(
+      CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: const <String>['macos'],
+        outputRoot: Directory.systemTemp
+            .createTempSync('cockpit_demo_invalid_screenshot_validation_')
+            .path,
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.platforms.single.failureCode, 'invalidScreenshotArtifact');
+    expect(result.platforms.single.screenshotValidation['isValid'], isFalse);
+  });
+
+  test('verifier ignores screenshots left by an earlier run', () async {
+    final outputRoot = await Directory.systemTemp.createTemp(
+      'cockpit_demo_stale_screenshot_validation_',
+    );
+    addTearDown(() async {
+      if (await outputRoot.exists()) {
+        await outputRoot.delete(recursive: true);
+      }
+    });
+    final staleScreenshot = File(
+      p.join(outputRoot.path, 'macos', 'screenshots', 'stale.png'),
+    );
+    await staleScreenshot.parent.create(recursive: true);
+    await staleScreenshot.writeAsBytes(<int>[1, 2, 3, 4], flush: true);
+    final verifier = await _createSinglePlatformVerifier(
+      platform: 'macos',
+      deviceId: 'macos',
+    );
+
+    final result = await verifier.verify(
+      CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: const <String>['macos'],
+        outputRoot: outputRoot.path,
+      ),
+    );
+
+    expect(result.success, isTrue, reason: jsonEncode(result.toJson()));
+    expect(
+      result.platforms.single.screenshotValidation['validatedCount'],
+      result.platforms.single.exportedScreenshotCount + 1,
+    );
+  });
+
+  test('verifier fails when the final recording cannot decode', () async {
+    final verifier = await _createSinglePlatformVerifier(
+      platform: 'macos',
+      deviceId: 'macos',
+      artifactValidator: CockpitBundleArtifactValidator(
+        videoArtifactInspector: CockpitVideoArtifactInspector(
+          processRunner: (executable, arguments, {required timeout}) async {
+            if (executable == 'ffprobe') {
+              return ProcessResult(81, 0, _validVideoProbeJson, '');
+            }
+            return ProcessResult(
+              82,
+              1,
+              '',
+              'Invalid data found when processing input',
+            );
+          },
+        ),
+      ),
+    );
+
+    final result = await verifier.verify(
+      CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: const <String>['macos'],
+        outputRoot: Directory.systemTemp
+            .createTempSync('cockpit_demo_invalid_video_validation_')
+            .path,
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.platforms.single.failureCode, 'videoDecodeFailed');
+    expect(result.platforms.single.videoValidation['isValid'], isFalse);
+  });
+
   test('iOS exhaustive media probes use an extended action timeout', () async {
     final systemActionRequests = <CockpitSystemControlActionRequest>[];
     final verifier = await _createSinglePlatformVerifier(
@@ -1630,6 +1878,7 @@ void main() {
     final recordingFile = await _createRecordingArtifact();
     var currentRoute = '/inbox';
     final verifier = CockpitDemoPlatformVerifier(
+      artifactValidator: _passingArtifactValidator(),
       describeSystemControl: _fakeDescribeSystemControl,
       runSystemAction: _fakeRunSystemAction,
       probeDevices: () async => const <CockpitDemoHostDevice>[
@@ -1873,6 +2122,7 @@ void main() {
       var assertNewTaskAttempts = 0;
       var createBatchAttempts = 0;
       final verifier = CockpitDemoPlatformVerifier(
+        artifactValidator: _passingArtifactValidator(),
         describeSystemControl: _fakeDescribeSystemControl,
         runSystemAction: _fakeRunSystemAction,
         probeDevices: () async => const <CockpitDemoHostDevice>[
@@ -2673,6 +2923,7 @@ void main() {
 
   test('verifier persists inline recording bytes as evidence', () async {
     final verifier = CockpitDemoPlatformVerifier(
+      artifactValidator: _passingArtifactValidator(),
       describeSystemControl: _fakeDescribeSystemControl,
       runSystemAction: _fakeRunSystemAction,
       probeDevices: () async => const <CockpitDemoHostDevice>[
@@ -2799,6 +3050,7 @@ void main() {
   test('verifier exports automatic key-step screenshots as files', () async {
     final recordingFile = await _createRecordingArtifact();
     final verifier = CockpitDemoPlatformVerifier(
+      artifactValidator: _passingArtifactValidator(),
       describeSystemControl: _fakeDescribeSystemControl,
       runSystemAction: _fakeRunSystemAction,
       probeDevices: () async => const <CockpitDemoHostDevice>[
@@ -3209,6 +3461,7 @@ void main() {
         }
       });
       final verifier = CockpitDemoPlatformVerifier(
+        artifactValidator: _passingArtifactValidator(),
         describeSystemControl: _fakeDescribeSystemControl,
         runSystemAction: _fakeRunSystemAction,
         probeDevices: () async => const <CockpitDemoHostDevice>[
@@ -3458,6 +3711,7 @@ void main() {
         }
       });
       final verifier = CockpitDemoPlatformVerifier(
+        artifactValidator: _passingArtifactValidator(),
         describeSystemControl: _fakeDescribeSystemControl,
         runSystemAction: _fakeRunSystemAction,
         probeDevices: () async => const <CockpitDemoHostDevice>[
@@ -3833,6 +4087,7 @@ void main() {
         }
       });
       final verifier = CockpitDemoPlatformVerifier(
+        artifactValidator: _passingArtifactValidator(),
         describeSystemControl: _fakeDescribeSystemControl,
         runSystemAction: _fakeRunSystemAction,
         probeDevices: () async => const <CockpitDemoHostDevice>[
@@ -4145,20 +4400,57 @@ Future<File> _createRecordingArtifact() async {
     'cockpit_demo_recording_artifact_',
   );
   final file = File(p.join(directory.path, 'platform-loop.mp4'));
-  await file.writeAsBytes(<int>[1, 2, 3, 4], flush: true);
+  await file.writeAsBytes(const <int>[
+    0,
+    0,
+    0,
+    24,
+    102,
+    116,
+    121,
+    112,
+    105,
+    115,
+    111,
+    109,
+  ], flush: true);
   return file;
 }
+
+CockpitBundleArtifactValidator _passingArtifactValidator() {
+  return CockpitBundleArtifactValidator(
+    videoArtifactInspector: CockpitVideoArtifactInspector(
+      processRunner: (executable, arguments, {required timeout}) async {
+        if (executable == 'ffprobe') {
+          return ProcessResult(83, 0, _validVideoProbeJson, '');
+        }
+        return ProcessResult(84, 0, '', '');
+      },
+    ),
+  );
+}
+
+const String _validVideoProbeJson =
+    '{"streams":[{"codec_name":"h264","codec_type":"video","width":240,"height":480}],"format":{"duration":"3.200000"}}';
+
+final List<int> _validScreenshotPngBytes = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVQI12O8rmb7n4GBgQEADj0CO1/m6EIAAAAASUVORK5CYII=',
+);
 
 Future<CockpitDemoPlatformVerifier> _createSinglePlatformVerifier({
   required String platform,
   required String deviceId,
+  CockpitDemoSystemControlDescribeFunction? describeSystemControl,
   CockpitDemoSystemControlRunActionFunction? runSystemAction,
   CockpitDemoRecordingAdapterResolver? recordingAdapterResolver,
   CockpitDemoTimelineRecordingProcessRunner? timelineRecordingProcessRunner,
+  CockpitBundleArtifactValidator? artifactValidator,
+  bool malformedScreenshotArtifacts = false,
 }) async {
   final recordingFile = await _createRecordingArtifact();
   late CockpitAppHandle launchedApp;
   return CockpitDemoPlatformVerifier(
+    artifactValidator: artifactValidator ?? _passingArtifactValidator(),
     probeDevices: () async => <CockpitDemoHostDevice>[
       CockpitDemoHostDevice(
         name: platform,
@@ -4198,10 +4490,16 @@ Future<CockpitDemoPlatformVerifier> _createSinglePlatformVerifier({
       diagnosticLevel: 'inspect',
       truncated: false,
     ),
-    describeSystemControl: _fakeDescribeSystemControl,
+    describeSystemControl: describeSystemControl ?? _fakeDescribeSystemControl,
     runSystemAction: runSystemAction ?? _fakeRunSystemAction,
-    runCommand: (request) async => _successfulCommandResult(request.command),
-    runBatch: (request) async => _successfulBatchResult(request),
+    runCommand: (request) async => _successfulCommandResult(
+      request.command,
+      malformedScreenshot: malformedScreenshotArtifacts,
+    ),
+    runBatch: (request) async => _successfulBatchResult(
+      request,
+      malformedScreenshot: malformedScreenshotArtifacts,
+    ),
     recordingAdapterResolver:
         recordingAdapterResolver ??
         ({
@@ -4285,6 +4583,7 @@ CockpitExecuteRemoteCommandResult _successfulCommandResult(
   CockpitCommand command, {
   bool? includeScreenshot,
   int screenshotByteLength = 1024,
+  bool malformedScreenshot = false,
 }) {
   final shouldIncludeScreenshot =
       includeScreenshot ??
@@ -4303,6 +4602,7 @@ CockpitExecuteRemoteCommandResult _successfulCommandResult(
               : _writeScreenshotArtifactFor(
                   relativePath: screenshotRelativePath,
                   byteLength: screenshotByteLength,
+                  malformed: malformedScreenshot,
                 ),
         )
       : null;
@@ -4335,16 +4635,23 @@ String _screenshotRelativePathFor(CockpitCommand command) {
 String _writeScreenshotArtifactFor({
   required String relativePath,
   required int byteLength,
+  bool malformed = false,
 }) {
   final directory = Directory.systemTemp.createTempSync(
     'cockpit_demo_screenshot_artifact_',
   );
   final file = File(p.join(directory.path, p.basename(relativePath)));
-  file.writeAsBytesSync(List<int>.filled(byteLength, 1), flush: true);
+  file.writeAsBytesSync(
+    malformed ? const <int>[1, 2, 3, 4] : _validScreenshotPngBytes,
+    flush: true,
+  );
   return file.path;
 }
 
-CockpitRunBatchResult _successfulBatchResult(CockpitRunBatchRequest request) {
+CockpitRunBatchResult _successfulBatchResult(
+  CockpitRunBatchRequest request, {
+  bool malformedScreenshot = false,
+}) {
   return CockpitRunBatchResult(
     results: request.commands
         .map(
@@ -4353,6 +4660,7 @@ CockpitRunBatchResult _successfulBatchResult(CockpitRunBatchRequest request) {
             includeScreenshot: cockpitCommandTypeIsAiEvidenceKeyOperation(
               batchCommand.command.commandType,
             ),
+            malformedScreenshot: malformedScreenshot,
           ),
         )
         .toList(growable: false),

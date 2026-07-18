@@ -67,30 +67,63 @@ class CockpitNativeRecording {
       throw StateError('Stop recording returned an invalid payload.');
     }
 
-    final bytes = payload['bytes'];
-    final state = CockpitRecordingState.fromJson(payload['state']);
+    final state = CockpitRecordingState.fromJson(
+      _requiredField<String>(payload, 'state'),
+    );
+    final rawBytes = _optionalField<Uint8List>(payload, 'bytes');
+    final rawSourceFilePath = _optionalField<String>(payload, 'sourceFilePath');
+    final completed = state == CockpitRecordingState.completed;
+    final bytes = completed && rawBytes != null && rawBytes.isNotEmpty
+        ? rawBytes
+        : null;
+    final sourceFilePath =
+        completed &&
+            rawSourceFilePath != null &&
+            rawSourceFilePath.trim().isNotEmpty
+        ? rawSourceFilePath
+        : null;
+    final hasUsableSource = bytes != null || sourceFilePath != null;
     final relativePath = cockpitRecordingRelativePathFor(session.request);
 
     return CockpitRecordingResult(
       state: state,
       purpose: session.request.purpose,
-      recordingKind: payload['recordingKind'] == null
+      recordingKind: _optionalField<String>(payload, 'recordingKind') == null
           ? CockpitRecordingKind.nativeScreen
           : CockpitRecordingKind.fromJson(payload['recordingKind']),
       requestedMode: session.request.mode,
       requestedLayer: session.request.layer,
-      effectiveLayer: payload['effectiveLayer'] == null
+      effectiveLayer: _optionalField<String>(payload, 'effectiveLayer') == null
           ? session.request.layer
           : CockpitRecordingLayer.fromJson(payload['effectiveLayer']),
-      fallbackUsed: payload['fallbackUsed'] as bool? ?? false,
-      fallbackReason: payload['fallbackReason'] as String?,
-      artifact: state == CockpitRecordingState.completed
+      fallbackUsed: _optionalField<bool>(payload, 'fallbackUsed') ?? false,
+      fallbackReason: _optionalField<String>(payload, 'fallbackReason'),
+      artifact: completed && hasUsableSource
           ? CockpitArtifactRef(role: 'recording', relativePath: relativePath)
           : null,
-      durationMs: payload['durationMs'] as int?,
-      bytes: bytes == null ? null : (bytes is Uint8List ? bytes : null),
-      sourceFilePath: payload['sourceFilePath'] as String?,
-      failureReason: payload['failureReason'] as String?,
+      durationMs: _optionalField<int>(payload, 'durationMs'),
+      bytes: bytes,
+      sourceFilePath: sourceFilePath,
+      failureReason: _optionalField<String>(payload, 'failureReason'),
     );
+  }
+
+  T _requiredField<T>(Map<Object?, Object?> payload, String name) {
+    final value = payload[name];
+    if (value is! T) {
+      throw StateError('Stop recording returned an invalid $name field.');
+    }
+    return value;
+  }
+
+  T? _optionalField<T>(Map<Object?, Object?> payload, String name) {
+    final value = payload[name];
+    if (value == null) {
+      return null;
+    }
+    if (value is! T) {
+      throw StateError('Stop recording returned an invalid $name field.');
+    }
+    return value as T;
   }
 }

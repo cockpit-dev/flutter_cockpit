@@ -108,6 +108,7 @@ export 'src/capture/cockpit_linux_capture_adapter.dart';
 export 'src/recording/cockpit_adb_recording_adapter.dart';
 export 'src/recording/cockpit_linux_recording_adapter.dart';
 export 'src/recording/cockpit_macos_recording_adapter.dart';
+export 'src/recording/cockpit_video_artifact_inspector.dart';
 export 'src/recording/cockpit_host_recording_adapter.dart';
 export 'src/recording/cockpit_recording_strategy_resolver.dart';
 export 'src/recording/cockpit_recording_strategy_resolution.dart';

@@ -8,6 +8,7 @@ import 'package:cockpit/src/application/cockpit_run_task_service.dart';
 import 'package:cockpit/src/application/cockpit_task_gate.dart';
 import 'package:cockpit/src/application/cockpit_validate_task_service.dart';
 import 'package:cockpit/src/cli/cockpit_control_script.dart';
+import 'package:cockpit/src/recording/cockpit_video_artifact_inspector.dart';
 import 'package:cockpit/src/session/cockpit_remote_session_handle.dart';
 import 'package:cockpit/src/validation/cockpit_bundle_artifact_validator.dart';
 import 'package:image/image.dart' as img;
@@ -844,6 +845,7 @@ void main() {
 
       final service = CockpitValidateTaskService(
         artifactValidator: CockpitBundleArtifactValidator(
+          videoArtifactInspector: _passingVideoInspector(),
           processRunner: (executable, arguments) async {
             if (executable == 'ffprobe') {
               final path = arguments.last;
@@ -886,7 +888,10 @@ void main() {
 
       final result = await service.validate(
         CockpitValidateTaskRequest(
-          runTask: _runTaskRequest(platform: 'android'),
+          runTask: _runTaskRequest(
+            platform: 'android',
+            requireVideoEvidence: true,
+          ),
           validation: const CockpitValidateTaskRequirements(
             requirePrimaryScreenshot: true,
             requirePrimaryRecording: true,
@@ -936,6 +941,7 @@ void main() {
 
       final service = CockpitValidateTaskService(
         artifactValidator: CockpitBundleArtifactValidator(
+          videoArtifactInspector: _passingVideoInspector(),
           processRunner: (executable, arguments) async {
             if (executable == 'ffprobe') {
               final path = arguments.last;
@@ -1030,7 +1036,7 @@ void main() {
 
       final result = await service.validate(
         CockpitValidateTaskRequest(
-          runTask: _runTaskRequest(platform: 'ios'),
+          runTask: _runTaskRequest(platform: 'ios', requireVideoEvidence: true),
           validation: const CockpitValidateTaskRequirements(
             expectedClassification: CockpitRunTaskClassification.completed,
             requirePrimaryScreenshot: true,
@@ -1059,6 +1065,7 @@ void main() {
 
       final service = CockpitValidateTaskService(
         artifactValidator: CockpitBundleArtifactValidator(
+          videoArtifactInspector: _passingVideoInspector(),
           processRunner: (executable, arguments) async {
             if (executable == 'ffprobe') {
               final path = arguments.last;
@@ -1103,7 +1110,10 @@ void main() {
 
       final result = await service.validate(
         CockpitValidateTaskRequest(
-          runTask: _runTaskRequest(platform: 'android'),
+          runTask: _runTaskRequest(
+            platform: 'android',
+            requireVideoEvidence: true,
+          ),
           validation: const CockpitValidateTaskRequirements(
             requirePrimaryScreenshot: true,
             requirePrimaryRecording: true,
@@ -1163,6 +1173,7 @@ void main() {
 
       final service = CockpitValidateTaskService(
         artifactValidator: CockpitBundleArtifactValidator(
+          videoArtifactInspector: _passingVideoInspector(),
           processRunner: (executable, arguments) async {
             if (executable == 'ffprobe') {
               final path = arguments.last;
@@ -1222,7 +1233,7 @@ void main() {
 
       final result = await service.validate(
         CockpitValidateTaskRequest(
-          runTask: _runTaskRequest(platform: 'ios'),
+          runTask: _runTaskRequest(platform: 'ios', requireVideoEvidence: true),
           validation: const CockpitValidateTaskRequirements(
             requirePrimaryScreenshot: true,
             requirePrimaryRecording: true,
@@ -1260,6 +1271,7 @@ void main() {
 
       final service = CockpitValidateTaskService(
         artifactValidator: CockpitBundleArtifactValidator(
+          videoArtifactInspector: _passingVideoInspector(),
           processRunner: (executable, arguments) async {
             if (executable == 'ffprobe') {
               final path = arguments.last;
@@ -1350,7 +1362,10 @@ void main() {
 
       final result = await service.validate(
         CockpitValidateTaskRequest(
-          runTask: _runTaskRequest(platform: 'android'),
+          runTask: _runTaskRequest(
+            platform: 'android',
+            requireVideoEvidence: true,
+          ),
           validation: const CockpitValidateTaskRequirements(
             requirePrimaryScreenshot: true,
             requirePrimaryRecording: true,
@@ -2002,9 +2017,174 @@ void main() {
     );
     expect(result.recommendedNextStep, 'inspect_bundle');
   });
+
+  test('video-required tasks reject recordings that cannot decode', () async {
+    final bundleDir = await _createBundleDir(
+      name: 'cockpit_validate_task_strict_video_invalid',
+      acceptanceMarkdown: '# Acceptance\n',
+      environmentJson: '{"platform":"android"}',
+      recordingRelativePath: 'recordings/acceptance.mp4',
+    );
+    addTearDown(() async => _deleteDir(bundleDir));
+    var lightweightValidationCalls = 0;
+    final artifactValidator = CockpitBundleArtifactValidator(
+      videoArtifactInspector: CockpitVideoArtifactInspector(
+        processRunner: (executable, arguments, {required timeout}) async {
+          if (executable == 'ffprobe') {
+            return ProcessResult(61, 0, _strictVideoProbeJson, '');
+          }
+          return ProcessResult(
+            62,
+            1,
+            '',
+            'Invalid data found when processing input',
+          );
+        },
+      ),
+    );
+    final service = CockpitValidateTaskService(
+      artifactValidator: artifactValidator,
+      validateRecordingArtifact: (path) async {
+        lightweightValidationCalls += 1;
+        return artifactValidator.validateRecording(path);
+      },
+      runTask: (_) async => _runTaskResult(
+        classification: CockpitRunTaskClassification.completed,
+        bundleDir: bundleDir,
+        platform: 'android',
+        recordingRelativePath: 'recordings/acceptance.mp4',
+      ),
+    );
+
+    final result = await service.validate(
+      CockpitValidateTaskRequest(
+        runTask: _runTaskRequest(
+          platform: 'android',
+          requireVideoEvidence: true,
+        ),
+        validation: const CockpitValidateTaskRequirements(
+          requirePrimaryRecording: true,
+        ),
+      ),
+    );
+
+    expect(
+      result.classification,
+      CockpitValidationClassification.needsMoreWork,
+    );
+    expect(
+      result.validationFailures.map((failure) => failure.code),
+      contains('videoDecodeFailed'),
+    );
+    expect(lightweightValidationCalls, 1);
+  });
+
+  test(
+    'tasks without video evidence requirements keep recording validation process-free',
+    () async {
+      final bundleDir = await _createBundleDir(
+        name: 'cockpit_validate_task_lightweight_video',
+        acceptanceMarkdown: '# Acceptance\n',
+        environmentJson: '{"platform":"android"}',
+        screenshotRelativePath: 'screenshots/acceptance.png',
+        recordingRelativePath: 'recordings/acceptance.mp4',
+      );
+      addTearDown(() async => _deleteDir(bundleDir));
+      for (final name in <String>[
+        'acceptance_baseline.png',
+        'acceptance_midpoint.png',
+        'acceptance_tail.png',
+      ]) {
+        final file = File(p.join(bundleDir.path, 'keyframes', name));
+        await file.parent.create(recursive: true);
+        await file.writeAsBytes(_validPngBytes);
+      }
+      var externalProcessCalls = 0;
+      final service = CockpitValidateTaskService(
+        artifactValidator: CockpitBundleArtifactValidator(
+          processRunner: (executable, arguments) async {
+            externalProcessCalls += 1;
+            fail('non-video-required validation ran $executable');
+          },
+          videoArtifactInspector: CockpitVideoArtifactInspector(
+            processRunner: (executable, arguments, {required timeout}) async {
+              externalProcessCalls += 1;
+              fail('non-video-required validation ran $executable');
+            },
+          ),
+        ),
+        runTask: (_) async => _runTaskResult(
+          classification: CockpitRunTaskClassification.completed,
+          bundleDir: bundleDir,
+          platform: 'android',
+          screenshotRelativePath: 'screenshots/acceptance.png',
+          recordingRelativePath: 'recordings/acceptance.mp4',
+          keyframes: const <Map<String, Object?>>[
+            <String, Object?>{
+              'ref': 'keyframes/acceptance_baseline.png',
+              'label': 'baseline',
+              'offsetMs': 400,
+              'source': 'stepCapture',
+            },
+            <String, Object?>{
+              'ref': 'keyframes/acceptance_midpoint.png',
+              'label': 'midpoint',
+              'offsetMs': 1200,
+              'source': 'syntheticCoverage',
+            },
+            <String, Object?>{
+              'ref': 'keyframes/acceptance_tail.png',
+              'label': 'tail_consistency',
+              'offsetMs': 2200,
+              'source': 'tailConsistency',
+            },
+          ],
+          keyframeCoverage: const <String, Object?>{
+            'durationMs': 2600,
+            'hasEarlyCoverage': true,
+            'hasMidCoverage': true,
+            'hasLateCoverage': true,
+            'isReady': true,
+          },
+          baselineEvidence: _acceptanceEvidence(
+            routeName: '/editor',
+            visibleTextPreviews: const <String>['Draft'],
+          ),
+          acceptanceEvidence: _acceptanceEvidence(
+            routeName: '/preview',
+            visibleTextPreviews: const <String>['Published'],
+          ),
+          acceptanceDelta: _acceptanceDelta(
+            baselineRouteName: '/editor',
+            acceptanceRouteName: '/preview',
+            routeChanged: true,
+            addedVisibleTextPreviews: const <String>['Published'],
+            removedVisibleTextPreviews: const <String>['Draft'],
+          ),
+        ),
+      );
+
+      final result = await service.validate(
+        CockpitValidateTaskRequest(
+          runTask: _runTaskRequest(platform: 'android'),
+          validation: const CockpitValidateTaskRequirements(
+            requirePrimaryScreenshot: true,
+            requirePrimaryRecording: true,
+          ),
+        ),
+      );
+
+      expect(result.classification, CockpitValidationClassification.completed);
+      expect(result.validationFailures, isEmpty);
+      expect(externalProcessCalls, 0);
+    },
+  );
 }
 
-CockpitRunTaskRequest _runTaskRequest({required String platform}) {
+CockpitRunTaskRequest _runTaskRequest({
+  required String platform,
+  bool requireVideoEvidence = false,
+}) {
   return CockpitRunTaskRequest(
     sessionHandle: CockpitRemoteSessionHandle(
       platform: platform,
@@ -2019,6 +2199,9 @@ CockpitRunTaskRequest _runTaskRequest({required String platform}) {
       devicePort: 48331,
       baseUrl: 'http://127.0.0.1:48331',
       launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
+    ),
+    requirements: CockpitRunTaskEvidenceRequirements(
+      requireVideoEvidence: requireVideoEvidence,
     ),
     script: CockpitControlScript(
       sessionId: 'validate-task-session',
@@ -2341,6 +2524,20 @@ Future<void> _deleteDir(Directory dir) async {
     await dir.delete(recursive: true);
   }
 }
+
+CockpitVideoArtifactInspector _passingVideoInspector() {
+  return CockpitVideoArtifactInspector(
+    processRunner: (executable, arguments, {required timeout}) async {
+      if (executable == 'ffprobe') {
+        return ProcessResult(71, 0, _strictVideoProbeJson, '');
+      }
+      return ProcessResult(72, 0, '', '');
+    },
+  );
+}
+
+const String _strictVideoProbeJson =
+    '{"streams":[{"index":0,"codec_name":"h264","codec_type":"video","width":240,"height":480}],"format":{"duration":"2.706000"}}';
 
 final List<int> _validPngBytes = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAAABAAAAAQBPJcTWAAAADklEQVR4nGNkAAMWCAUAADgABkRoBWYAAAAASUVORK5CYII=',

@@ -16,6 +16,8 @@ typedef CockpitValidateTaskFunction =
     Future<CockpitValidateTaskResult> Function(
       CockpitValidateTaskRequest request,
     );
+typedef CockpitRecordingArtifactValidationFunction =
+    Future<CockpitBundleArtifactValidationResult> Function(String path);
 
 enum CockpitValidationClassification {
   completed('completed'),
@@ -175,6 +177,7 @@ final class CockpitValidateTaskService {
     CockpitTaskOrchestrationFunction? orchestrateTask,
     CockpitRunTaskFunction? runTask,
     CockpitBundleArtifactValidator? artifactValidator,
+    CockpitRecordingArtifactValidationFunction? validateRecordingArtifact,
   }) : _validateTaskOverride = validateTask,
        _orchestrateTask = runTask == null && runTaskService == null
            ? (orchestrateTask ??
@@ -183,12 +186,15 @@ final class CockpitValidateTaskService {
            : null,
        _runTask = runTask ?? runTaskService?.run,
        _artifactValidator =
-           artifactValidator ?? CockpitBundleArtifactValidator();
+           artifactValidator ?? CockpitBundleArtifactValidator(),
+       _validateRecordingArtifactOverride = validateRecordingArtifact;
 
   final CockpitValidateTaskFunction? _validateTaskOverride;
   final CockpitTaskOrchestrationFunction? _orchestrateTask;
   final CockpitRunTaskFunction? _runTask;
   final CockpitBundleArtifactValidator _artifactValidator;
+  final CockpitRecordingArtifactValidationFunction?
+  _validateRecordingArtifactOverride;
 
   Future<CockpitValidateTaskResult> validate(
     CockpitValidateTaskRequest request,
@@ -205,6 +211,8 @@ final class CockpitValidateTaskService {
         : await _collectValidationFailures(
             bundleSummary: bundleSummary,
             requirements: request.validation,
+            requireVideoEvidence:
+                request.runTask.requirements.requireVideoEvidence,
             actualClassification: runTaskResult.classification,
           );
 
@@ -279,11 +287,31 @@ final class CockpitValidateTaskService {
   Future<List<CockpitValidationFailure>> _collectValidationFailures({
     required CockpitReadTaskBundleSummaryResult bundleSummary,
     required CockpitValidateTaskRequirements requirements,
+    required bool requireVideoEvidence,
     required CockpitRunTaskClassification actualClassification,
   }) async {
     final failures = <CockpitValidationFailure>[];
     final validatedArtifacts = <String>{};
+    final recordingValidationResults =
+        <String, Future<CockpitValidationFailure?>>{};
+    final reportedRecordingValidationFailures = <String>{};
     final gateSummary = bundleSummary.gateSummary;
+
+    Future<CockpitValidationFailure?> validateRecordingArtifact(String path) {
+      return recordingValidationResults.putIfAbsent(
+        path,
+        () => _validateRecordingArtifact(path),
+      );
+    }
+
+    void addRecordingValidationFailure(
+      String path,
+      CockpitValidationFailure? failure,
+    ) {
+      if (failure != null && reportedRecordingValidationFailures.add(path)) {
+        failures.add(failure);
+      }
+    }
 
     final expectedClassification = requirements.expectedClassification;
     if (expectedClassification != null &&
@@ -413,10 +441,8 @@ final class CockpitValidateTaskService {
           );
         }
         validatedArtifacts.add(recordingPath);
-        final failure = await _validateRecordingArtifact(recordingPath);
-        if (failure != null) {
-          failures.add(failure);
-        }
+        final failure = await validateRecordingArtifact(recordingPath);
+        addRecordingValidationFailure(recordingPath, failure);
       }
     }
 
@@ -470,10 +496,8 @@ final class CockpitValidateTaskService {
       ];
       for (final path in recordingPaths) {
         if (validatedArtifacts.add(path)) {
-          final failure = await _validateRecordingArtifact(path);
-          if (failure != null) {
-            failures.add(failure);
-          }
+          final failure = await validateRecordingArtifact(path);
+          addRecordingValidationFailure(path, failure);
         }
       }
     }
@@ -482,6 +506,28 @@ final class CockpitValidateTaskService {
         bundleSummary.artifactPaths.primaryScreenshotPath;
     final primaryRecordingPath =
         bundleSummary.artifactPaths.primaryRecordingPath;
+
+    var strictAcceptanceVideoPassed = false;
+    if (requireVideoEvidence &&
+        primaryRecordingPath != null &&
+        primaryRecordingPath.isNotEmpty &&
+        File(primaryRecordingPath).existsSync()) {
+      final lightweightFailure = await validateRecordingArtifact(
+        primaryRecordingPath,
+      );
+      if (lightweightFailure == null) {
+        final strictFailure = await _validateAcceptanceVideoArtifact(
+          primaryRecordingPath,
+        );
+        if (strictFailure == null) {
+          strictAcceptanceVideoPassed = true;
+        } else {
+          failures.add(strictFailure);
+        }
+      } else {
+        addRecordingValidationFailure(primaryRecordingPath, lightweightFailure);
+      }
+    }
 
     if (bundleSummary.manifest.runtimeErrorCount > 0) {
       failures.add(
@@ -510,7 +556,9 @@ final class CockpitValidateTaskService {
       _validateDiagnosticsArtifactRefs(bundleSummary: bundleSummary),
     );
 
-    if (primaryScreenshotPath != null &&
+    if (requireVideoEvidence &&
+        strictAcceptanceVideoPassed &&
+        primaryScreenshotPath != null &&
         primaryScreenshotPath.isNotEmpty &&
         primaryRecordingPath != null &&
         primaryRecordingPath.isNotEmpty) {
@@ -843,7 +891,27 @@ final class CockpitValidateTaskService {
   Future<CockpitValidationFailure?> _validateRecordingArtifact(
     String path,
   ) async {
-    final result = await _artifactValidator.validateRecording(path);
+    final result =
+        await (_validateRecordingArtifactOverride ??
+            _artifactValidator.validateRecording)(path);
+    if (result.isValid) {
+      return null;
+    }
+    return CockpitValidationFailure(
+      code: result.code,
+      message: result.message,
+      details: <String, Object?>{
+        'path': path,
+        'validator': result.validator,
+        ...result.details,
+      },
+    );
+  }
+
+  Future<CockpitValidationFailure?> _validateAcceptanceVideoArtifact(
+    String path,
+  ) async {
+    final result = await _artifactValidator.validateAcceptanceVideo(path);
     if (result.isValid) {
       return null;
     }

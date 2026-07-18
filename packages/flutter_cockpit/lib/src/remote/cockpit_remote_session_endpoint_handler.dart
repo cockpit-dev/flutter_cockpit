@@ -678,7 +678,7 @@ final class CockpitRemoteSessionEndpointHandler {
     CockpitRecordingResult result,
   ) async {
     final bytes = result.bytes;
-    if (bytes != null) {
+    if (bytes != null && bytes.isNotEmpty) {
       return _persistArtifactBytes(
         cockpitSanitizeRemoteArtifactBasename(
           result.artifact?.relativePath ?? 'recording.mp4',
@@ -688,11 +688,11 @@ final class CockpitRemoteSessionEndpointHandler {
     }
 
     final sourceFilePath = result.sourceFilePath;
-    if (sourceFilePath == null || sourceFilePath.isEmpty) {
+    if (sourceFilePath == null || sourceFilePath.trim().isEmpty) {
       return null;
     }
     final sourceFile = File(sourceFilePath);
-    if (!sourceFile.existsSync()) {
+    if (!sourceFile.existsSync() || sourceFile.lengthSync() <= 0) {
       return null;
     }
     return _RemoteArtifactEntry(sourceFilePath: sourceFile.path);
@@ -713,6 +713,9 @@ final class CockpitRemoteSessionEndpointHandler {
     String basename,
     List<int> bytes,
   ) async {
+    if (bytes.isEmpty) {
+      throw StateError('Cannot persist an empty artifact payload.');
+    }
     final file = await _artifactTempFileFactory(basename);
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes, flush: true);

@@ -8,6 +8,30 @@ void main() {
 
   const channelName = 'dev.cockpit.flutter_cockpit/recording';
 
+  Future<CockpitRecordingResult> stopRecordingWithPayload(
+    Map<String, Object?> payload,
+  ) async {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    const channel = MethodChannel(channelName);
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'stopRecording');
+      return payload;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+    const request = CockpitRecordingRequest(
+      purpose: CockpitRecordingPurpose.acceptance,
+      name: 'payload-contract',
+    );
+    return const CockpitNativeRecording(channel: channel).stopRecording(
+      session: const CockpitRecordingSession(
+        request: request,
+        state: CockpitRecordingState.recording,
+      ),
+    );
+  }
+
   test('queryCapabilities parses the native capability payload', () async {
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
@@ -150,5 +174,71 @@ void main() {
     expect(result.state, CockpitRecordingState.failed);
     expect(result.failureReason, 'recordingNotActive');
     expect(result.artifact, isNull);
+  });
+
+  test('stopRecording rejects non-Uint8List recording bytes', () async {
+    await expectLater(
+      stopRecordingWithPayload(<String, Object?>{
+        'state': 'completed',
+        'bytes': <int>[1, 2, 3],
+      }),
+      throwsStateError,
+    );
+  });
+
+  test('stopRecording does not expose empty recording bytes', () async {
+    final result = await stopRecordingWithPayload(<String, Object?>{
+      'state': 'completed',
+      'bytes': Uint8List(0),
+    });
+
+    expect(result.state, CockpitRecordingState.completed);
+    expect(result.bytes, isNull);
+    expect(result.artifact, isNull);
+  });
+
+  test('completed stop without a usable source has no artifact', () async {
+    final result = await stopRecordingWithPayload(<String, Object?>{
+      'state': 'completed',
+    });
+
+    expect(result.state, CockpitRecordingState.completed);
+    expect(result.artifact, isNull);
+    expect(result.bytes, isNull);
+    expect(result.sourceFilePath, isNull);
+  });
+
+  test('completed stop rejects a whitespace-only source path', () async {
+    final result = await stopRecordingWithPayload(<String, Object?>{
+      'state': 'completed',
+      'sourceFilePath': '   \n',
+    });
+
+    expect(result.state, CockpitRecordingState.completed);
+    expect(result.artifact, isNull);
+    expect(result.sourceFilePath, isNull);
+  });
+
+  test('failed stop discards stale artifact sources', () async {
+    final result = await stopRecordingWithPayload(<String, Object?>{
+      'state': 'failed',
+      'recordingKind': 'nativeScreen',
+      'effectiveLayer': 'system',
+      'fallbackUsed': true,
+      'fallbackReason': 'native recorder stopped unexpectedly',
+      'durationMs': 640,
+      'failureReason': 'writeFailed',
+      'bytes': Uint8List.fromList(<int>[1, 2, 3]),
+      'sourceFilePath': '/tmp/stale-recording.mp4',
+    });
+
+    expect(result.state, CockpitRecordingState.failed);
+    expect(result.failureReason, 'writeFailed');
+    expect(result.durationMs, 640);
+    expect(result.fallbackUsed, isTrue);
+    expect(result.fallbackReason, 'native recorder stopped unexpectedly');
+    expect(result.artifact, isNull);
+    expect(result.bytes, isNull);
+    expect(result.sourceFilePath, isNull);
   });
 }

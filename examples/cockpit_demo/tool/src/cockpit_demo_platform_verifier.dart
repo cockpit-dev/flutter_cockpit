@@ -302,6 +302,15 @@ final class CockpitDemoPlatformVerification {
     this.screenshotArtifactRef,
     this.screenshotOutputPath,
     this.screenshotByteLength,
+    this.screenshotValidation = const <String, Object?>{},
+    this.videoValidation = const <String, Object?>{},
+    this.targetIdentity = const <String, Object?>{},
+    this.runtimeVersion,
+    this.capabilitySnapshot = const <String, Object?>{},
+    this.appNativeEvidence = const <String, Object?>{},
+    this.hostEvidence = const <String, Object?>{},
+    this.flutterEvidence = const <String, Object?>{},
+    this.synthesizedEvidence = const <String, Object?>{},
     this.systemControlAdapter,
     this.systemAvailableActions = const <String>[],
     this.systemVerifiedActions = const <String>[],
@@ -348,6 +357,15 @@ final class CockpitDemoPlatformVerification {
   final String? screenshotArtifactRef;
   final String? screenshotOutputPath;
   final int? screenshotByteLength;
+  final Map<String, Object?> screenshotValidation;
+  final Map<String, Object?> videoValidation;
+  final Map<String, Object?> targetIdentity;
+  final String? runtimeVersion;
+  final Map<String, Object?> capabilitySnapshot;
+  final Map<String, Object?> appNativeEvidence;
+  final Map<String, Object?> hostEvidence;
+  final Map<String, Object?> flutterEvidence;
+  final Map<String, Object?> synthesizedEvidence;
   final String? systemControlAdapter;
   final List<String> systemAvailableActions;
   final List<String> systemVerifiedActions;
@@ -402,6 +420,15 @@ final class CockpitDemoPlatformVerification {
       'screenshotOutputPath': screenshotOutputPath,
     if (screenshotByteLength != null)
       'screenshotByteLength': screenshotByteLength,
+    'screenshotValidation': screenshotValidation,
+    'videoValidation': videoValidation,
+    'targetIdentity': targetIdentity,
+    'runtimeVersion': runtimeVersion,
+    'capabilitySnapshot': capabilitySnapshot,
+    'appNativeEvidence': appNativeEvidence,
+    'hostEvidence': hostEvidence,
+    'flutterEvidence': flutterEvidence,
+    'synthesizedEvidence': synthesizedEvidence,
     if (systemControlAdapter != null)
       'systemControlAdapter': systemControlAdapter,
     'systemAvailableActions': systemAvailableActions,
@@ -420,15 +447,24 @@ final class CockpitDemoPlatformVerificationResult {
     required this.platforms,
     required this.success,
     required this.recommendedNextStep,
+    this.commitSha,
+    this.reportUrl,
+    this.ciUrl,
   });
 
   final List<CockpitDemoPlatformVerification> platforms;
   final bool success;
   final String recommendedNextStep;
+  final String? commitSha;
+  final String? reportUrl;
+  final String? ciUrl;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'success': success,
     'recommendedNextStep': recommendedNextStep,
+    'commitSha': commitSha,
+    'reportUrl': reportUrl,
+    'ciUrl': ciUrl,
     'platforms': platforms
         .map((platform) => platform.toJson())
         .toList(growable: false),
@@ -457,6 +493,7 @@ final class CockpitDemoPlatformVerifier {
     CockpitDemoHotRestartFunction? hotRestart,
     CockpitDemoStopAppFunction? stopApp,
     CockpitDemoTimelineRecordingProcessRunner? timelineRecordingProcessRunner,
+    CockpitBundleArtifactValidator? artifactValidator,
     CockpitDemoSystemControlDescribeFunction? describeSystemControl,
     CockpitDemoSystemControlRunActionFunction? runSystemAction,
     bool? isWindows,
@@ -490,6 +527,8 @@ final class CockpitDemoPlatformVerifier {
        _stopApp = stopApp ?? CockpitStopAppService().stop,
        _timelineRecordingProcessRunner =
            timelineRecordingProcessRunner ?? Process.run,
+       _artifactValidator =
+           artifactValidator ?? CockpitBundleArtifactValidator(),
        _describeSystemControl =
            describeSystemControl ?? CockpitSystemControlService().describe,
        _runSystemAction =
@@ -517,6 +556,7 @@ final class CockpitDemoPlatformVerifier {
   final CockpitDemoStopAppFunction _stopApp;
   final CockpitDemoTimelineRecordingProcessRunner
   _timelineRecordingProcessRunner;
+  final CockpitBundleArtifactValidator _artifactValidator;
   final CockpitDemoSystemControlDescribeFunction _describeSystemControl;
   final CockpitDemoSystemControlRunActionFunction _runSystemAction;
   final bool _isWindows;
@@ -524,6 +564,14 @@ final class CockpitDemoPlatformVerifier {
   Future<CockpitDemoPlatformVerificationResult> verify(
     CockpitDemoPlatformVerificationRequest request,
   ) async {
+    final commitSha = await _resolveCommitSha(request.projectDir);
+    final reportUrl = _firstEnvironmentValue(const <String>[
+      'COCKPIT_REPORT_URL',
+    ]);
+    final ciUrl = _firstEnvironmentValue(const <String>[
+      'CI_JOB_URL',
+      'BUILD_URL',
+    ]);
     final results = <CockpitDemoPlatformVerification>[];
     final normalizedPlatforms = request.platforms
         .map(cockpitDemoNormalizeVerificationPlatform)
@@ -551,7 +599,43 @@ final class CockpitDemoPlatformVerifier {
       platforms: results,
       success: success,
       recommendedNextStep: success ? 'continue' : 'inspectPlatformFailures',
+      commitSha: commitSha,
+      reportUrl: reportUrl,
+      ciUrl: ciUrl,
     );
+  }
+
+  Future<String?> _resolveCommitSha(String projectDir) async {
+    final environmentSha = _firstEnvironmentValue(const <String>[
+      'GITHUB_SHA',
+      'CI_COMMIT_SHA',
+    ]);
+    if (environmentSha != null) {
+      return environmentSha;
+    }
+    try {
+      final result = await _processRunner('git', const <String>[
+        'rev-parse',
+        'HEAD',
+      ], workingDirectory: projectDir);
+      final value = '${result.stdout}'.trim();
+      return result.exitCode == 0 &&
+              RegExp(r'^[0-9a-fA-F]{7,64}$').hasMatch(value)
+          ? value
+          : null;
+    } on ProcessException {
+      return null;
+    }
+  }
+
+  String? _firstEnvironmentValue(List<String> names) {
+    for (final name in names) {
+      final value = Platform.environment[name]?.trim();
+      if (value != null && value.isNotEmpty) {
+        return value;
+      }
+    }
+    return null;
   }
 
   Future<CockpitDemoPlatformVerification> _verifyPlatform({
@@ -566,6 +650,15 @@ final class CockpitDemoPlatformVerifier {
     String? deviceId;
     var bootstrappedDevice = false;
     var recordingStarted = false;
+    var screenshotValidation = const <String, Object?>{};
+    var videoValidation = const <String, Object?>{};
+    var targetIdentity = const <String, Object?>{};
+    var capabilitySnapshot = const <String, Object?>{};
+    var appNativeEvidence = const <String, Object?>{};
+    var hostEvidence = const <String, Object?>{};
+    var flutterEvidence = const <String, Object?>{};
+    var synthesizedEvidence = const <String, Object?>{};
+    final runtimeVersion = Platform.version;
 
     try {
       await Directory(outputDir).create(recursive: true);
@@ -619,12 +712,22 @@ final class CockpitDemoPlatformVerifier {
       );
       final launchedApp = launchResult.app;
       app = launchedApp;
+      targetIdentity = <String, Object?>{
+        'appId': launchedApp.appId,
+        'platform': launchedApp.platform,
+        'deviceId': launchedApp.deviceId,
+        'target': launchedApp.target,
+        if (launchedApp.platformAppId != null)
+          'platformAppId': launchedApp.platformAppId,
+        if (launchedApp.processId != null) 'processId': launchedApp.processId,
+      };
       final resolvedAppJsonPath = launchResult.appJsonPath ?? appJsonPath;
       final appBaseUri = Uri.parse(launchedApp.baseUrl);
       final verifiedCommands = <String>['launch-app'];
       final warnings = <String>[];
       var autoScreenshotCount = 0;
       var exportedScreenshotCount = 0;
+      final exportedScreenshotPaths = <String>[];
       _reportProgress(
         request: request,
         platform: platform,
@@ -638,6 +741,11 @@ final class CockpitDemoPlatformVerifier {
           resultProfile: const CockpitInteractiveResultProfile.minimal(),
         ),
       );
+      capabilitySnapshot = <String, Object?>{
+        'transportType': initialRead.transportType,
+        'capabilities': initialRead.capabilities.toJson(),
+        'recordingCapabilities': initialRead.recordingCapabilities.toJson(),
+      };
       _requireRoute(
         routeName: initialRead.currentRouteName,
         expectedRoute: '/inbox',
@@ -707,6 +815,7 @@ final class CockpitDemoPlatformVerifier {
       String? recordingOutputPath;
       int? recordingDurationMs;
       String? recordingKind;
+      String? recordingEffectiveLayer;
       var recordingFallbackUsed = false;
       Object? recordingFallbackReason;
       activeRecordingAdapter = recordingAdapter;
@@ -767,6 +876,7 @@ final class CockpitDemoPlatformVerifier {
         platform: platform,
         result: batchResult,
         outputDir: outputDir,
+        exportedPaths: exportedScreenshotPaths,
       );
       verifiedCommands.add('run-batch');
       _reportProgress(
@@ -803,6 +913,7 @@ final class CockpitDemoPlatformVerifier {
           );
           recordingDurationMs = recordingStop.durationMs;
           recordingKind = recordingStop.recordingKind?.name;
+          recordingEffectiveLayer = recordingStop.effectiveLayer?.jsonValue;
         } on Object catch (error) {
           if (!_shouldAllowHostRecordingPrerequisiteFailure(
             platform: platform,
@@ -892,6 +1003,7 @@ final class CockpitDemoPlatformVerifier {
         platform: platform,
         result: syncLabConflictBatchResult,
         outputDir: outputDir,
+        exportedPaths: exportedScreenshotPaths,
       );
       _reportProgress(
         request: request,
@@ -943,6 +1055,7 @@ final class CockpitDemoPlatformVerifier {
         platform: platform,
         result: syncLabOpenConflictBatchResult,
         outputDir: outputDir,
+        exportedPaths: exportedScreenshotPaths,
       );
       _reportProgress(
         request: request,
@@ -982,6 +1095,7 @@ final class CockpitDemoPlatformVerifier {
         platform: platform,
         result: revealKeepLocalResult,
         outputDir: outputDir,
+        exportedPaths: exportedScreenshotPaths,
       );
       final keepLocalResult = await _runRequiredCommand(
         app: launchedApp,
@@ -993,6 +1107,7 @@ final class CockpitDemoPlatformVerifier {
         platform: platform,
         result: keepLocalResult,
         outputDir: outputDir,
+        exportedPaths: exportedScreenshotPaths,
       );
       final syncRecoveryBatchResult = await _runBatchWithRetry(
         CockpitRunBatchRequest(
@@ -1013,6 +1128,7 @@ final class CockpitDemoPlatformVerifier {
         platform: platform,
         result: syncRecoveryBatchResult,
         outputDir: outputDir,
+        exportedPaths: exportedScreenshotPaths,
       );
       final syncRecoveryVerificationBatchResult = await _runBatchWithRetry(
         CockpitRunBatchRequest(
@@ -1037,6 +1153,7 @@ final class CockpitDemoPlatformVerifier {
         platform: platform,
         result: syncRecoveryVerificationBatchResult,
         outputDir: outputDir,
+        exportedPaths: exportedScreenshotPaths,
       );
       final returnFromDetailResult = await _runRequiredCommand(
         app: launchedApp,
@@ -1057,6 +1174,7 @@ final class CockpitDemoPlatformVerifier {
         platform: platform,
         result: returnFromDetailResult,
         outputDir: outputDir,
+        exportedPaths: exportedScreenshotPaths,
       );
       _reportProgress(
         request: request,
@@ -1179,6 +1297,7 @@ final class CockpitDemoPlatformVerifier {
         artifact: screenshotArtifact,
         outputDir: outputDir,
       );
+      exportedScreenshotPaths.add(screenshotOutputPath);
       verifiedCommands.add('capture-screenshot');
       _reportProgress(
         request: request,
@@ -1215,6 +1334,97 @@ final class CockpitDemoPlatformVerifier {
         warnings.add(
           'Synthesized a timeline recording from exported key-step screenshots after host recording startup failed.',
         );
+      }
+
+      screenshotValidation = await _validateExportedScreenshots(
+        exportedScreenshotPaths,
+      );
+      if (screenshotValidation['isValid'] != true) {
+        throw CockpitApplicationServiceException(
+          code:
+              screenshotValidation['firstFailureCode'] as String? ??
+              'invalidScreenshotArtifact',
+          message: 'An exported screenshot failed artifact validation.',
+          details: screenshotValidation,
+        );
+      }
+      if (recordingOutputPath == null || recordingOutputPath.isEmpty) {
+        throw CockpitApplicationServiceException(
+          code: 'recordingArtifactUnavailable',
+          message: 'Final recording evidence is unavailable for validation.',
+          details: <String, Object?>{'platform': platform},
+        );
+      }
+      videoValidation = _validationResultJson(
+        await _artifactValidator.validateAcceptanceVideo(recordingOutputPath),
+        path: recordingOutputPath,
+      );
+      if (videoValidation['isValid'] != true) {
+        throw CockpitApplicationServiceException(
+          code:
+              videoValidation['code'] as String? ?? 'invalidRecordingArtifact',
+          message: 'The final recording failed artifact validation.',
+          details: videoValidation,
+        );
+      }
+
+      final captureKind = captureResult.command.resolvedCaptureKind;
+      final screenshotEvidence = <String, Object?>{
+        'artifactRef': screenshotArtifact.relativePath,
+        'outputPath': screenshotOutputPath,
+        'resolvedCaptureKind': captureKind,
+        'validation': screenshotValidation,
+      };
+      switch (captureKind) {
+        case 'appNative':
+          appNativeEvidence = <String, Object?>{
+            ...appNativeEvidence,
+            'screenshot': screenshotEvidence,
+          };
+        case 'hostSystem':
+          hostEvidence = <String, Object?>{
+            ...hostEvidence,
+            'screenshot': screenshotEvidence,
+          };
+        case 'flutterView':
+          flutterEvidence = <String, Object?>{
+            ...flutterEvidence,
+            'screenshot': screenshotEvidence,
+          };
+        case null:
+          break;
+        default:
+          break;
+      }
+
+      final recordingDriver = _recordingDriverForVerification(
+        platform: platform,
+        deviceId: deviceId,
+        fallbackUsed: recordingFallbackUsed,
+      );
+      final recordingEvidence = <String, Object?>{
+        'artifactRef': recordingArtifactRef,
+        'outputPath': recordingOutputPath,
+        'recordingKind': recordingKind,
+        'effectiveLayer': recordingEffectiveLayer,
+        'recordingDriver': recordingDriver,
+        'validation': videoValidation,
+      };
+      if (recordingFallbackUsed) {
+        synthesizedEvidence = <String, Object?>{
+          'recording': recordingEvidence,
+          'source': 'timelineScreenshotFallback',
+        };
+      } else if (_isHostRecordingDriver(recordingDriver)) {
+        hostEvidence = <String, Object?>{
+          ...hostEvidence,
+          'recording': recordingEvidence,
+        };
+      } else if (recordingKind == CockpitRecordingKind.nativeScreen.name) {
+        appNativeEvidence = <String, Object?>{
+          ...appNativeEvidence,
+          'recording': recordingEvidence,
+        };
       }
 
       final hotReloadResult = await _hotReload(
@@ -1335,14 +1545,19 @@ final class CockpitDemoPlatformVerifier {
         recordingOutputPath: recordingOutputPath,
         recordingDurationMs: recordingDurationMs,
         recordingKind: recordingKind,
-        recordingDriver: _recordingDriverForVerification(
-          platform: platform,
-          deviceId: deviceId,
-          fallbackUsed: recordingFallbackUsed,
-        ),
+        recordingDriver: recordingDriver,
         screenshotArtifactRef: screenshotArtifact.relativePath,
         screenshotOutputPath: screenshotOutputPath,
         screenshotByteLength: screenshotArtifact.byteLength,
+        screenshotValidation: screenshotValidation,
+        videoValidation: videoValidation,
+        targetIdentity: targetIdentity,
+        runtimeVersion: runtimeVersion,
+        capabilitySnapshot: capabilitySnapshot,
+        appNativeEvidence: appNativeEvidence,
+        hostEvidence: hostEvidence,
+        flutterEvidence: flutterEvidence,
+        synthesizedEvidence: synthesizedEvidence,
         systemControlAdapter: systemControl.adapter,
         systemAvailableActions: systemControl.availableActions,
         systemVerifiedActions: systemControl.verifiedActions,
@@ -1368,6 +1583,15 @@ final class CockpitDemoPlatformVerifier {
         outputDir: outputDir,
         appJsonPath: appJsonPath,
         baseUrl: app?.baseUrl,
+        screenshotValidation: screenshotValidation,
+        videoValidation: videoValidation,
+        targetIdentity: targetIdentity,
+        runtimeVersion: runtimeVersion,
+        capabilitySnapshot: capabilitySnapshot,
+        appNativeEvidence: appNativeEvidence,
+        hostEvidence: hostEvidence,
+        flutterEvidence: flutterEvidence,
+        synthesizedEvidence: synthesizedEvidence,
         failureCode: serviceError?.code ?? error.runtimeType.toString(),
         failureMessage: '$error',
         failureDetails: await _failureDetailsWithDiagnostics(
@@ -1993,6 +2217,7 @@ final class CockpitDemoPlatformVerifier {
     required String platform,
     required CockpitRunBatchResult result,
     required String outputDir,
+    required List<String> exportedPaths,
   }) async {
     var exportedCount = 0;
     for (final entry in result.results) {
@@ -2000,6 +2225,7 @@ final class CockpitDemoPlatformVerifier {
         platform: platform,
         result: entry,
         outputDir: outputDir,
+        exportedPaths: exportedPaths,
       );
     }
     return exportedCount;
@@ -2009,6 +2235,7 @@ final class CockpitDemoPlatformVerifier {
     required String platform,
     required CockpitExecuteRemoteCommandResult result,
     required String outputDir,
+    required List<String> exportedPaths,
   }) async {
     final commandType = CockpitCommandType.fromJson(result.command.commandType);
     if (!cockpitCommandTypeIsAiEvidenceKeyOperation(commandType)) {
@@ -2031,11 +2258,12 @@ final class CockpitDemoPlatformVerifier {
     }
     var exportedCount = 0;
     for (final artifact in screenshotArtifacts) {
-      await _exportScreenshotArtifact(
+      final exportedPath = await _exportScreenshotArtifact(
         platform: platform,
         artifact: artifact,
         outputDir: outputDir,
       );
+      exportedPaths.add(exportedPath);
       exportedCount += 1;
     }
     return exportedCount;
@@ -2251,6 +2479,51 @@ final class CockpitDemoPlatformVerifier {
     CockpitRunBatchRequest request,
   ) async {
     return _runBatch(request);
+  }
+
+  Future<Map<String, Object?>> _validateExportedScreenshots(
+    Iterable<String> screenshotPaths,
+  ) async {
+    final files = screenshotPaths
+        .map((path) => File(p.normalize(path)))
+        .toList(growable: false);
+    files.sort((left, right) => left.path.compareTo(right.path));
+
+    final artifacts = <Map<String, Object?>>[];
+    String? firstFailureCode;
+    for (final file in files) {
+      final validation = _validationResultJson(
+        await _artifactValidator.validateScreenshot(file.path),
+        path: file.path,
+      );
+      artifacts.add(validation);
+      if (validation['isValid'] != true && firstFailureCode == null) {
+        firstFailureCode = validation['code'] as String?;
+      }
+    }
+    final isValid = files.isNotEmpty && firstFailureCode == null;
+    return <String, Object?>{
+      'isValid': isValid,
+      'validatedCount': files.length,
+      'validator': 'image',
+      if (files.isEmpty) 'firstFailureCode': 'screenshotArtifactUnavailable',
+      'firstFailureCode': ?firstFailureCode,
+      'artifacts': artifacts,
+    };
+  }
+
+  Map<String, Object?> _validationResultJson(
+    CockpitBundleArtifactValidationResult result, {
+    required String path,
+  }) {
+    return <String, Object?>{
+      'isValid': result.isValid,
+      'code': result.code,
+      'validator': result.validator,
+      'message': result.message,
+      'path': path,
+      'details': result.details,
+    };
   }
 
   Future<String> _copyRequiredArtifactToOutputDir({
@@ -3286,6 +3559,13 @@ String _recordingDriverForVerification({
     deviceId: deviceId,
   );
   return fallbackUsed ? '$driver-fallback' : driver;
+}
+
+bool _isHostRecordingDriver(String driver) {
+  return driver == 'adb' ||
+      driver == 'simctl' ||
+      driver == 'browser-host' ||
+      driver.endsWith('-host');
 }
 
 bool _shouldAllowHostRecordingPrerequisiteFailure({
