@@ -20,7 +20,7 @@ void main() {
         }
       });
       final process = _OpenStdoutProcess(
-        stdoutPayload: 'png-data',
+        stdoutPayload: _opaquePng,
         exitCode: Future<int>.value(0),
       );
       addTearDown(process.close);
@@ -38,7 +38,7 @@ void main() {
 
       expect(execution.result.success, isTrue);
       final sourcePath = execution.artifactSourcePaths.values.single;
-      expect(File(sourcePath).readAsStringSync(), 'png-data');
+      expect(File(sourcePath).readAsBytesSync(), _opaquePng);
     },
   );
 
@@ -52,7 +52,7 @@ void main() {
       }
     });
     final process = _OpenStdoutProcess(
-      stdoutPayload: '',
+      stdoutPayload: const <int>[],
       exitCode: Completer<int>().future,
     );
     addTearDown(process.close);
@@ -84,12 +84,12 @@ CockpitCommand _captureCommand() => CockpitCommand(
 
 final class _OpenStdoutProcess implements Process {
   _OpenStdoutProcess({
-    required String stdoutPayload,
+    required List<int> stdoutPayload,
     required Future<int> exitCode,
   }) : _exitCode = exitCode {
     scheduleMicrotask(() {
       if (stdoutPayload.isNotEmpty) {
-        _stdoutController.add(utf8.encode(stdoutPayload));
+        _stdoutController.add(stdoutPayload);
       }
     });
   }
@@ -136,3 +136,7 @@ final class _OpenStdoutProcess implements Process {
     }
   }
 }
+
+final List<int> _opaquePng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVQI12O8rmb7n4GBgQEADj0CO1/m6EIAAAAASUVORK5CYII=',
+);

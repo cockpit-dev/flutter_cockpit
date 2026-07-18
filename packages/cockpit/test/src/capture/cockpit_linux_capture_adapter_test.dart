@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
@@ -52,7 +53,7 @@ void main() {
           if (executable == 'gnome-screenshot') {
             throw ProcessException(executable, arguments, 'missing', 127);
           }
-          outputFile.writeAsStringSync('png-data');
+          outputFile.writeAsBytesSync(_opaquePng);
           return ProcessResult(0, 0, '', '');
         },
         activationSettleDelay: Duration.zero,
@@ -79,7 +80,7 @@ void main() {
           ),
         ),
       );
-      expect(outputFile.readAsStringSync(), 'png-data');
+      expect(outputFile.readAsBytesSync(), _opaquePng);
       expect(invocations.first, contains('wmctrl -ia 0x02c00007'));
       expect(
         invocations,
@@ -152,7 +153,7 @@ void main() {
         processRunner: (executable, arguments) async {
           invocations.add('$executable ${arguments.join(' ')}');
           if (executable == 'import') {
-            outputFile.writeAsStringSync('root-png-data');
+            outputFile.writeAsBytesSync(_opaquePng);
             return ProcessResult(0, 0, '', '');
           }
           fail('Unexpected executable: $executable');
@@ -172,7 +173,7 @@ void main() {
       );
 
       expect(execution.result.success, isTrue);
-      expect(outputFile.readAsStringSync(), 'root-png-data');
+      expect(outputFile.readAsBytesSync(), _opaquePng);
       expect(invocations, <String>['import -window root ${outputFile.path}']);
     },
   );
@@ -214,7 +215,7 @@ void main() {
             return ProcessResult(0, 0, '', '');
           }
           if (executable == 'ffmpeg') {
-            outputFile.writeAsStringSync('converted-png-data');
+            outputFile.writeAsBytesSync(_opaquePng);
             return ProcessResult(0, 0, '', '');
           }
           fail('Unexpected executable: $executable');
@@ -234,7 +235,7 @@ void main() {
       );
 
       expect(execution.result.success, isTrue);
-      expect(outputFile.readAsStringSync(), 'converted-png-data');
+      expect(outputFile.readAsBytesSync(), _opaquePng);
       expect(invocations, hasLength(2));
       expect(invocations[0], startsWith('xwd -root -silent -out '));
       expect(invocations[1], startsWith('ffmpeg -y -loglevel error -i '));
@@ -282,7 +283,7 @@ void main() {
             return ProcessResult(0, 0, '', '');
           }
           if (executable == 'ffmpeg') {
-            outputFile.writeAsStringSync('converted-png-data');
+            outputFile.writeAsBytesSync(_opaquePng);
             return ProcessResult(0, 0, '', '');
           }
           fail('Unexpected executable: $executable');
@@ -302,7 +303,7 @@ void main() {
       );
 
       expect(execution.result.success, isTrue);
-      expect(outputFile.readAsStringSync(), 'converted-png-data');
+      expect(outputFile.readAsBytesSync(), _opaquePng);
       expect(invocations, hasLength(2));
       expect(invocations[0], startsWith('xwd -root -silent -out '));
       expect(invocations[1], startsWith('ffmpeg -y -loglevel error -i '));
@@ -356,7 +357,7 @@ void main() {
             throw ProcessException(executable, arguments, 'missing', 127);
           }
           if (executable == 'ffmpeg') {
-            outputFile.writeAsStringSync('ffmpeg-png-data');
+            outputFile.writeAsBytesSync(_opaquePng);
             return ProcessResult(0, 0, '', '');
           }
           if (executable == 'import') {
@@ -379,7 +380,7 @@ void main() {
       );
 
       expect(execution.result.success, isTrue);
-      expect(outputFile.readAsStringSync(), 'ffmpeg-png-data');
+      expect(outputFile.readAsBytesSync(), _opaquePng);
       expect(invocations, hasLength(2));
       expect(invocations[0], startsWith('xwd -root -silent -out '));
       expect(
@@ -441,3 +442,7 @@ void main() {
     },
   );
 }
+
+final List<int> _opaquePng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVQI12O8rmb7n4GBgQEADj0CO1/m6EIAAAAASUVORK5CYII=',
+);

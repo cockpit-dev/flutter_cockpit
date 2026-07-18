@@ -87,20 +87,13 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
           },
         );
       }
-      if (!outputFile.existsSync() || outputFile.lengthSync() == 0) {
-        return cockpitFailedCaptureExecution(
-          command: command,
-          durationMs: stopwatch.elapsedMilliseconds,
-          message: 'macOS screencapture produced an empty PNG artifact.',
-          details: <String, Object?>{'appId': _appId},
-        );
-      }
-
-      return cockpitSuccessfulHostCaptureExecution(
+      return cockpitValidateHostCaptureOutput(
         command: command,
         artifact: artifact,
         durationMs: stopwatch.elapsedMilliseconds,
-        sourceFilePath: outputFile.path,
+        outputFile: outputFile,
+        captureDescription: 'macOS screencapture',
+        details: <String, Object?>{'appId': _appId},
       );
     } on TimeoutException {
       stopwatch.stop();

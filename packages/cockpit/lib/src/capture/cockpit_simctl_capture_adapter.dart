@@ -69,20 +69,13 @@ final class CockpitSimctlCaptureAdapter implements CockpitHostCaptureAdapter {
           },
         );
       }
-      if (!outputFile.existsSync() || outputFile.lengthSync() == 0) {
-        return cockpitFailedCaptureExecution(
-          command: command,
-          durationMs: stopwatch.elapsedMilliseconds,
-          message: 'simctl screenshot produced an empty PNG artifact.',
-          details: <String, Object?>{'deviceId': _deviceId},
-        );
-      }
-
-      return cockpitSuccessfulHostCaptureExecution(
+      return cockpitValidateHostCaptureOutput(
         command: command,
         artifact: artifact,
         durationMs: stopwatch.elapsedMilliseconds,
-        sourceFilePath: outputFile.path,
+        outputFile: outputFile,
+        captureDescription: 'simctl screenshot',
+        details: <String, Object?>{'deviceId': _deviceId},
       );
     } on TimeoutException {
       stopwatch.stop();

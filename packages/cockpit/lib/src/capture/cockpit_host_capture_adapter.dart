@@ -1,11 +1,13 @@
 // ignore_for_file: deprecated_member_use
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:path/path.dart' as p;
 
 import '../adapters/cockpit_capture_adapter.dart';
+import 'cockpit_screenshot_inspector.dart';
 
 typedef CockpitCaptureProcessStarter =
     Future<Process> Function(String executable, List<String> arguments);
@@ -84,6 +86,80 @@ CockpitCommandExecution cockpitSuccessfulHostCaptureExecution({
       artifact.relativePath: sourceFilePath,
     },
   );
+}
+
+Future<CockpitCommandExecution> cockpitValidateHostCaptureOutput({
+  required CockpitCommand command,
+  required CockpitArtifactRef artifact,
+  required int durationMs,
+  required File outputFile,
+  required String captureDescription,
+  Map<String, Object?> details = const <String, Object?>{},
+}) async {
+  late final Uint8List bytes;
+  try {
+    if (!await outputFile.exists()) {
+      return cockpitFailedCaptureExecution(
+        command: command,
+        durationMs: durationMs,
+        message: '$captureDescription did not produce a PNG artifact.',
+        details: <String, Object?>{...details, 'artifactStatus': 'missing'},
+      );
+    }
+    bytes = await outputFile.readAsBytes();
+  } on Object catch (error) {
+    await _deleteInvalidCaptureOutput(outputFile);
+    return cockpitFailedCaptureExecution(
+      command: command,
+      durationMs: durationMs,
+      message: '$captureDescription produced an unreadable PNG artifact.',
+      details: <String, Object?>{
+        ...details,
+        'artifactStatus': 'unreadable',
+        'error': error.toString(),
+      },
+    );
+  }
+
+  try {
+    await const CockpitImageScreenshotInspector().inspect(
+      bytes,
+      requireVisiblePixels:
+          command.screenshotRequest?.reason ==
+          CockpitScreenshotReason.acceptance,
+    );
+  } on CockpitScreenshotValidationException catch (error) {
+    await _deleteInvalidCaptureOutput(outputFile);
+    return cockpitFailedCaptureExecution(
+      command: command,
+      durationMs: durationMs,
+      message: error.code == 'screenshotEmpty'
+          ? '$captureDescription produced an empty PNG artifact.'
+          : '$captureDescription produced an invalid PNG artifact.',
+      details: <String, Object?>{
+        ...details,
+        'validationCode': error.code,
+        'validationMessage': error.message,
+      },
+    );
+  }
+
+  return cockpitSuccessfulHostCaptureExecution(
+    command: command,
+    artifact: artifact,
+    durationMs: durationMs,
+    sourceFilePath: outputFile.path,
+  );
+}
+
+Future<void> _deleteInvalidCaptureOutput(File outputFile) async {
+  try {
+    if (await outputFile.exists()) {
+      await outputFile.delete();
+    }
+  } on Object {
+    // Validation failure remains authoritative if cleanup also fails.
+  }
 }
 
 CockpitCaptureProfile? _captureProfileFor(CockpitScreenshotRequest? request) {

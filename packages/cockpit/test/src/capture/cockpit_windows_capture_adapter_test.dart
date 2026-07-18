@@ -49,7 +49,7 @@ void main() {
         processRunner: (executable, arguments) async {
           expect(executable, 'powershell');
           invocations.add(List<String>.from(arguments));
-          outputFile.writeAsStringSync('png-data');
+          outputFile.writeAsBytesSync(_opaquePng);
           return ProcessResult(0, 0, '', '');
         },
       );
@@ -76,7 +76,7 @@ void main() {
         ),
       );
       expect(execution.artifactSourcePaths, isNotEmpty);
-      expect(outputFile.readAsStringSync(), 'png-data');
+      expect(outputFile.readAsBytesSync(), _opaquePng);
       expect(invocations.single[0], '-NoProfile');
       expect(invocations.single[1], '-NonInteractive');
       expect(invocations.single[2], '-EncodedCommand');
@@ -186,3 +186,7 @@ String _decodeWindowsPowerShellEncodedCommand(String encoded) {
       bytes[index] | (bytes[index + 1] << 8),
   ]);
 }
+
+final List<int> _opaquePng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVQI12O8rmb7n4GBgQEADj0CO1/m6EIAAAAASUVORK5CYII=',
+);

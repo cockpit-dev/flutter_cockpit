@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
@@ -34,9 +35,10 @@ last_arg=""
 for arg in "$@"; do
   last_arg="$arg"
 done
-printf 'png-data' > "$last_arg"
+cp "$script_dir/opaque.png" "$last_arg"
 ''',
       );
+      await File(p.join(tempDir.path, 'opaque.png')).writeAsBytes(_opaquePng);
 
       final adapter = CockpitMacosCaptureAdapter(
         appId: 'dev.cockpit.cockpitDemo',
@@ -85,7 +87,7 @@ printf 'png-data' > "$last_arg"
       );
       expect(execution.artifactSourcePaths, isNotEmpty);
       final sourcePath = execution.artifactSourcePaths.values.single;
-      expect(File(sourcePath).readAsStringSync(), 'png-data');
+      expect(File(sourcePath).readAsBytesSync(), _opaquePng);
       final log = File(
         p.join(tempDir.path, 'macos-capture.log'),
       ).readAsStringSync();
@@ -145,3 +147,7 @@ Future<File> _writeExecutable({
   await Process.run('chmod', <String>['+x', file.path]);
   return file;
 }
+
+final List<int> _opaquePng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVQI12O8rmb7n4GBgQEADj0CO1/m6EIAAAAASUVORK5CYII=',
+);
