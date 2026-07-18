@@ -427,6 +427,46 @@ void main() {
     );
   });
 
+  test('flutter-cockpit skill documents truthful screenshot routing', () {
+    final skill = readRepoFile('skills/flutter-cockpit/SKILL.md');
+    final contract = readRepoFile(
+      'docs/contracts/flutter-cockpit-skill-contract.md',
+    );
+    final pressureScenarios = readRepoFile(
+      'skills/flutter-cockpit/pressure-scenarios.md',
+    );
+
+    for (final profile in <String>[
+      'diagnostic',
+      'acceptance',
+      'flutterPreferred',
+      'nativePreferred',
+    ]) {
+      expect(skill, contains('`$profile`'));
+    }
+    expect(
+      skill,
+      contains('Android/iOS Simulator acceptance and system UI: host first'),
+    );
+    expect(skill, contains('desktop, Web, and diagnostics: app first'));
+    expect(skill, contains('--capture-profile nativePreferred'));
+    expect(skill, contains('--no-capture-fallback'));
+    expect(skill, contains('`profile: nativePreferred`'));
+    expect(skill, contains('`captureProfile: nativePreferred`'));
+    expect(skill, contains('`allowFallback: false`'));
+    expect(skill, contains('`--profile inspect` controls output detail'));
+    expect(
+      skill,
+      isNot(contains('prefers system/host capture, falls back to app capture')),
+    );
+
+    expect(contract, contains('must not gate fallback on `/health`'));
+    expect(contract, contains('actual capture source'));
+    expect(pressureScenarios, contains('Screenshot Routing Pressure'));
+    expect(pressureScenarios, contains('`captureProfile: flutter`'));
+    expect(pressureScenarios, contains('`allowFallback: false`'));
+  });
+
   test('flutter-cockpit skill workflow examples parse in production', () {
     final skill = readRepoFile('skills/flutter-cockpit/SKILL.md');
     final workflowBlocks = fencedBlocks(skill, 'yaml')

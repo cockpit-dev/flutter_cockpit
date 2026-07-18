@@ -46,6 +46,8 @@ void main() {
       expect(screenshot.name, 'screenshot');
       expect(screenshot.includeSnapshot, isFalse);
       expect(screenshot.attachToStep, isTrue);
+      expect(screenshot.profile, isNull);
+      expect(screenshot.allowFallback, isNull);
     },
   );
 
@@ -76,6 +78,8 @@ void main() {
           reason: CockpitScreenshotReason.baseline,
           includeSnapshot: true,
           attachToStep: false,
+          captureProfile: CockpitCaptureProfile.nativePreferred,
+          allowFallback: false,
           resultProfile: CockpitInteractiveResultProfile.evidence(),
           defaultCommandTimeout: Duration(seconds: 9),
         ),
@@ -92,11 +96,83 @@ void main() {
       );
       expect(request.command.screenshotRequest?.includeSnapshot, isTrue);
       expect(request.command.screenshotRequest?.attachToStep, isFalse);
+      expect(
+        request.command.screenshotRequest?.profile,
+        CockpitCaptureProfile.nativePreferred,
+      );
+      expect(request.command.screenshotRequest?.allowFallback, isFalse);
     },
   );
 
+  test('capture screenshot service prefers app capture on desktop', () async {
+    final hostAdapter = _FakeCaptureAdapter(
+      execution: CockpitCommandExecution(
+        result: CockpitCommandResult(
+          success: true,
+          commandId: 'capture-screenshot',
+          commandType: CockpitCommandType.captureScreenshot,
+          durationMs: 12,
+          artifacts: const <CockpitArtifactRef>[
+            CockpitArtifactRef(
+              role: 'screenshot',
+              relativePath: 'screenshots/system_acceptance.png',
+            ),
+          ],
+          requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+          resolvedCaptureKind: CockpitCaptureKind.hostSystem,
+        ),
+        artifactSourcePaths: const <String, String>{
+          'screenshots/system_acceptance.png': '/tmp/system_acceptance.png',
+        },
+      ),
+    );
+    final remoteAdapter = _FakeCaptureAdapter(
+      execution: CockpitCommandExecution(
+        result: CockpitCommandResult(
+          success: true,
+          commandId: 'capture-screenshot',
+          commandType: CockpitCommandType.captureScreenshot,
+          durationMs: 8,
+          artifacts: const <CockpitArtifactRef>[
+            CockpitArtifactRef(
+              role: 'screenshot',
+              relativePath: 'screenshots/app_acceptance.png',
+            ),
+          ],
+          requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+          resolvedCaptureKind: CockpitCaptureKind.appNative,
+        ),
+      ),
+    );
+    final service = CockpitCaptureScreenshotService(
+      captureStrategyResolver: CockpitCaptureStrategyResolver(
+        remoteAdapterFactory: (_) => remoteAdapter,
+        adbAdapterFactory: (_) => throw StateError('adb not expected'),
+        simctlAdapterFactory: (_) => throw StateError('simctl not expected'),
+        macosAdapterFactory: (_) => hostAdapter,
+      ),
+    );
+
+    final result = await service.capture(
+      CockpitCaptureScreenshotRequest(
+        app: _macosAppHandle(),
+        name: 'acceptance',
+        reason: CockpitScreenshotReason.acceptance,
+        resultProfile: const CockpitInteractiveResultProfile.inspect(),
+      ),
+    );
+
+    expect(hostAdapter.captureCount, 0);
+    expect(remoteAdapter.captureCount, 1);
+    expect(result.command.resolvedCaptureKind, 'appNative');
+    expect(
+      result.artifacts.single.relativePath,
+      'screenshots/app_acceptance.png',
+    );
+  });
+
   test(
-    'capture screenshot service uses system capture before remote capture when app metadata supports it',
+    'capture screenshot service reports app-native to Flutter fallback',
     () async {
       final hostAdapter = _FakeCaptureAdapter(
         execution: CockpitCommandExecution(
@@ -105,18 +181,9 @@ void main() {
             commandId: 'capture-screenshot',
             commandType: CockpitCommandType.captureScreenshot,
             durationMs: 12,
-            artifacts: const <CockpitArtifactRef>[
-              CockpitArtifactRef(
-                role: 'screenshot',
-                relativePath: 'screenshots/system_acceptance.png',
-              ),
-            ],
             requestedCaptureProfile: CockpitCaptureProfile.acceptance,
-            resolvedCaptureKind: CockpitCaptureKind.nativeAcceptance,
+            resolvedCaptureKind: CockpitCaptureKind.hostSystem,
           ),
-          artifactSourcePaths: const <String, String>{
-            'screenshots/system_acceptance.png': '/tmp/system_acceptance.png',
-          },
         ),
       );
       final remoteAdapter = _FakeCaptureAdapter(
@@ -126,14 +193,10 @@ void main() {
             commandId: 'capture-screenshot',
             commandType: CockpitCommandType.captureScreenshot,
             durationMs: 8,
-            artifacts: const <CockpitArtifactRef>[
-              CockpitArtifactRef(
-                role: 'screenshot',
-                relativePath: 'screenshots/app_acceptance.png',
-              ),
-            ],
             requestedCaptureProfile: CockpitCaptureProfile.acceptance,
             resolvedCaptureKind: CockpitCaptureKind.flutterView,
+            usedCaptureFallback: true,
+            degradationReason: 'nativeCaptureUnavailable',
           ),
         ),
       );
@@ -151,18 +214,53 @@ void main() {
           app: _macosAppHandle(),
           name: 'acceptance',
           reason: CockpitScreenshotReason.acceptance,
-          resultProfile: const CockpitInteractiveResultProfile.inspect(),
         ),
       );
 
-      expect(hostAdapter.captureCount, 1);
-      expect(remoteAdapter.captureCount, 0);
-      expect(result.command.resolvedCaptureKind, 'nativeAcceptance');
-      expect(
-        result.artifacts.single.relativePath,
-        'screenshots/system_acceptance.png',
+      expect(result.selectedPlane, CockpitPlaneKind.flutterSemanticPlane);
+      expect(result.fallbackTrail, <CockpitPlaneKind>[
+        CockpitPlaneKind.nativeUiPlane,
+      ]);
+    },
+  );
+
+  test(
+    'capture screenshot service does not invent app subplanes after transport failure',
+    () async {
+      final hostAdapter = _FakeCaptureAdapter(
+        execution: CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: true,
+            commandId: 'capture-screenshot',
+            commandType: CockpitCommandType.captureScreenshot,
+            durationMs: 12,
+            requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+            resolvedCaptureKind: CockpitCaptureKind.hostSystem,
+          ),
+        ),
       );
-      expect(result.artifacts.single.sourcePath, '/tmp/system_acceptance.png');
+      final remoteAdapter = _ThrowingCaptureAdapter();
+      final service = CockpitCaptureScreenshotService(
+        captureStrategyResolver: CockpitCaptureStrategyResolver(
+          remoteAdapterFactory: (_) => remoteAdapter,
+          adbAdapterFactory: (_) => throw StateError('adb not expected'),
+          simctlAdapterFactory: (_) => throw StateError('simctl not expected'),
+          macosAdapterFactory: (_) => hostAdapter,
+        ),
+      );
+
+      final result = await service.capture(
+        CockpitCaptureScreenshotRequest(
+          app: _macosAppHandle(),
+          name: 'acceptance',
+          reason: CockpitScreenshotReason.acceptance,
+        ),
+      );
+
+      expect(result.selectedPlane, CockpitPlaneKind.deviceSystemPlane);
+      expect(result.fallbackTrail, <CockpitPlaneKind>[
+        CockpitPlaneKind.flutterSemanticPlane,
+      ]);
     },
   );
 
@@ -221,6 +319,7 @@ void main() {
           app: _macosAppHandle(baseUrl: remoteServer.baseUrl),
           name: 'acceptance',
           reason: CockpitScreenshotReason.acceptance,
+          captureProfile: CockpitCaptureProfile.nativePreferred,
         ),
       );
 
@@ -233,6 +332,61 @@ void main() {
         result.artifacts.single.relativePath,
         'screenshots/app_acceptance.png',
       );
+    },
+  );
+
+  test(
+    'capture screenshot service reports only the attempted primary plane when all sources fail',
+    () async {
+      final hostAdapter = _FakeCaptureAdapter(
+        execution: CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: false,
+            commandId: 'capture-screenshot',
+            commandType: CockpitCommandType.captureScreenshot,
+            durationMs: 12,
+            error: CockpitCommandError.captureFailed(
+              message: 'host capture unavailable',
+            ),
+          ),
+        ),
+      );
+      final remoteAdapter = _FakeCaptureAdapter(
+        execution: CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: false,
+            commandId: 'capture-screenshot',
+            commandType: CockpitCommandType.captureScreenshot,
+            durationMs: 8,
+            error: CockpitCommandError.captureFailed(
+              message: 'app capture unavailable',
+            ),
+          ),
+        ),
+      );
+      final service = CockpitCaptureScreenshotService(
+        captureStrategyResolver: CockpitCaptureStrategyResolver(
+          remoteAdapterFactory: (_) => remoteAdapter,
+          adbAdapterFactory: (_) => throw StateError('adb not expected'),
+          simctlAdapterFactory: (_) => throw StateError('simctl not expected'),
+          macosAdapterFactory: (_) => hostAdapter,
+        ),
+      );
+
+      final result = await service.capture(
+        CockpitCaptureScreenshotRequest(
+          app: _macosAppHandle(),
+          name: 'acceptance',
+          reason: CockpitScreenshotReason.acceptance,
+          captureProfile: CockpitCaptureProfile.nativePreferred,
+        ),
+      );
+
+      expect(result.command.success, isFalse);
+      expect(result.command.resolvedCaptureKind, isNull);
+      expect(result.selectedPlane, CockpitPlaneKind.deviceSystemPlane);
+      expect(result.fallbackTrail, isEmpty);
+      expect(result.command.degradationReason, contains('appFallbackFailed'));
     },
   );
 
@@ -254,7 +408,7 @@ void main() {
               ),
             ],
             requestedCaptureProfile: CockpitCaptureProfile.acceptance,
-            resolvedCaptureKind: CockpitCaptureKind.nativeAcceptance,
+            resolvedCaptureKind: CockpitCaptureKind.hostSystem,
           ),
         ),
       );
@@ -309,7 +463,7 @@ void main() {
       expect(remoteAdapter.captureCount, 0);
       expect(capturedRemoteBaseUri?.host, '127.0.0.1');
       expect(capturedRemoteBaseUri?.port, 61331);
-      expect(result.command.resolvedCaptureKind, 'nativeAcceptance');
+      expect(result.command.resolvedCaptureKind, 'hostSystem');
       expect(
         result.artifacts.single.relativePath,
         'screenshots/android_system.png',
@@ -334,7 +488,7 @@ void main() {
               ),
             ],
             requestedCaptureProfile: CockpitCaptureProfile.acceptance,
-            resolvedCaptureKind: CockpitCaptureKind.nativeAcceptance,
+            resolvedCaptureKind: CockpitCaptureKind.hostSystem,
           ),
         ),
       );
@@ -376,7 +530,7 @@ void main() {
 
       expect(hostAdapter.captureCount, 1);
       expect(remoteAdapter.captureCount, 0);
-      expect(result.command.resolvedCaptureKind, 'nativeAcceptance');
+      expect(result.command.resolvedCaptureKind, 'hostSystem');
       expect(
         result.artifacts.single.relativePath,
         'screenshots/ios_system.png',
@@ -384,78 +538,75 @@ void main() {
     },
   );
 
-  test(
-    'capture screenshot service uses browser host capture for web apps',
-    () async {
-      final hostAdapter = _FakeCaptureAdapter(
-        execution: CockpitCommandExecution(
-          result: CockpitCommandResult(
-            success: true,
-            commandId: 'capture-screenshot',
-            commandType: CockpitCommandType.captureScreenshot,
-            durationMs: 12,
-            artifacts: const <CockpitArtifactRef>[
-              CockpitArtifactRef(
-                role: 'screenshot',
-                relativePath: 'screenshots/web_host.png',
-              ),
-            ],
-            requestedCaptureProfile: CockpitCaptureProfile.acceptance,
-            resolvedCaptureKind: CockpitCaptureKind.nativeAcceptance,
-          ),
-          artifactSourcePaths: const <String, String>{
-            'screenshots/web_host.png': '/tmp/web_host.png',
-          },
+  test('capture screenshot service prefers app capture for web apps', () async {
+    final hostAdapter = _FakeCaptureAdapter(
+      execution: CockpitCommandExecution(
+        result: CockpitCommandResult(
+          success: true,
+          commandId: 'capture-screenshot',
+          commandType: CockpitCommandType.captureScreenshot,
+          durationMs: 12,
+          artifacts: const <CockpitArtifactRef>[
+            CockpitArtifactRef(
+              role: 'screenshot',
+              relativePath: 'screenshots/web_host.png',
+            ),
+          ],
+          requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+          resolvedCaptureKind: CockpitCaptureKind.hostSystem,
         ),
-      );
-      final remoteAdapter = _FakeCaptureAdapter(
-        execution: CockpitCommandExecution(
-          result: CockpitCommandResult(
-            success: true,
-            commandId: 'capture-screenshot',
-            commandType: CockpitCommandType.captureScreenshot,
-            durationMs: 8,
-            artifacts: const <CockpitArtifactRef>[
-              CockpitArtifactRef(
-                role: 'screenshot',
-                relativePath: 'screenshots/web_remote.png',
-              ),
-            ],
-            resolvedCaptureKind: CockpitCaptureKind.flutterView,
-          ),
+        artifactSourcePaths: const <String, String>{
+          'screenshots/web_host.png': '/tmp/web_host.png',
+        },
+      ),
+    );
+    final remoteAdapter = _FakeCaptureAdapter(
+      execution: CockpitCommandExecution(
+        result: CockpitCommandResult(
+          success: true,
+          commandId: 'capture-screenshot',
+          commandType: CockpitCommandType.captureScreenshot,
+          durationMs: 8,
+          artifacts: const <CockpitArtifactRef>[
+            CockpitArtifactRef(
+              role: 'screenshot',
+              relativePath: 'screenshots/web_remote.png',
+            ),
+          ],
+          resolvedCaptureKind: CockpitCaptureKind.flutterView,
         ),
-      );
-      final service = CockpitCaptureScreenshotService(
-        captureStrategyResolver: CockpitCaptureStrategyResolver(
-          remoteAdapterFactory: (_) => remoteAdapter,
-          adbAdapterFactory: (_) => throw StateError('adb not expected'),
-          simctlAdapterFactory: (_) => throw StateError('simctl not expected'),
-          macosAdapterFactory: (appId) {
-            expect(appId, 'com.google.Chrome');
-            return hostAdapter;
-          },
-          browserHostAppIdResolver: (deviceId) {
-            expect(deviceId, 'chrome');
-            return 'com.google.Chrome';
-          },
-          hostPlatformResolver: () => 'macos',
-        ),
-      );
+      ),
+    );
+    final service = CockpitCaptureScreenshotService(
+      captureStrategyResolver: CockpitCaptureStrategyResolver(
+        remoteAdapterFactory: (_) => remoteAdapter,
+        adbAdapterFactory: (_) => throw StateError('adb not expected'),
+        simctlAdapterFactory: (_) => throw StateError('simctl not expected'),
+        macosAdapterFactory: (appId) {
+          expect(appId, 'com.google.Chrome');
+          return hostAdapter;
+        },
+        browserHostAppIdResolver: (deviceId) {
+          expect(deviceId, 'chrome');
+          return 'com.google.Chrome';
+        },
+        hostPlatformResolver: () => 'macos',
+      ),
+    );
 
-      final result = await service.capture(
-        CockpitCaptureScreenshotRequest(
-          app: _webAppHandle(),
-          name: 'web-host',
-          reason: CockpitScreenshotReason.acceptance,
-        ),
-      );
+    final result = await service.capture(
+      CockpitCaptureScreenshotRequest(
+        app: _webAppHandle(),
+        name: 'web-host',
+        reason: CockpitScreenshotReason.acceptance,
+      ),
+    );
 
-      expect(hostAdapter.captureCount, 1);
-      expect(remoteAdapter.captureCount, 0);
-      expect(result.command.resolvedCaptureKind, 'nativeAcceptance');
-      expect(result.artifacts.single.relativePath, 'screenshots/web_host.png');
-    },
-  );
+    expect(hostAdapter.captureCount, 0);
+    expect(remoteAdapter.captureCount, 1);
+    expect(result.command.resolvedCaptureKind, 'flutterView');
+    expect(result.artifacts.single.relativePath, 'screenshots/web_remote.png');
+  });
 }
 
 CockpitAppHandle _macosAppHandle({String baseUrl = 'http://127.0.0.1:47331'}) {
@@ -521,6 +672,13 @@ final class _FakeCaptureAdapter implements CockpitCaptureAdapter {
   Future<CockpitCommandExecution> capture(CockpitCommand command) async {
     captureCount += 1;
     return execution;
+  }
+}
+
+final class _ThrowingCaptureAdapter implements CockpitCaptureAdapter {
+  @override
+  Future<CockpitCommandExecution> capture(CockpitCommand command) {
+    throw StateError('Remote transport failed before app capture.');
   }
 }
 

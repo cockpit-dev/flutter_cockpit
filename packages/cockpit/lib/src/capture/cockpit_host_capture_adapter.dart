@@ -78,7 +78,7 @@ CockpitCommandExecution cockpitSuccessfulHostCaptureExecution({
       artifacts: <CockpitArtifactRef>[artifact],
       snapshot: snapshot,
       requestedCaptureProfile: _captureProfileFor(command.screenshotRequest),
-      resolvedCaptureKind: CockpitCaptureKind.nativeAcceptance,
+      resolvedCaptureKind: CockpitCaptureKind.hostSystem,
     ),
     artifactSourcePaths: <String, String>{
       artifact.relativePath: sourceFilePath,
@@ -89,6 +89,9 @@ CockpitCommandExecution cockpitSuccessfulHostCaptureExecution({
 CockpitCaptureProfile? _captureProfileFor(CockpitScreenshotRequest? request) {
   if (request == null) {
     return null;
+  }
+  if (request.profile case final profile?) {
+    return profile;
   }
   return request.reason == CockpitScreenshotReason.acceptance
       ? CockpitCaptureProfile.acceptance

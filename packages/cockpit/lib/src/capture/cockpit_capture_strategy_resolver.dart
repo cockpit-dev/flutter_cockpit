@@ -7,7 +7,7 @@ import '../remote/cockpit_remote_capture_adapter.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_adb_capture_adapter.dart';
-import 'cockpit_host_preferred_capture_adapter.dart';
+import 'cockpit_prioritized_capture_adapter.dart';
 import 'cockpit_linux_capture_adapter.dart';
 import 'cockpit_macos_capture_adapter.dart';
 import 'cockpit_simctl_capture_adapter.dart';
@@ -63,7 +63,7 @@ final class CockpitCaptureStrategyResolver {
     if (platform == 'android' &&
         androidDeviceId != null &&
         androidDeviceId.isNotEmpty) {
-      return CockpitHostPreferredCaptureAdapter(
+      return CockpitPrioritizedCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: adbAdapterFactory(androidDeviceId),
         client: client,
@@ -73,7 +73,7 @@ final class CockpitCaptureStrategyResolver {
         iosDeviceId != null &&
         iosDeviceId.isNotEmpty &&
         cockpitLooksLikeIosSimulatorDeviceId(iosDeviceId)) {
-      return CockpitHostPreferredCaptureAdapter(
+      return CockpitPrioritizedCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: simctlAdapterFactory(iosDeviceId),
         client: client,
@@ -88,34 +88,37 @@ final class CockpitCaptureStrategyResolver {
     if (platform == 'macos' &&
         resolvedAppId != null &&
         resolvedAppId.isNotEmpty) {
-      return CockpitHostPreferredCaptureAdapter(
+      return CockpitPrioritizedCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: macosAdapterFactory(resolvedAppId),
         client: client,
+        preferHostForAcceptance: false,
       );
     }
     if (platform == 'windows' &&
         resolvedAppId != null &&
         resolvedAppId.isNotEmpty) {
-      return CockpitHostPreferredCaptureAdapter(
+      return CockpitPrioritizedCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: windowsAdapterFactory(
           resolvedAppId,
           processId: resolvedProcessId,
         ),
         client: client,
+        preferHostForAcceptance: false,
       );
     }
     if (platform == 'linux' &&
         resolvedAppId != null &&
         resolvedAppId.isNotEmpty) {
-      return CockpitHostPreferredCaptureAdapter(
+      return CockpitPrioritizedCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: linuxAdapterFactory(
           resolvedAppId,
           processId: resolvedProcessId,
         ),
         client: client,
+        preferHostForAcceptance: false,
       );
     }
     if (platform == 'web') {
@@ -128,10 +131,11 @@ final class CockpitCaptureStrategyResolver {
           appId: browserHostAppId,
         );
         if (hostAdapter != null) {
-          return CockpitHostPreferredCaptureAdapter(
+          return CockpitPrioritizedCaptureAdapter(
             remoteAdapter: remoteAdapter,
             hostAcceptanceAdapter: hostAdapter,
             client: client,
+            preferHostForAcceptance: false,
           );
         }
       }

@@ -499,6 +499,8 @@ final class CockpitBundleSummaryAssembler {
     }
     if (step.resolvedCaptureKind case final captureKind?) {
       return switch (captureKind) {
+        CockpitCaptureKind.hostSystem => CockpitSurfaceKind.systemUi,
+        CockpitCaptureKind.appNative ||
         CockpitCaptureKind.nativeAcceptance => CockpitSurfaceKind.nativeUi,
         CockpitCaptureKind.flutterView => CockpitSurfaceKind.flutterSemantic,
       };

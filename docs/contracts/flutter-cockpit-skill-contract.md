@@ -48,6 +48,22 @@ The skill may depend on these implemented public workflows:
 
 The skill may also rely on public context resources for roots, contracts, capabilities, apps, task summaries, and package reads. Treat any extra repository-specific context document as optional host configuration, not a default framework dependency.
 
+## Screenshot Routing Contract
+
+The skill must distinguish output detail (`--profile`) from capture routing
+(`--capture-profile`). The only capture profiles are `diagnostic`,
+`acceptance`, `flutterPreferred`, and `nativePreferred`.
+
+Default acceptance routing is host-first for Android and iOS Simulator when
+system UI may matter. Desktop, Web, physical iOS, and diagnostic capture are
+app-first. An explicit native preference selects native/system capture first.
+Fallback is enabled by default; strict evidence must set it to false.
+
+Routing is execution-driven. Idle waiting is best effort, and the runtime must not gate fallback on `/health` or capability declarations. A failed or throwing
+primary candidate advances to the next candidate when fallback is allowed.
+Evidence and summaries must report the actual capture source and preserve the
+primary failure when every candidate fails.
+
 ## Mandatory Workflow Stages
 
 The skill must enforce this order:

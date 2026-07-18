@@ -120,10 +120,17 @@ void main() {
         expect(request.androidDeviceId, 'emulator-5554');
         expect(request.name, 'acceptance');
         expect(request.reason, CockpitScreenshotReason.acceptance);
+        expect(request.captureProfile, CockpitCaptureProfile.nativePreferred);
+        expect(request.allowFallback, isFalse);
         seen.add('capture_screenshot');
         return _commandResult();
       },
-    ).call(<String, Object?>{..._baseArguments(), 'name': 'acceptance'});
+    ).call(<String, Object?>{
+      ..._baseArguments(),
+      'name': 'acceptance',
+      'captureProfile': 'nativePreferred',
+      'allowFallback': false,
+    });
 
     await CockpitRunBatchTool(
       runBatch: (request) async {

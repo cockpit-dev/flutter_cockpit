@@ -94,7 +94,12 @@ Runtime query fields are `onlyErrors` and `messageContains`.
 
 Screenshot request fields are `reason` (`baseline`, `before_action`,
 `after_action`, `assertion_failure`, `acceptance`), `name`, `includeSnapshot`,
-`attachToStep`, and optional `snapshotOptions`.
+`attachToStep`, optional `snapshotOptions`, optional `profile` (`diagnostic`,
+`acceptance`, `flutterPreferred`, `nativePreferred`), and optional
+`allowFallback`. Omit routing fields for the platform default: Android and iOS
+Simulator acceptance capture prefers the system surface, while desktop and Web
+prefer the app path. Use `nativePreferred` or `flutterPreferred` only for an
+explicit source preference; set `allowFallback: false` only for strict proof.
 
 ```yaml
 - stepId: tap-settings

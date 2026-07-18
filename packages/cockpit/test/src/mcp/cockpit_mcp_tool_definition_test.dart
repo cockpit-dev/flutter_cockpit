@@ -193,6 +193,22 @@ void main() {
     ]);
     expect(tool.definition.annotations.readOnly, isFalse);
     expect(tool.definition.annotations.longRunning, isFalse);
+    expect(
+      tool.inputSchema['properties'],
+      containsPair(
+        'captureProfile',
+        containsPair('enum', <String>[
+          'diagnostic',
+          'acceptance',
+          'flutterPreferred',
+          'nativePreferred',
+        ]),
+      ),
+    );
+    expect(
+      tool.inputSchema['properties'],
+      containsPair('allowFallback', containsPair('type', 'boolean')),
+    );
   });
 
   test('protocol adapter fills empty object schema properties', () {

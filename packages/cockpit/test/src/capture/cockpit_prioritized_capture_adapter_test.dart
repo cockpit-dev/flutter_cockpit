@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/src/adapters/cockpit_capture_adapter.dart';
 import 'package:cockpit/src/application/cockpit_application_service_exception.dart';
-import 'package:cockpit/src/capture/cockpit_host_preferred_capture_adapter.dart';
+import 'package:cockpit/src/capture/cockpit_prioritized_capture_adapter.dart';
 import 'package:cockpit/src/remote/cockpit_remote_session_client.dart';
 import 'package:test/test.dart';
 
@@ -99,7 +99,7 @@ void main() {
           },
         ),
       );
-      final adapter = CockpitHostPreferredCaptureAdapter(
+      final adapter = CockpitPrioritizedCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: hostAdapter,
         client: CockpitRemoteSessionClient(
@@ -136,7 +136,7 @@ void main() {
     },
   );
 
-  test('uses host capture for non-acceptance screenshots too', () async {
+  test('uses app capture first for non-acceptance screenshots', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));
     server.listen((request) async {
@@ -193,7 +193,7 @@ void main() {
         ),
       ),
     );
-    final adapter = CockpitHostPreferredCaptureAdapter(
+    final adapter = CockpitPrioritizedCaptureAdapter(
       remoteAdapter: remoteAdapter,
       hostAcceptanceAdapter: hostAdapter,
       client: CockpitRemoteSessionClient(
@@ -212,12 +212,112 @@ void main() {
       ),
     );
 
-    expect(remoteAdapter.captureCount, 0);
-    expect(hostAdapter.captureCount, 1);
+    expect(remoteAdapter.captureCount, 1);
+    expect(hostAdapter.captureCount, 0);
     expect(
       execution.result.artifacts.single.relativePath,
-      'screenshots/host_after_action.png',
+      'screenshots/remote_after_action.png',
     );
+  });
+
+  test('uses app capture first for desktop acceptance policy', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    server.listen((request) async {
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode(
+          CockpitCommandResult(
+            success: true,
+            commandId: 'wait-for-idle',
+            commandType: CockpitCommandType.waitForUiIdle,
+            durationMs: 5,
+          ).toJson(),
+        ),
+      );
+      await request.response.close();
+    });
+
+    final remoteAdapter = _FakeCaptureAdapter(
+      execution: _successfulCapture(
+        path: 'screenshots/app_acceptance.png',
+        kind: CockpitCaptureKind.appNative,
+      ),
+    );
+    final hostAdapter = _FakeCaptureAdapter(
+      execution: _successfulCapture(
+        path: 'screenshots/host_acceptance.png',
+        kind: CockpitCaptureKind.hostSystem,
+      ),
+    );
+    final adapter = CockpitPrioritizedCaptureAdapter(
+      remoteAdapter: remoteAdapter,
+      hostAcceptanceAdapter: hostAdapter,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+      ),
+      preferHostForAcceptance: false,
+    );
+
+    final execution = await adapter.capture(
+      CockpitCommand(
+        commandId: 'capture',
+        commandType: CockpitCommandType.captureScreenshot,
+        screenshotRequest: const CockpitScreenshotRequest(
+          reason: CockpitScreenshotReason.acceptance,
+          name: 'acceptance',
+        ),
+      ),
+    );
+
+    expect(remoteAdapter.captureCount, 1);
+    expect(hostAdapter.captureCount, 0);
+    expect(execution.result.resolvedCaptureKind, CockpitCaptureKind.appNative);
+  });
+
+  test('keeps capture running when best-effort idle wait fails', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    server.listen((request) async {
+      request.response.statusCode = HttpStatus.internalServerError;
+      request.response.write('{}');
+      await request.response.close();
+    });
+
+    final remoteAdapter = _FakeCaptureAdapter(
+      execution: _successfulCapture(
+        path: 'screenshots/app_acceptance.png',
+        kind: CockpitCaptureKind.appNative,
+      ),
+    );
+    final hostAdapter = _FakeCaptureAdapter(
+      execution: _successfulCapture(
+        path: 'screenshots/host_acceptance.png',
+        kind: CockpitCaptureKind.hostSystem,
+      ),
+    );
+    final adapter = CockpitPrioritizedCaptureAdapter(
+      remoteAdapter: remoteAdapter,
+      hostAcceptanceAdapter: hostAdapter,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+      ),
+    );
+
+    final execution = await adapter.capture(
+      CockpitCommand(
+        commandId: 'capture',
+        commandType: CockpitCommandType.captureScreenshot,
+        screenshotRequest: const CockpitScreenshotRequest(
+          reason: CockpitScreenshotReason.acceptance,
+          name: 'acceptance',
+        ),
+      ),
+    );
+
+    expect(execution.result.success, isTrue);
+    expect(hostAdapter.captureCount, 1);
+    expect(remoteAdapter.captureCount, 0);
   });
 
   test(
@@ -308,7 +408,7 @@ void main() {
         ),
       );
 
-      final adapter = CockpitHostPreferredCaptureAdapter(
+      final adapter = CockpitPrioritizedCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: hostAdapter,
         client: CockpitRemoteSessionClient(
@@ -340,8 +440,78 @@ void main() {
     },
   );
 
+  test('preserves nested app fallback metadata after host failure', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    server.listen((request) async {
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode(
+          CockpitCommandResult(
+            success: true,
+            commandId: 'wait-for-idle',
+            commandType: CockpitCommandType.waitForUiIdle,
+            durationMs: 2,
+          ).toJson(),
+        ),
+      );
+      await request.response.close();
+    });
+
+    final hostAdapter = _FakeCaptureAdapter(
+      execution: CockpitCommandExecution(
+        result: CockpitCommandResult(
+          success: false,
+          commandId: 'capture',
+          commandType: CockpitCommandType.captureScreenshot,
+          durationMs: 3,
+          error: CockpitCommandError.captureFailed(
+            message: 'host capture failed',
+          ),
+        ),
+      ),
+    );
+    final remoteAdapter = _FakeCaptureAdapter(
+      execution: CockpitCommandExecution(
+        result: CockpitCommandResult(
+          success: true,
+          commandId: 'capture',
+          commandType: CockpitCommandType.captureScreenshot,
+          durationMs: 4,
+          resolvedCaptureKind: CockpitCaptureKind.flutterView,
+          usedCaptureFallback: true,
+          degradationReason: 'nativeCaptureUnavailable',
+        ),
+      ),
+    );
+    final adapter = CockpitPrioritizedCaptureAdapter(
+      remoteAdapter: remoteAdapter,
+      hostAcceptanceAdapter: hostAdapter,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+      ),
+    );
+
+    final execution = await adapter.capture(
+      CockpitCommand(
+        commandId: 'capture',
+        commandType: CockpitCommandType.captureScreenshot,
+        screenshotRequest: const CockpitScreenshotRequest(
+          reason: CockpitScreenshotReason.acceptance,
+          name: 'acceptance',
+        ),
+      ),
+    );
+
+    expect(execution.result.success, isTrue);
+    expect(
+      execution.result.degradationReason,
+      'hostCaptureFailed; nativeCaptureUnavailable',
+    );
+  });
+
   test(
-    'keeps host failure when remote capabilities do not support screenshot fallback',
+    'tries app fallback when cached capabilities omit screenshot support',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       addTearDown(() => server.close(force: true));
@@ -425,7 +595,7 @@ void main() {
         ),
       );
 
-      final adapter = CockpitHostPreferredCaptureAdapter(
+      final adapter = CockpitPrioritizedCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: hostAdapter,
         client: CockpitRemoteSessionClient(
@@ -447,14 +617,15 @@ void main() {
       );
 
       expect(hostAdapter.captureCount, 1);
-      expect(remoteAdapter.captureCount, 0);
-      expect(execution.result.success, isFalse);
-      expect(execution.result.error?.message, 'macOS screencapture failed.');
+      expect(remoteAdapter.captureCount, 1);
+      expect(execution.result.success, isTrue);
+      expect(execution.result.usedCaptureFallback, isTrue);
+      expect(execution.result.degradationReason, 'hostCaptureFailed');
     },
   );
 
   test(
-    'keeps host failure when only native capture is advertised remotely',
+    'does not gate app fallback on a native-only capability snapshot',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       addTearDown(() => server.close(force: true));
@@ -538,7 +709,7 @@ void main() {
         ),
       );
 
-      final adapter = CockpitHostPreferredCaptureAdapter(
+      final adapter = CockpitPrioritizedCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: hostAdapter,
         client: CockpitRemoteSessionClient(
@@ -558,14 +729,15 @@ void main() {
       );
 
       expect(hostAdapter.captureCount, 1);
-      expect(remoteAdapter.captureCount, 0);
-      expect(execution.result.success, isFalse);
-      expect(execution.result.error?.message, 'host capture failed');
+      expect(remoteAdapter.captureCount, 1);
+      expect(execution.result.success, isTrue);
+      expect(execution.result.usedCaptureFallback, isTrue);
+      expect(execution.result.degradationReason, 'hostCaptureFailed');
     },
   );
 
   test(
-    'keeps host failure when remote capabilities cannot be proven',
+    'falls back to app capture when remote capabilities cannot be read',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       addTearDown(() => server.close(force: true));
@@ -627,7 +799,7 @@ void main() {
         ),
       );
 
-      final adapter = CockpitHostPreferredCaptureAdapter(
+      final adapter = CockpitPrioritizedCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: hostAdapter,
         client: CockpitRemoteSessionClient(
@@ -647,11 +819,74 @@ void main() {
       );
 
       expect(hostAdapter.captureCount, 1);
-      expect(remoteAdapter.captureCount, 0);
-      expect(execution.result.success, isFalse);
-      expect(execution.result.error?.message, 'host capture failed');
+      expect(remoteAdapter.captureCount, 1);
+      expect(execution.result.success, isTrue);
+      expect(execution.result.usedCaptureFallback, isTrue);
+      expect(execution.result.degradationReason, 'hostCaptureFailed');
     },
   );
+
+  test('does not execute fallback when the request is strict', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    server.listen((request) async {
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode(
+          CockpitCommandResult(
+            success: true,
+            commandId: 'wait-for-idle',
+            commandType: CockpitCommandType.waitForUiIdle,
+            durationMs: 5,
+          ).toJson(),
+        ),
+      );
+      await request.response.close();
+    });
+
+    final remoteAdapter = _FakeCaptureAdapter(
+      execution: _successfulCapture(
+        path: 'screenshots/app_acceptance.png',
+        kind: CockpitCaptureKind.appNative,
+      ),
+    );
+    final hostAdapter = _FakeCaptureAdapter(
+      execution: CockpitCommandExecution(
+        result: CockpitCommandResult(
+          success: false,
+          commandId: 'capture',
+          commandType: CockpitCommandType.captureScreenshot,
+          durationMs: 4,
+          error: CockpitCommandError.captureFailed(
+            message: 'host capture failed',
+          ),
+        ),
+      ),
+    );
+    final adapter = CockpitPrioritizedCaptureAdapter(
+      remoteAdapter: remoteAdapter,
+      hostAcceptanceAdapter: hostAdapter,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+      ),
+    );
+
+    final execution = await adapter.capture(
+      CockpitCommand(
+        commandId: 'capture',
+        commandType: CockpitCommandType.captureScreenshot,
+        screenshotRequest: const CockpitScreenshotRequest(
+          reason: CockpitScreenshotReason.acceptance,
+          name: 'acceptance',
+          allowFallback: false,
+        ),
+      ),
+    );
+
+    expect(execution.result.success, isFalse);
+    expect(hostAdapter.captureCount, 1);
+    expect(remoteAdapter.captureCount, 0);
+  });
 
   test(
     'keeps host failure when advertised remote screenshot fallback throws',
@@ -726,7 +961,7 @@ void main() {
         ),
       );
 
-      final adapter = CockpitHostPreferredCaptureAdapter(
+      final adapter = CockpitPrioritizedCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: hostAdapter,
         client: CockpitRemoteSessionClient(
@@ -750,10 +985,7 @@ void main() {
       expect(execution.result.success, isFalse);
       expect(execution.result.error?.message, 'host screenshot capture failed');
       expect(execution.result.usedCaptureFallback, isTrue);
-      expect(
-        execution.result.degradationReason,
-        contains('remoteFallbackThrew'),
-      );
+      expect(execution.result.degradationReason, contains('appFallbackThrew'));
       expect(
         execution.result.degradationReason,
         contains('No in-app handler registered for captureScreenshot'),
@@ -843,7 +1075,7 @@ void main() {
         ),
       );
 
-      final adapter = CockpitHostPreferredCaptureAdapter(
+      final adapter = CockpitPrioritizedCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: hostAdapter,
         client: CockpitRemoteSessionClient(
@@ -867,10 +1099,7 @@ void main() {
       expect(execution.result.success, isFalse);
       expect(execution.result.error?.message, 'host screenshot capture failed');
       expect(execution.result.usedCaptureFallback, isTrue);
-      expect(
-        execution.result.degradationReason,
-        contains('remoteFallbackFailed'),
-      );
+      expect(execution.result.degradationReason, contains('appFallbackFailed'));
       expect(
         execution.result.degradationReason,
         contains('remote screenshot fallback failed'),
@@ -878,78 +1107,112 @@ void main() {
     },
   );
 
-  test('returns remote failure metadata when host capture throws', () async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    addTearDown(() => server.close(force: true));
-    server.listen((request) async {
-      request.response.headers.contentType = ContentType.json;
-      if (request.uri.path == '/commands/execute') {
-        request.response.write(
-          jsonEncode(
-            CockpitCommandResult(
-              success: true,
-              commandId: 'wait-for-idle',
-              commandType: CockpitCommandType.waitForUiIdle,
-              durationMs: 5,
-            ).toJson(),
-          ),
-        );
-      } else if (request.uri.path == '/health') {
-        request.response.write(
-          jsonEncode(
-            CockpitRemoteSessionStatus(
-              sessionId: 'app-session',
-              platform: 'macos',
-              transportType: 'remoteHttp',
-              currentRouteName: '/inbox',
-              capabilities: CockpitCapabilities(
+  test(
+    'keeps primary host failure metadata when both candidates fail',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        if (request.uri.path == '/commands/execute') {
+          request.response.write(
+            jsonEncode(
+              CockpitCommandResult(
+                success: true,
+                commandId: 'wait-for-idle',
+                commandType: CockpitCommandType.waitForUiIdle,
+                durationMs: 5,
+              ).toJson(),
+            ),
+          );
+        } else if (request.uri.path == '/health') {
+          request.response.write(
+            jsonEncode(
+              CockpitRemoteSessionStatus(
+                sessionId: 'app-session',
                 platform: 'macos',
                 transportType: 'remoteHttp',
-                supportsInAppControl: true,
-                supportsFlutterViewCapture: true,
-                supportsNativeScreenCapture: false,
-                supportsHostAutomation: false,
-                supportedCommands: const <CockpitCommandType>[
-                  CockpitCommandType.captureScreenshot,
-                  CockpitCommandType.waitForUiIdle,
-                ],
-              ),
-              recordingCapabilities: CockpitRecordingCapabilities(
-                supportsNativeRecording: false,
-              ),
-              snapshot: CockpitSnapshot(routeName: '/inbox'),
-            ).toJson(),
-          ),
-        );
-      } else {
-        request.response.statusCode = HttpStatus.notFound;
-        request.response.write('{}');
-      }
-      await request.response.close();
-    });
+                currentRouteName: '/inbox',
+                capabilities: CockpitCapabilities(
+                  platform: 'macos',
+                  transportType: 'remoteHttp',
+                  supportsInAppControl: true,
+                  supportsFlutterViewCapture: true,
+                  supportsNativeScreenCapture: false,
+                  supportsHostAutomation: false,
+                  supportedCommands: const <CockpitCommandType>[
+                    CockpitCommandType.captureScreenshot,
+                    CockpitCommandType.waitForUiIdle,
+                  ],
+                ),
+                recordingCapabilities: CockpitRecordingCapabilities(
+                  supportsNativeRecording: false,
+                ),
+                snapshot: CockpitSnapshot(routeName: '/inbox'),
+              ).toJson(),
+            ),
+          );
+        } else {
+          request.response.statusCode = HttpStatus.notFound;
+          request.response.write('{}');
+        }
+        await request.response.close();
+      });
 
-    final remoteAdapter = _FakeCaptureAdapter(
-      execution: CockpitCommandExecution(
-        result: CockpitCommandResult(
-          success: false,
-          commandId: 'capture',
-          commandType: CockpitCommandType.captureScreenshot,
-          durationMs: 9,
-          requestedCaptureProfile: CockpitCaptureProfile.acceptance,
-          resolvedCaptureKind: CockpitCaptureKind.flutterView,
-          error: CockpitCommandError.captureFailed(
-            message: 'remote capture failed',
+      final remoteAdapter = _FakeCaptureAdapter(
+        execution: CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: false,
+            commandId: 'capture',
+            commandType: CockpitCommandType.captureScreenshot,
+            durationMs: 9,
+            requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+            resolvedCaptureKind: CockpitCaptureKind.flutterView,
+            error: CockpitCommandError.captureFailed(
+              message: 'remote capture failed',
+            ),
           ),
         ),
-      ),
-    );
+      );
+      final hostAdapter = _ThrowingCaptureAdapter(StateError('host exploded'));
+      final adapter = CockpitPrioritizedCaptureAdapter(
+        remoteAdapter: remoteAdapter,
+        hostAcceptanceAdapter: hostAdapter,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+        ),
+      );
+
+      final execution = await adapter.capture(
+        CockpitCommand(
+          commandId: 'capture',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'acceptance',
+          ),
+        ),
+      );
+
+      expect(remoteAdapter.captureCount, 1);
+      expect(execution.result.success, isFalse);
+      expect(execution.result.usedCaptureFallback, isTrue);
+      expect(execution.result.degradationReason, contains('hostCaptureThrew'));
+      expect(execution.result.degradationReason, contains('appFallbackFailed'));
+      expect(execution.result.error?.message, 'Host screenshot capture threw.');
+    },
+  );
+
+  test('preserves both stack traces when both candidates throw', () async {
     final hostAdapter = _ThrowingCaptureAdapter(StateError('host exploded'));
-    final adapter = CockpitHostPreferredCaptureAdapter(
+    final remoteAdapter = _ThrowingCaptureAdapter(StateError('app exploded'));
+    final adapter = CockpitPrioritizedCaptureAdapter(
       remoteAdapter: remoteAdapter,
       hostAcceptanceAdapter: hostAdapter,
       client: CockpitRemoteSessionClient(
-        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+        baseUri: Uri.parse('http://127.0.0.1:1'),
       ),
+      preCaptureIdleTimeout: const Duration(milliseconds: 1),
     );
 
     final execution = await adapter.capture(
@@ -963,11 +1226,21 @@ void main() {
       ),
     );
 
-    expect(remoteAdapter.captureCount, 1);
     expect(execution.result.success, isFalse);
-    expect(execution.result.usedCaptureFallback, isTrue);
-    expect(execution.result.degradationReason, 'hostCaptureThrew');
-    expect(execution.result.error?.message, 'remote capture failed');
+    expect(execution.result.error?.details['error'], contains('host exploded'));
+    expect(
+      execution.result.error?.details['stackTrace'],
+      isA<String>().having((value) => value, 'value', isNotEmpty),
+    );
+    expect(execution.result.error?.details['fallbackFailure'], <
+      String,
+      Object?
+    >{
+      'source': 'app',
+      'threw': true,
+      'error': contains('app exploded'),
+      'stackTrace': isA<String>().having((value) => value, 'value', isNotEmpty),
+    });
   });
 }
 
@@ -982,6 +1255,25 @@ final class _FakeCaptureAdapter implements CockpitCaptureAdapter {
     captureCount += 1;
     return execution;
   }
+}
+
+CockpitCommandExecution _successfulCapture({
+  required String path,
+  required CockpitCaptureKind kind,
+}) {
+  return CockpitCommandExecution(
+    result: CockpitCommandResult(
+      success: true,
+      commandId: 'capture',
+      commandType: CockpitCommandType.captureScreenshot,
+      durationMs: 4,
+      artifacts: <CockpitArtifactRef>[
+        CockpitArtifactRef(role: 'screenshot', relativePath: path),
+      ],
+      requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+      resolvedCaptureKind: kind,
+    ),
+  );
 }
 
 final class _ThrowingCaptureAdapter implements CockpitCaptureAdapter {

@@ -1,5 +1,7 @@
 enum CockpitCaptureKind {
   flutterView,
+  appNative,
+  hostSystem,
   nativeAcceptance;
 
   static CockpitCaptureKind fromJson(Object? json) {

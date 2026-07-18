@@ -46,5 +46,23 @@ void main() {
       schema['required'],
       containsAll(<String>['sessionId', 'taskId', 'platform']),
     );
+    final definitions = schema[r'$defs']! as Map<String, Object?>;
+    final screenshotRequest =
+        definitions['screenshotRequest']! as Map<String, Object?>;
+    final screenshotProperties =
+        screenshotRequest['properties']! as Map<String, Object?>;
+    expect(
+      screenshotProperties['profile'],
+      containsPair('enum', <String>[
+        'diagnostic',
+        'acceptance',
+        'flutterPreferred',
+        'nativePreferred',
+      ]),
+    );
+    expect(
+      screenshotProperties['allowFallback'],
+      containsPair('type', 'boolean'),
+    );
   });
 }

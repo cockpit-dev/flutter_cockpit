@@ -74,7 +74,15 @@ Final proof:
 dart run cockpit capture-screenshot --name acceptance --profile inspect
 ```
 
-`capture-screenshot` uses app metadata, prefers system/host capture, falls back to app capture, and comes before external screenshot tools.
+`--profile inspect` controls output detail; `--capture-profile` routes `diagnostic`, `acceptance`, `flutterPreferred`, or `nativePreferred`. Android/iOS Simulator acceptance and system UI: host first; desktop, Web, and diagnostics: app first. Failure tries the next source unless disabled; never gate fallback on `/health` or capabilities. Report the actual source.
+
+Strict native/system proof:
+
+```bash
+dart run cockpit capture-screenshot --name acceptance --profile inspect --capture-profile nativePreferred --no-capture-fallback
+```
+
+Workflow uses `profile: nativePreferred`, `allowFallback: false`; MCP uses `captureProfile: nativePreferred`, `allowFallback: false`. Otherwise keep fallback enabled. Use Cockpit before external screenshot tools.
 
 Short deterministic flow:
 
@@ -99,8 +107,8 @@ dart run cockpit read-system-capabilities [--platform <platform>] [--device-id <
 dart run cockpit run-system-action [--platform <platform>] [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] [--wda-url http://127.0.0.1:8100] --action <available-action>
 ```
 
-Use `parameters=[name*:type[range](allowed|values)]`; `*` means required. Do not guess payload keys. Commands reuse `.dart_tool/flutter_cockpit/latest_app.json` and resolve platform app ids. `--app-id` means native app id. On parameter errors, re-run `read-system-capabilities`, copy metadata, and send only that payload. For `dismissSystemDialog`, use `--decision accept` or `--decision dismiss`; omit it to accept.
-Use JSON `actionGroups` instead of hard-coded platform lists. Android uses adb. iOS Simulator uses simctl plus WDA; WDA actions stay blocked unless reachable. Unsupported simulator actions stay blocked instead of faked. For native crash logs before runtime attaches, use `run-system-action --action readSystemLogs`. `activateWindow` on iOS Simulator must not terminate Flutter debug or hot-reload sessions; use `terminateApp` only for restart.
+Use `parameters=[name*:type[range](allowed|values)]`; `*` means required. Do not guess payload keys. Commands reuse `.dart_tool/flutter_cockpit/latest_app.json`; `--app-id` means native app id. On parameter errors, re-read capabilities and send only the documented payload. For `dismissSystemDialog`, use `--decision accept` or `--decision dismiss`; omit it to accept.
+Use JSON `actionGroups`, not platform guesses. Android uses adb. iOS Simulator uses simctl plus WDA; WDA actions stay blocked unless reachable. Unsupported actions stay blocked instead of faked. Use `readSystemLogs` for pre-attach native crashes. `activateWindow` must preserve Flutter debug/hot-reload; use `terminateApp` only for restart.
 Trust only actions reported as `available`. Desktop coordinates use screen pixels. macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. If not `available`, follow its requirement/fallback or report `blocked_by_environment`.
 
 Acceptance, release, or artifact handoff:
@@ -118,13 +126,6 @@ taskId: checkout-proof
 platform: android
 failFast: true
 steps:
-  - stepId: record-flow
-    stepType: startRecording
-    recording:
-      purpose: acceptance
-      name: checkout-proof
-      mode: auto
-      attachToStep: true
   - stepId: wait-ready
     stepType: retry
     maxAttempts: 4
@@ -146,8 +147,6 @@ steps:
         name: checkout-proof
         includeSnapshot: true
         attachToStep: true
-  - stepId: stop-recording
-    stepType: stopRecording
 ```
 
 ```bash
@@ -162,7 +161,7 @@ Board:
 dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
 ```
 
-Use same `--output-root`. `sessionId` isolates one job, `taskId` names it, and `runId` is one attempt. Reuse `sessionId` for retries; use a new one for unrelated work. Board pins latest `sessionId`; use selector/`all runs` for audit and `--scope latest` to follow. Timeline is scope-level, details/bundles stay per-run, and artifact links carry owning run/event. For handoff, click `download bundle` or GET `/api/runs/<runId>/bundle-download`; tar contains `download_manifest.json`, `run_metadata.json`, `bundle/**`, `live/**`, with absent parts in `missingRoots`. Board launches need executable envelope: `sessionHandle`, `baseUrl`, `outputRoot`, platform ids.
+Use the same `--output-root`; `sessionId` is a job, `taskId` names it, and `runId` is one attempt. Reuse sessions only for retries. Board pins the latest session; details and bundles stay per-run. For handoff, click `download bundle` or GET `/api/runs/<runId>/bundle-download`; tar contains `download_manifest.json`, `run_metadata.json`, `bundle/**`, `live/**`, with absent roots in `missingRoots`.
 
 ## Development Defaults
 

@@ -52,8 +52,8 @@ final class CockpitObservationAssembler {
       diagnosticsArtifactRef: snapshot.diagnosticsArtifactRef,
       summary: snapshot.summary,
       targetKind: CockpitTargetKind.flutterApp,
-      executionPlane: _executionPlaneFor(result),
-      surfaceKind: _surfaceKindFor(result),
+      executionPlane: executionPlaneFor(result),
+      surfaceKind: surfaceKindFor(result),
       fallbackUsed: result.usedCaptureFallback,
     );
   }
@@ -114,8 +114,8 @@ final class CockpitObservationAssembler {
     return sanitized.replaceAll(RegExp(r'^_+|_+$'), '');
   }
 
-  CockpitPlaneKind _executionPlaneFor(CockpitCommandResult result) {
-    return switch (_surfaceKindFor(result)) {
+  CockpitPlaneKind executionPlaneFor(CockpitCommandResult result) {
+    return switch (surfaceKindFor(result)) {
       CockpitSurfaceKind.nativeUi => CockpitPlaneKind.nativeUiPlane,
       CockpitSurfaceKind.systemUi => CockpitPlaneKind.deviceSystemPlane,
       CockpitSurfaceKind.hostShell => CockpitPlaneKind.hostPlane,
@@ -123,10 +123,35 @@ final class CockpitObservationAssembler {
     };
   }
 
-  CockpitSurfaceKind _surfaceKindFor(CockpitCommandResult result) {
+  CockpitSurfaceKind surfaceKindFor(CockpitCommandResult result) {
     return switch (result.resolvedCaptureKind) {
+      CockpitCaptureKind.hostSystem => CockpitSurfaceKind.systemUi,
+      CockpitCaptureKind.appNative ||
       CockpitCaptureKind.nativeAcceptance => CockpitSurfaceKind.nativeUi,
       _ => CockpitSurfaceKind.flutterSemantic,
     };
   }
+}
+
+List<CockpitPlaneKind> cockpitCaptureFallbackTrailFor(
+  CockpitCommandResult result,
+) {
+  if (!result.usedCaptureFallback) {
+    return const <CockpitPlaneKind>[];
+  }
+  if (result.resolvedCaptureKind == null) {
+    return const <CockpitPlaneKind>[];
+  }
+  final hostCaptureFailed =
+      result.degradationReason?.startsWith('hostCapture') == true;
+  return switch (result.resolvedCaptureKind) {
+    CockpitCaptureKind.flutterView => <CockpitPlaneKind>[
+      if (hostCaptureFailed) CockpitPlaneKind.deviceSystemPlane,
+      CockpitPlaneKind.nativeUiPlane,
+    ],
+    CockpitCaptureKind.appNative || CockpitCaptureKind.nativeAcceptance
+        when hostCaptureFailed =>
+      const <CockpitPlaneKind>[CockpitPlaneKind.deviceSystemPlane],
+    _ => const <CockpitPlaneKind>[CockpitPlaneKind.flutterSemanticPlane],
+  };
 }

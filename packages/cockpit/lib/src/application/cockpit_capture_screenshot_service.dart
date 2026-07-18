@@ -21,6 +21,8 @@ final class CockpitCaptureScreenshotRequest {
     this.reason = CockpitScreenshotReason.acceptance,
     this.includeSnapshot = false,
     this.attachToStep = true,
+    this.captureProfile,
+    this.allowFallback,
     this.resultProfile = const CockpitInteractiveResultProfile.standard(),
     this.defaultCommandTimeout = const Duration(seconds: 30),
   });
@@ -35,6 +37,8 @@ final class CockpitCaptureScreenshotRequest {
   final CockpitScreenshotReason reason;
   final bool includeSnapshot;
   final bool attachToStep;
+  final CockpitCaptureProfile? captureProfile;
+  final bool? allowFallback;
   final CockpitInteractiveResultProfile resultProfile;
   final Duration defaultCommandTimeout;
 }
@@ -76,6 +80,8 @@ final class CockpitCaptureScreenshotService {
         name: name,
         includeSnapshot: request.includeSnapshot,
         attachToStep: request.attachToStep,
+        profile: request.captureProfile,
+        allowFallback: request.allowFallback,
       ),
     );
 
@@ -178,17 +184,17 @@ final class CockpitCaptureScreenshotService {
         execution,
         resultProfile.artifacts,
       ),
-      selectedPlane:
-          execution.result.resolvedCaptureKind ==
-              CockpitCaptureKind.nativeAcceptance
-          ? CockpitPlaneKind.deviceSystemPlane
-          : CockpitPlaneKind.flutterSemanticPlane,
-      fallbackTrail:
-          execution.result.usedCaptureFallback ||
-              execution.result.resolvedCaptureKind ==
-                  CockpitCaptureKind.flutterView
-          ? const <CockpitPlaneKind>[CockpitPlaneKind.deviceSystemPlane]
-          : const <CockpitPlaneKind>[],
+      selectedPlane: switch (execution.result.resolvedCaptureKind) {
+        CockpitCaptureKind.hostSystem => CockpitPlaneKind.deviceSystemPlane,
+        CockpitCaptureKind.appNative ||
+        CockpitCaptureKind.nativeAcceptance => CockpitPlaneKind.nativeUiPlane,
+        CockpitCaptureKind.flutterView => CockpitPlaneKind.flutterSemanticPlane,
+        null =>
+          execution.result.degradationReason?.startsWith('hostCapture') == true
+              ? CockpitPlaneKind.deviceSystemPlane
+              : CockpitPlaneKind.flutterSemanticPlane,
+      },
+      fallbackTrail: cockpitCaptureFallbackTrailFor(execution.result),
       recommendedNextStep: execution.result.success
           ? 'reviewCapturedEvidence'
           : 'inspectFailureDiagnostics',

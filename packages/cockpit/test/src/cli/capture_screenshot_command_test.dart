@@ -52,6 +52,9 @@ void main() {
             'baseline',
             '--include-snapshot',
             '--no-attach-to-step',
+            '--capture-profile',
+            'nativePreferred',
+            '--no-capture-fallback',
             '--timeout-ms',
             '9000',
             '--profile',
@@ -70,6 +73,8 @@ void main() {
       expect(request.reason, CockpitScreenshotReason.baseline);
       expect(request.includeSnapshot, isTrue);
       expect(request.attachToStep, isFalse);
+      expect(request.captureProfile, CockpitCaptureProfile.nativePreferred);
+      expect(request.allowFallback, isFalse);
       expect(request.defaultCommandTimeout, const Duration(milliseconds: 9000));
       expect(request.resultProfile.name.jsonValue, 'evidence');
 
@@ -117,6 +122,8 @@ void main() {
       expect(capturedRequest?.reason, CockpitScreenshotReason.acceptance);
       expect(capturedRequest?.includeSnapshot, isFalse);
       expect(capturedRequest?.attachToStep, isTrue);
+      expect(capturedRequest?.captureProfile, isNull);
+      expect(capturedRequest?.allowFallback, isNull);
       expect(capturedRequest?.resultProfile.name.jsonValue, 'standard');
     },
   );

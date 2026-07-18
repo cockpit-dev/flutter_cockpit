@@ -525,3 +525,44 @@ Validation target after the platform-discovery rewrite:
 - copied commands use placeholders until real platform and device ids are known
 - CLI reference launch examples use discovered placeholders
 - remaining loophole to watch: an agent may still discover the right platform but ignore the capability profile that comes with it
+
+## Scenario 15: Screenshot Routing Pressure
+
+### Prompt
+
+Capture three proofs under release pressure: an Android system dialog, a macOS app screen, and one strict native-layer artifact. The system capture may fail; choose exact CLI, workflow, or MCP fields without adding preflight checks.
+
+### Expected Naive Failure
+
+The agent invents profile values, applies one priority to every platform, or leaves fallback enabled for strict evidence.
+
+### Baseline Observation
+
+Baseline run without screenshot-routing guidance:
+
+- it guessed nonexistent values such as `captureProfile: flutter`, `captureProfile: native`, and `captureProfile: system`
+- it invented `reason: release_gate`
+- it put app-native capture before host/system capture for the Android system dialog
+- it used fallback for the strict release proof
+- it chose macOS app-first directionally, but with invalid field values
+
+### Target Corrected Behavior
+
+The agent must:
+
+- use only `diagnostic`, `acceptance`, `flutterPreferred`, or `nativePreferred`
+- use host-first for Android/iOS Simulator acceptance and system UI, but app-first for desktop, Web, and diagnostics
+- let failed primary capture execute the available fallback without a `/health` or capability-metadata gate
+- use `--capture-profile nativePreferred --no-capture-fallback` for strict CLI proof
+- use `profile: nativePreferred` in workflows or `captureProfile: nativePreferred` in MCP, with `allowFallback: false`
+- judge the artifact by its reported actual capture source
+
+### Post-Skill Validation
+
+Validation rerun on 2026-07-18 with `skills/flutter-cockpit/SKILL.md` present:
+
+- the agent used only the four implemented capture profiles and distinguished output `profile` from capture routing
+- Android system UI used host-system -> app-native -> Flutter; macOS used app-native -> Flutter -> host-system
+- strict proof used `nativePreferred` with fallback disabled in CLI, workflow, and MCP forms
+- no `/health` or capability preflight blocked execution-driven fallback
+- the agent correctly rejected app/Flutter fallback as proof of an Android system dialog and required the reported actual source

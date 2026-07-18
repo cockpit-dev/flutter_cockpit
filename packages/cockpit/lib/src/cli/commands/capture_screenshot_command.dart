@@ -50,6 +50,21 @@ final class CaptureScreenshotCommand extends CockpitCliCommand {
         negatable: true,
         help:
             'Attach the screenshot to the command result as step evidence. Disable only for ad-hoc diagnostics.',
+      )
+      ..addOption(
+        'capture-profile',
+        allowed: CockpitCaptureProfile.values
+            .map((profile) => profile.name)
+            .toList(growable: false),
+        help:
+            'Optional capture routing profile. Omit to use the platform and screenshot-purpose default.',
+      )
+      ..addFlag(
+        'capture-fallback',
+        defaultsTo: true,
+        negatable: true,
+        help:
+            'Allow the secondary screenshot source when the preferred source fails.',
       );
     cockpitAddProfileArg(argParser);
     cockpitAddCommandTimeoutArg(argParser);
@@ -104,6 +119,12 @@ final class CaptureScreenshotCommand extends CockpitCliCommand {
         reason: CockpitScreenshotReason.fromJson(argResults?['reason']),
         includeSnapshot: argResults?['include-snapshot'] as bool? ?? false,
         attachToStep: argResults?['attach-to-step'] as bool? ?? true,
+        captureProfile: argResults?.wasParsed('capture-profile') == true
+            ? CockpitCaptureProfile.fromJson(argResults?['capture-profile'])
+            : null,
+        allowFallback: argResults?.wasParsed('capture-fallback') == true
+            ? argResults!['capture-fallback'] as bool
+            : null,
         resultProfile: cockpitReadResultProfile(argResults),
         defaultCommandTimeout: Duration(
           milliseconds:

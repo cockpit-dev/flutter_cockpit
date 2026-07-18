@@ -96,7 +96,17 @@ final class CockpitStepRecorder {
       result,
       snapshot,
     );
-    final executionPlane = observation?.executionPlane;
+    final hasCaptureSource = result.resolvedCaptureKind != null;
+    final executionPlane =
+        observation?.executionPlane ??
+        (hasCaptureSource
+            ? _observationAssembler.executionPlaneFor(result)
+            : null);
+    final surfaceKind =
+        observation?.surfaceKind ??
+        (hasCaptureSource
+            ? _observationAssembler.surfaceKindFor(result)
+            : null);
     final usedPlaneFallback =
         observation?.fallbackUsed == true || result.usedCaptureFallback;
 
@@ -123,11 +133,8 @@ final class CockpitStepRecorder {
           : CockpitCommandStatus.failed,
       targetKind: observation?.targetKind,
       executionPlane: executionPlane,
-      surfaceKind: observation?.surfaceKind,
-      fallbackTrail: _fallbackTrailFor(
-        executionPlane: executionPlane,
-        usedPlaneFallback: usedPlaneFallback,
-      ),
+      surfaceKind: surfaceKind,
+      fallbackTrail: cockpitCaptureFallbackTrailFor(result),
       usedPlaneFallback: usedPlaneFallback,
       requestedCaptureProfile: result.requestedCaptureProfile,
       resolvedCaptureKind: result.resolvedCaptureKind,
@@ -173,24 +180,5 @@ final class CockpitStepRecorder {
         ),
       );
     }
-  }
-
-  List<CockpitPlaneKind> _fallbackTrailFor({
-    required CockpitPlaneKind? executionPlane,
-    required bool usedPlaneFallback,
-  }) {
-    if (!usedPlaneFallback) {
-      return const <CockpitPlaneKind>[];
-    }
-    return switch (executionPlane) {
-      CockpitPlaneKind.nativeUiPlane => const <CockpitPlaneKind>[
-        CockpitPlaneKind.flutterSemanticPlane,
-      ],
-      CockpitPlaneKind.deviceSystemPlane => const <CockpitPlaneKind>[
-        CockpitPlaneKind.nativeUiPlane,
-        CockpitPlaneKind.flutterSemanticPlane,
-      ],
-      _ => const <CockpitPlaneKind>[CockpitPlaneKind.flutterSemanticPlane],
-    };
   }
 }

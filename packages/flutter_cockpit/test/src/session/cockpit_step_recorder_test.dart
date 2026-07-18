@@ -71,4 +71,72 @@ void main() {
       ]),
     );
   });
+
+  test('maps actual screenshot sources to truthful evidence planes', () {
+    const expectations =
+        <CockpitCaptureKind, (CockpitPlaneKind, CockpitSurfaceKind)>{
+          CockpitCaptureKind.hostSystem: (
+            CockpitPlaneKind.deviceSystemPlane,
+            CockpitSurfaceKind.systemUi,
+          ),
+          CockpitCaptureKind.appNative: (
+            CockpitPlaneKind.nativeUiPlane,
+            CockpitSurfaceKind.nativeUi,
+          ),
+          CockpitCaptureKind.flutterView: (
+            CockpitPlaneKind.flutterSemanticPlane,
+            CockpitSurfaceKind.flutterSemantic,
+          ),
+        };
+
+    for (final MapEntry(key: kind, value: expected) in expectations.entries) {
+      final recorder = CockpitStepRecorder(
+        now: () => DateTime.utc(2026, 3, 30),
+        observationAssembler: const CockpitObservationAssembler(),
+      );
+      recorder.recordCommandResult(
+        CockpitCommand(
+          commandId: 'capture-${kind.name}',
+          commandType: CockpitCommandType.captureScreenshot,
+        ),
+        CockpitCommandResult(
+          success: true,
+          commandId: 'capture-${kind.name}',
+          commandType: CockpitCommandType.captureScreenshot,
+          durationMs: 1,
+          resolvedCaptureKind: kind,
+        ),
+      );
+
+      expect(recorder.steps.single.executionPlane, expected.$1);
+      expect(recorder.steps.single.surfaceKind, expected.$2);
+    }
+  });
+
+  test('records app-native to Flutter as the attempted fallback trail', () {
+    final recorder = CockpitStepRecorder(
+      now: () => DateTime.utc(2026, 3, 30),
+      observationAssembler: const CockpitObservationAssembler(),
+    );
+    recorder.recordCommandResult(
+      CockpitCommand(
+        commandId: 'capture-fallback',
+        commandType: CockpitCommandType.captureScreenshot,
+      ),
+      CockpitCommandResult(
+        success: true,
+        commandId: 'capture-fallback',
+        commandType: CockpitCommandType.captureScreenshot,
+        durationMs: 1,
+        requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+        resolvedCaptureKind: CockpitCaptureKind.flutterView,
+        usedCaptureFallback: true,
+        degradationReason: 'nativeCaptureUnavailable',
+      ),
+    );
+
+    expect(recorder.steps.single.fallbackTrail, <CockpitPlaneKind>[
+      CockpitPlaneKind.nativeUiPlane,
+    ]);
+  });
 }

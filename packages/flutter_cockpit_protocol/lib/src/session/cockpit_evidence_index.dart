@@ -62,7 +62,8 @@ final class CockpitEvidenceIndex {
       0,
       (count, step) =>
           count +
-          (step.resolvedCaptureKind == CockpitCaptureKind.nativeAcceptance
+          (step.resolvedCaptureKind != null &&
+                  step.resolvedCaptureKind != CockpitCaptureKind.flutterView
               ? step.captureRefs.length
               : 0),
     );

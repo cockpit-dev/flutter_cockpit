@@ -1,6 +1,6 @@
 import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/cockpit.dart';
-import 'package:cockpit/src/capture/cockpit_host_preferred_capture_adapter.dart';
+import 'package:cockpit/src/capture/cockpit_prioritized_capture_adapter.dart';
 import 'package:cockpit/src/platform/web/cockpit_browser_host_app_id.dart';
 import 'package:test/test.dart';
 
@@ -22,7 +22,7 @@ void main() {
       androidDeviceId: 'emulator-5554',
     );
 
-    expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+    expect(adapter, isA<CockpitPrioritizedCaptureAdapter>());
   });
 
   test(
@@ -44,7 +44,7 @@ void main() {
         iosDeviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
       );
 
-      expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+      expect(adapter, isA<CockpitPrioritizedCaptureAdapter>());
     },
   );
 
@@ -67,7 +67,7 @@ void main() {
     expect(adapter, same(remoteAdapter));
   });
 
-  test('uses host-preferred capture on macos when an app id is available', () {
+  test('uses prioritized capture on macos when an app id is available', () {
     final remoteAdapter = _FakeCaptureAdapter();
     final macosAdapter = _FakeCaptureAdapter();
     final resolver = CockpitCaptureStrategyResolver(
@@ -96,56 +96,53 @@ void main() {
       ),
     );
 
-    expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+    expect(adapter, isA<CockpitPrioritizedCaptureAdapter>());
+  });
+
+  test('uses prioritized capture on windows when an app id is available', () {
+    final remoteAdapter = _FakeCaptureAdapter();
+    final windowsAdapter = _FakeCaptureAdapter();
+    String? capturedAppId;
+    int? capturedProcessId;
+    final resolver = CockpitCaptureStrategyResolver(
+      remoteAdapterFactory: (client) => remoteAdapter,
+      adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+      macosAdapterFactory: (appId) => _FakeCaptureAdapter(),
+      windowsAdapterFactory: (appId, {processId}) {
+        capturedAppId = appId;
+        capturedProcessId = processId;
+        return windowsAdapter;
+      },
+    );
+
+    final adapter = resolver.resolve(
+      platform: 'windows',
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      sessionHandle: CockpitRemoteSessionHandle(
+        platform: 'windows',
+        deviceId: 'windows',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'cockpit_demo',
+        processId: 4101,
+        host: '127.0.0.1',
+        hostPort: 47331,
+        devicePort: 47331,
+        baseUrl: 'http://127.0.0.1:47331',
+        launchedAt: DateTime.utc(2026, 3, 24),
+      ),
+    );
+
+    expect(adapter, isA<CockpitPrioritizedCaptureAdapter>());
+    expect(capturedAppId, 'cockpit_demo');
+    expect(capturedProcessId, 4101);
   });
 
   test(
-    'uses host-preferred capture on windows when an app id is available',
-    () {
-      final remoteAdapter = _FakeCaptureAdapter();
-      final windowsAdapter = _FakeCaptureAdapter();
-      String? capturedAppId;
-      int? capturedProcessId;
-      final resolver = CockpitCaptureStrategyResolver(
-        remoteAdapterFactory: (client) => remoteAdapter,
-        adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
-        simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
-        macosAdapterFactory: (appId) => _FakeCaptureAdapter(),
-        windowsAdapterFactory: (appId, {processId}) {
-          capturedAppId = appId;
-          capturedProcessId = processId;
-          return windowsAdapter;
-        },
-      );
-
-      final adapter = resolver.resolve(
-        platform: 'windows',
-        client: CockpitRemoteSessionClient(
-          baseUri: Uri.parse('http://127.0.0.1:47331'),
-        ),
-        sessionHandle: CockpitRemoteSessionHandle(
-          platform: 'windows',
-          deviceId: 'windows',
-          projectDir: '/workspace/examples/cockpit_demo',
-          target: 'cockpit/main.dart',
-          appId: 'cockpit_demo',
-          processId: 4101,
-          host: '127.0.0.1',
-          hostPort: 47331,
-          devicePort: 47331,
-          baseUrl: 'http://127.0.0.1:47331',
-          launchedAt: DateTime.utc(2026, 3, 24),
-        ),
-      );
-
-      expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
-      expect(capturedAppId, 'cockpit_demo');
-      expect(capturedProcessId, 4101);
-    },
-  );
-
-  test(
-    'uses host-preferred capture on windows when only a process id is available',
+    'uses prioritized capture on windows when only a process id is available',
     () {
       final remoteAdapter = _FakeCaptureAdapter();
       final windowsAdapter = _FakeCaptureAdapter();
@@ -183,13 +180,13 @@ void main() {
         ),
       );
 
-      expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+      expect(adapter, isA<CockpitPrioritizedCaptureAdapter>());
       expect(capturedAppId, 'pid-4101');
       expect(capturedProcessId, 4101);
     },
   );
 
-  test('uses host-preferred capture on linux when an app id is available', () {
+  test('uses prioritized capture on linux when an app id is available', () {
     final remoteAdapter = _FakeCaptureAdapter();
     final linuxAdapter = _FakeCaptureAdapter();
     String? capturedAppId;
@@ -226,13 +223,13 @@ void main() {
       ),
     );
 
-    expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+    expect(adapter, isA<CockpitPrioritizedCaptureAdapter>());
     expect(capturedAppId, 'cockpit_demo');
     expect(capturedProcessId, 5101);
   });
 
   test(
-    'uses host-preferred capture on linux when only a process id is available',
+    'uses prioritized capture on linux when only a process id is available',
     () {
       final remoteAdapter = _FakeCaptureAdapter();
       final linuxAdapter = _FakeCaptureAdapter();
@@ -270,7 +267,7 @@ void main() {
         ),
       );
 
-      expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+      expect(adapter, isA<CockpitPrioritizedCaptureAdapter>());
       expect(capturedAppId, 'pid-5101');
       expect(capturedProcessId, 5101);
     },
@@ -328,7 +325,7 @@ void main() {
         ),
       );
 
-      expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+      expect(adapter, isA<CockpitPrioritizedCaptureAdapter>());
       expect(capturedAppId, 'com.google.Chrome');
       expect(capturedProcessId, isNull);
     },
@@ -362,7 +359,7 @@ void main() {
         deviceId: 'chrome',
       );
 
-      expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+      expect(adapter, isA<CockpitPrioritizedCaptureAdapter>());
       expect(capturedAppId, 'google-chrome');
       expect(capturedProcessId, isNull);
     },
@@ -419,11 +416,69 @@ void main() {
 
     expect(adapter, same(remoteAdapter));
   });
+
+  test('uses app-first acceptance routing on desktop platforms', () async {
+    final remoteAdapter = _SuccessfulCaptureAdapter(
+      CockpitCaptureKind.appNative,
+    );
+    final hostAdapter = _SuccessfulCaptureAdapter(
+      CockpitCaptureKind.hostSystem,
+    );
+    final resolver = CockpitCaptureStrategyResolver(
+      remoteAdapterFactory: (client) => remoteAdapter,
+      adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+      macosAdapterFactory: (appId) => hostAdapter,
+    );
+
+    final adapter = resolver.resolve(
+      platform: 'macos',
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:1'),
+      ),
+      platformAppId: 'dev.cockpit.demo',
+    );
+    final execution = await adapter.capture(
+      CockpitCommand(
+        commandId: 'capture',
+        commandType: CockpitCommandType.captureScreenshot,
+        screenshotRequest: const CockpitScreenshotRequest(
+          reason: CockpitScreenshotReason.acceptance,
+          name: 'acceptance',
+        ),
+      ),
+    );
+
+    expect(remoteAdapter.captureCount, 1);
+    expect(hostAdapter.captureCount, 0);
+    expect(execution.result.resolvedCaptureKind, CockpitCaptureKind.appNative);
+  });
 }
 
 final class _FakeCaptureAdapter implements CockpitCaptureAdapter {
   @override
   Future<CockpitCommandExecution> capture(CockpitCommand command) {
     throw UnimplementedError();
+  }
+}
+
+final class _SuccessfulCaptureAdapter implements CockpitCaptureAdapter {
+  _SuccessfulCaptureAdapter(this.kind);
+
+  final CockpitCaptureKind kind;
+  int captureCount = 0;
+
+  @override
+  Future<CockpitCommandExecution> capture(CockpitCommand command) async {
+    captureCount += 1;
+    return CockpitCommandExecution(
+      result: CockpitCommandResult(
+        success: true,
+        commandId: command.commandId,
+        commandType: command.commandType,
+        durationMs: 1,
+        resolvedCaptureKind: kind,
+      ),
+    );
   }
 }

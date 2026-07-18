@@ -2,6 +2,7 @@ library;
 
 export 'src/context/cockpit_context_bundle.dart';
 export 'src/capture/cockpit_capture_kind.dart';
+export 'src/capture/cockpit_capture_fallback_exception.dart';
 export 'src/capture/cockpit_capture_profile.dart';
 export 'src/capture/cockpit_captured_screenshot.dart';
 export 'src/capture/cockpit_capture_result.dart';

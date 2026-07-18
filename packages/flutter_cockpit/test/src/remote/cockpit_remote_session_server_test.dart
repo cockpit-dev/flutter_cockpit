@@ -1451,8 +1451,8 @@ void main() {
       expect(result.success, isTrue);
       expect(result.requestedCaptureProfile, CockpitCaptureProfile.acceptance);
       expect(result.resolvedCaptureKind, CockpitCaptureKind.flutterView);
-      expect(result.usedCaptureFallback, isFalse);
-      expect(result.degradationReason, isNull);
+      expect(result.usedCaptureFallback, isTrue);
+      expect(result.degradationReason, 'nativeCaptureUnavailable');
       expect(response.artifactPayloads, isEmpty);
       expect(response.artifactDownloads, hasLength(1));
       expect(

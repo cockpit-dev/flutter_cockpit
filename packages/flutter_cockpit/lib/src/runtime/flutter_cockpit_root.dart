@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 
 import '../capture/cockpit_capture_kind.dart';
 import '../capture/cockpit_capture_profile.dart';
+import '../capture/cockpit_capture_fallback_exception.dart';
 import '../capture/cockpit_capture_result.dart';
 import '../control/cockpit_screenshot_request.dart';
 import '../executor/in_app_cockpit_command_executor.dart';
@@ -120,9 +121,11 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   Future<CockpitCaptureResult> captureScreenshot(
     CockpitScreenshotRequest request, {
     CockpitCaptureProfile? profile,
-    bool allowFallback = true,
+    bool? allowFallback,
   }) async {
-    final effectiveProfile = profile ?? _defaultProfileFor(request);
+    final effectiveProfile =
+        profile ?? request.profile ?? _defaultProfileFor(request);
+    final effectiveAllowFallback = allowFallback ?? request.allowsFallback;
     final effectiveRequest = request.snapshotOptions == null
         ? request.copyWith(
             snapshotOptions: _defaultSnapshotOptionsFor(request.reason),
@@ -131,7 +134,11 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
     final surfaceState = _requireSurfaceState();
 
     if (effectiveRequest.reason == CockpitScreenshotReason.acceptance) {
-      await waitForUiIdle();
+      try {
+        await waitForUiIdle();
+      } on Object {
+        // Idle observation improves capture stability but is not a prerequisite.
+      }
     }
 
     final snapshotData = effectiveRequest.includeSnapshot
@@ -142,11 +149,32 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
           )
         : null;
 
-    final prefersNativeCapture =
-        effectiveProfile == CockpitCaptureProfile.acceptance ||
-        effectiveProfile == CockpitCaptureProfile.nativePreferred;
-    if (prefersNativeCapture &&
-        await FlutterCockpit.binding.queryNativeCaptureAvailability()) {
+    final prefersNativeCapture = cockpitCaptureProfilePrefersNative(
+      effectiveProfile,
+      isWeb: kIsWeb,
+    );
+    if (prefersNativeCapture) {
+      final nativeCaptureAvailable = await FlutterCockpit.binding
+          .queryNativeCaptureAvailability();
+      if (!nativeCaptureAvailable) {
+        if (!effectiveAllowFallback) {
+          throw PlatformException(
+            code: 'nativeCaptureUnavailable',
+            message: 'Native screenshot capture is unavailable.',
+          );
+        }
+        final screenshot = await surfaceState.captureScreenshot(
+          effectiveRequest,
+        );
+        return CockpitCaptureResult(
+          screenshot: screenshot,
+          requestedProfile: effectiveProfile,
+          resolvedCaptureKind: CockpitCaptureKind.flutterView,
+          usedFallback: true,
+          degradationReason: 'nativeCaptureUnavailable',
+        );
+      }
+
       try {
         final screenshot = await FlutterCockpit.binding.nativeCapture.capture(
           request: effectiveRequest,
@@ -156,37 +184,33 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
         return CockpitCaptureResult(
           screenshot: screenshot,
           requestedProfile: effectiveProfile,
-          resolvedCaptureKind: CockpitCaptureKind.nativeAcceptance,
+          resolvedCaptureKind: CockpitCaptureKind.appNative,
         );
-      } on MissingPluginException catch (error) {
-        if (!allowFallback) {
+      } on Object catch (error, stackTrace) {
+        if (!effectiveAllowFallback) {
           rethrow;
         }
 
-        final screenshot = await surfaceState.captureScreenshot(
-          effectiveRequest,
-        );
+        final CockpitCapturedScreenshot screenshot;
+        try {
+          screenshot = await surfaceState.captureScreenshot(effectiveRequest);
+        } on Object catch (fallbackError, fallbackStackTrace) {
+          Error.throwWithStackTrace(
+            CockpitCaptureFallbackException(
+              primaryError: error,
+              primaryStackTrace: stackTrace,
+              fallbackError: fallbackError,
+              fallbackStackTrace: fallbackStackTrace,
+            ),
+            stackTrace,
+          );
+        }
         return CockpitCaptureResult(
           screenshot: screenshot,
           requestedProfile: effectiveProfile,
           resolvedCaptureKind: CockpitCaptureKind.flutterView,
           usedFallback: true,
-          degradationReason: error.message,
-        );
-      } on PlatformException catch (error) {
-        if (!allowFallback) {
-          rethrow;
-        }
-
-        final screenshot = await surfaceState.captureScreenshot(
-          effectiveRequest,
-        );
-        return CockpitCaptureResult(
-          screenshot: screenshot,
-          requestedProfile: effectiveProfile,
-          resolvedCaptureKind: CockpitCaptureKind.flutterView,
-          usedFallback: true,
-          degradationReason: error.message ?? error.code,
+          degradationReason: _captureFailureReason(error),
         );
       }
     }
@@ -197,6 +221,15 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       requestedProfile: effectiveProfile,
       resolvedCaptureKind: CockpitCaptureKind.flutterView,
     );
+  }
+
+  String _captureFailureReason(Object error) {
+    return switch (error) {
+      PlatformException(:final code, :final message) => message ?? code,
+      MissingPluginException(:final message) =>
+        message ?? 'nativePluginMissing',
+      _ => error.toString(),
+    };
   }
 
   Future<CockpitRecordingCapabilities> queryRecordingCapabilities() {
@@ -698,4 +731,12 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       return null;
     }
   }
+}
+
+bool cockpitCaptureProfilePrefersNative(
+  CockpitCaptureProfile profile, {
+  required bool isWeb,
+}) {
+  return profile == CockpitCaptureProfile.nativePreferred ||
+      (!isWeb && profile == CockpitCaptureProfile.acceptance);
 }

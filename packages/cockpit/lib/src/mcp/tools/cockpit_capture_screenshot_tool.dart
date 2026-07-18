@@ -38,6 +38,16 @@ final class CockpitCaptureScreenshotTool extends CockpitMcpTool {
       'reason': <String, Object?>{'type': 'string'},
       'includeSnapshot': <String, Object?>{'type': 'boolean'},
       'attachToStep': <String, Object?>{'type': 'boolean'},
+      'captureProfile': <String, Object?>{
+        'type': 'string',
+        'enum': <String>[
+          'diagnostic',
+          'acceptance',
+          'flutterPreferred',
+          'nativePreferred',
+        ],
+      },
+      'allowFallback': <String, Object?>{'type': 'boolean'},
       'timeoutMs': <String, Object?>{'type': 'integer'},
       'profile': <String, Object?>{'type': 'string'},
     },
@@ -79,6 +89,8 @@ final class CockpitCaptureScreenshotTool extends CockpitMcpTool {
               cockpitReadOptionalBool(arguments, 'includeSnapshot') ?? false,
           attachToStep:
               cockpitReadOptionalBool(arguments, 'attachToStep') ?? true,
+          captureProfile: _readCaptureProfile(arguments),
+          allowFallback: cockpitReadOptionalBool(arguments, 'allowFallback'),
           defaultCommandTimeout: Duration(
             milliseconds:
                 cockpitReadOptionalPositiveInt(arguments, 'timeoutMs') ?? 30000,
@@ -110,6 +122,11 @@ final class CockpitCaptureScreenshotTool extends CockpitMcpTool {
     return CockpitInteractiveResultProfile.preset(
       CockpitInteractiveResultProfileName.fromJson(value),
     );
+  }
+
+  CockpitCaptureProfile? _readCaptureProfile(Map<String, Object?> arguments) {
+    final value = cockpitReadOptionalString(arguments, 'captureProfile');
+    return value == null ? null : CockpitCaptureProfile.fromJson(value);
   }
 
   Uri? _readOptionalBaseUri(Map<String, Object?> arguments) {

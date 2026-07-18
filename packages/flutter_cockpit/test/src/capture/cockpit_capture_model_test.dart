@@ -6,10 +6,14 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('CockpitCaptureKind round-trips through json', () {
-    expect(
-      CockpitCaptureKind.fromJson(CockpitCaptureKind.nativeAcceptance.name),
+    for (final kind in <CockpitCaptureKind>[
+      CockpitCaptureKind.hostSystem,
+      CockpitCaptureKind.appNative,
+      CockpitCaptureKind.flutterView,
       CockpitCaptureKind.nativeAcceptance,
-    );
+    ]) {
+      expect(CockpitCaptureKind.fromJson(kind.name), kind);
+    }
   });
 
   test('CockpitCaptureProfile round-trips through json', () {
@@ -19,6 +23,52 @@ void main() {
       ),
       CockpitCaptureProfile.nativePreferred,
     );
+  });
+
+  test('Web automatic acceptance capture prefers Flutter', () {
+    expect(
+      cockpitCaptureProfilePrefersNative(
+        CockpitCaptureProfile.acceptance,
+        isWeb: true,
+      ),
+      isFalse,
+    );
+    expect(
+      cockpitCaptureProfilePrefersNative(
+        CockpitCaptureProfile.nativePreferred,
+        isWeb: true,
+      ),
+      isTrue,
+    );
+  });
+
+  test('CockpitScreenshotRequest preserves capture routing intent', () {
+    const request = CockpitScreenshotRequest(
+      reason: CockpitScreenshotReason.acceptance,
+      name: 'native-proof',
+      includeSnapshot: true,
+      attachToStep: true,
+      profile: CockpitCaptureProfile.nativePreferred,
+      allowFallback: false,
+    );
+
+    expect(CockpitScreenshotRequest.fromJson(request.toJson()), request);
+    expect(request.allowsFallback, isFalse);
+    expect(request.copyWith(allowFallback: true).allowsFallback, isTrue);
+    final automatic = request.copyWith(profile: null, allowFallback: null);
+    expect(automatic.profile, isNull);
+    expect(automatic.allowFallback, isNull);
+  });
+
+  test('CockpitScreenshotRequest keeps routing fields optional by default', () {
+    const request = CockpitScreenshotRequest(
+      reason: CockpitScreenshotReason.afterAction,
+      name: 'after-action',
+    );
+
+    expect(request.toJson(), isNot(contains('profile')));
+    expect(request.toJson(), isNot(contains('allowFallback')));
+    expect(request.allowsFallback, isTrue);
   });
 
   test('CockpitCommandResult preserves capture routing metadata', () {

@@ -444,6 +444,45 @@ void main() {
   );
 
   testWidgets(
+    'FlutterCockpitRoot keeps acceptance capture usable when idle waiting throws',
+    (tester) async {
+      final observer = _TrackingNetworkObserver(throwOnWait: true);
+      FlutterCockpit.initialize(
+        FlutterCockpitConfiguration(
+          initialRouteName: '/',
+          networkObserver: observer,
+        ),
+      );
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorObservers: [FlutterCockpit.navigatorObserver],
+            home: const Scaffold(body: Center(child: Text('Cockpit Root'))),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final capture = await tester.runAsync(() {
+        return rootKey.currentState!.captureScreenshot(
+          const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'root-home-idle-failure',
+            profile: CockpitCaptureProfile.flutterPreferred,
+          ),
+        );
+      });
+
+      expect(observer.waitCount, 1);
+      expect(capture?.resolvedCaptureKind, CockpitCaptureKind.flutterView);
+      expect(capture?.screenshot.bytes.length, greaterThan(8));
+    },
+  );
+
+  testWidgets(
     'FlutterCockpitRoot skips native capture when the platform reports it as unavailable',
     (tester) async {
       final messenger =
@@ -493,8 +532,167 @@ void main() {
 
       expect(capture, isNotNull);
       expect(capture!.resolvedCaptureKind, CockpitCaptureKind.flutterView);
-      expect(capture.usedFallback, isFalse);
+      expect(capture.usedFallback, isTrue);
+      expect(capture.degradationReason, 'nativeCaptureUnavailable');
       expect(capture.screenshot.bytes.length, greaterThan(8));
+    },
+  );
+
+  testWidgets(
+    'FlutterCockpitRoot falls back when native availability lookup throws',
+    (tester) async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      const channel = MethodChannel('dev.cockpit.flutter_cockpit/capture');
+
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'queryNativeCaptureAvailability');
+        throw StateError('Native capture channel is unavailable.');
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+      FlutterCockpit.initialize(
+        FlutterCockpitConfiguration(
+          initialRouteName: '/',
+          nativeCapture: const CockpitNativeCapture(channel: channel),
+        ),
+      );
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorObservers: [FlutterCockpit.navigatorObserver],
+            home: const Scaffold(body: Center(child: Text('Cockpit Root'))),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final capture = await tester.runAsync(() {
+        return rootKey.currentState!.captureScreenshot(
+          const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'root-home-query-fallback',
+          ),
+        );
+      });
+
+      expect(capture?.resolvedCaptureKind, CockpitCaptureKind.flutterView);
+      expect(capture?.usedFallback, isTrue);
+      expect(capture?.degradationReason, 'nativeCaptureUnavailable');
+    },
+  );
+
+  testWidgets(
+    'FlutterCockpitRoot reports successful plugin capture as app native',
+    (tester) async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      const channel = MethodChannel('dev.cockpit.flutter_cockpit/capture');
+
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'queryNativeCaptureAvailability') {
+          return true;
+        }
+        if (call.method == 'captureAcceptanceScreenshot') {
+          return <String, Object?>{
+            'bytes': Uint8List.fromList(<int>[137, 80, 78, 71]),
+          };
+        }
+        fail('unexpected native capture call: ${call.method}');
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+      FlutterCockpit.initialize(
+        FlutterCockpitConfiguration(
+          initialRouteName: '/',
+          nativeCapture: const CockpitNativeCapture(channel: channel),
+        ),
+      );
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorObservers: [FlutterCockpit.navigatorObserver],
+            home: const Scaffold(body: Center(child: Text('Cockpit Root'))),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final capture = await tester.runAsync(() {
+        return rootKey.currentState!.captureScreenshot(
+          const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'root-home-native',
+          ),
+        );
+      });
+
+      expect(capture?.resolvedCaptureKind, CockpitCaptureKind.appNative);
+      expect(capture?.usedFallback, isFalse);
+    },
+  );
+
+  testWidgets(
+    'FlutterCockpitRoot keeps an unavailable native request strict when fallback is disabled',
+    (tester) async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      const channel = MethodChannel('dev.cockpit.flutter_cockpit/capture');
+
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'queryNativeCaptureAvailability');
+        return false;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+      FlutterCockpit.initialize(
+        FlutterCockpitConfiguration(
+          initialRouteName: '/',
+          nativeCapture: const CockpitNativeCapture(channel: channel),
+        ),
+      );
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorObservers: [FlutterCockpit.navigatorObserver],
+            home: const Scaffold(body: Center(child: Text('Cockpit Root'))),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      Object? captureError;
+      await tester.runAsync(() async {
+        try {
+          await rootKey.currentState!.captureScreenshot(
+            const CockpitScreenshotRequest(
+              reason: CockpitScreenshotReason.acceptance,
+              name: 'root-home-strict-native',
+              profile: CockpitCaptureProfile.nativePreferred,
+              allowFallback: false,
+            ),
+          );
+        } on Object catch (error) {
+          captureError = error;
+        }
+      });
+
+      expect(
+        captureError,
+        isA<PlatformException>().having(
+          (error) => error.code,
+          'code',
+          'nativeCaptureUnavailable',
+        ),
+      );
     },
   );
 
@@ -512,10 +710,7 @@ void main() {
           return true;
         }
         if (call.method == 'captureAcceptanceScreenshot') {
-          throw PlatformException(
-            code: 'blankCapture',
-            message: 'Native screenshot capture produced a blank image.',
-          );
+          throw StateError('Native screenshot capture produced invalid bytes.');
         }
         return null;
       });
@@ -555,9 +750,74 @@ void main() {
       expect(capture, isNotNull);
       expect(capture!.resolvedCaptureKind, CockpitCaptureKind.flutterView);
       expect(capture.usedFallback, isTrue);
-      expect(capture.degradationReason, contains('blank image'));
+      expect(capture.degradationReason, contains('invalid bytes'));
       expect(capture.screenshot.snapshot?.routeName, '/');
       expect(capture.screenshot.bytes.length, greaterThan(8));
+    },
+  );
+
+  testWidgets(
+    'FlutterCockpitRoot preserves native failure when Flutter fallback also fails',
+    (tester) async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      const channel = MethodChannel('dev.cockpit.flutter_cockpit/capture');
+
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'queryNativeCaptureAvailability') {
+          return true;
+        }
+        if (call.method == 'captureAcceptanceScreenshot') {
+          throw StateError('Native screenshot primary failed.');
+        }
+        fail('unexpected native capture call: ${call.method}');
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+      FlutterCockpit.initialize(
+        FlutterCockpitConfiguration(
+          initialRouteName: '/',
+          nativeCapture: const CockpitNativeCapture(channel: channel),
+        ),
+      );
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+      await tester.pumpWidget(
+        Offstage(
+          child: FlutterCockpitRoot(
+            key: rootKey,
+            child: MaterialApp(
+              navigatorObservers: [FlutterCockpit.navigatorObserver],
+              home: const Scaffold(body: Center(child: Text('Cockpit Root'))),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      Object? captureError;
+      await tester.runAsync(() async {
+        try {
+          await rootKey.currentState!.captureScreenshot(
+            const CockpitScreenshotRequest(
+              reason: CockpitScreenshotReason.acceptance,
+              name: 'root-home-double-failure',
+            ),
+          );
+        } on Object catch (error) {
+          captureError = error;
+        }
+      });
+
+      expect(captureError, isA<CockpitCaptureFallbackException>());
+      final fallbackError = captureError! as CockpitCaptureFallbackException;
+      expect(fallbackError.primaryError, isA<PlatformException>());
+      expect(
+        fallbackError.primaryError.toString(),
+        contains('Native screenshot primary failed'),
+      );
+      expect(fallbackError.primaryStackTrace.toString(), isNotEmpty);
+      expect(fallbackError.fallbackError, isNotNull);
+      expect(fallbackError.fallbackStackTrace.toString(), isNotEmpty);
     },
   );
 
@@ -717,6 +977,9 @@ void main() {
 }
 
 final class _TrackingNetworkObserver implements CockpitNetworkObserver {
+  _TrackingNetworkObserver({this.throwOnWait = false});
+
+  final bool throwOnWait;
   int waitCount = 0;
   Duration? lastQuietWindow;
   Duration? lastTimeout;
@@ -732,6 +995,9 @@ final class _TrackingNetworkObserver implements CockpitNetworkObserver {
     waitCount += 1;
     lastQuietWindow = quietWindow;
     lastTimeout = timeout;
+    if (throwOnWait) {
+      throw StateError('Network idle observation failed.');
+    }
     return true;
   }
 
