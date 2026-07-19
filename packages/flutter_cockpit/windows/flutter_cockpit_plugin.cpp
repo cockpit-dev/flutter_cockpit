@@ -372,10 +372,15 @@ bool CaptureWindowFrame(HWND hwnd,
 
   bool success = false;
   if (copied) {
+    auto* pixels = static_cast<uint8_t*>(dib_pixels);
+    const size_t byte_count = static_cast<size_t>(width) *
+                              static_cast<size_t>(height) * 4;
+    for (size_t offset = 3; offset < byte_count; offset += 4) {
+      pixels[offset] = 0xFF;
+    }
     frame->width = width;
     frame->height = height;
-    frame->pixels.assign(static_cast<uint8_t*>(dib_pixels),
-                         static_cast<uint8_t*>(dib_pixels) + width * height * 4);
+    frame->pixels.assign(pixels, pixels + byte_count);
     success = true;
   } else if (failure_reason != nullptr) {
     *failure_reason = "Window capture failed.";

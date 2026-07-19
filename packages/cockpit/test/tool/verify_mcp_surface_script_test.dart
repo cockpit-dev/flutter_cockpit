@@ -109,12 +109,12 @@ void main() {
     final script = scriptFile.readAsStringSync();
 
     final shellProjectDirectories = RegExp(
-      r"'projectDir':\s*p\.join\(\s*_repoRoot,\s*'examples',\s*'cockpit_demo',\s*'cockpit',\s*\)",
+      r"'projectDir':\s*p\.join\(\s*_repoRoot,\s*'examples',\s*'cockpit_demo',\s*'cockpit',?\s*\)",
     ).allMatches(script);
     final shellTargets = RegExp(r"'target':\s*'main\.dart'").allMatches(script);
 
-    expect(shellProjectDirectories, hasLength(2));
-    expect(shellTargets, hasLength(2));
+    expect(shellProjectDirectories, hasLength(3));
+    expect(shellTargets, hasLength(3));
   });
 
   test('MCP surface verifier bounds serve-mcp shutdown cleanup', () {

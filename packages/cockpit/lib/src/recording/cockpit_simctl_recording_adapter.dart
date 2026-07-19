@@ -121,7 +121,8 @@ final class CockpitSimctlRecordingAdapter
         .listen((line) {
           stderrBuffer.writeln(line);
           if (!startupCompleter.isCompleted &&
-              line.contains('Recording started')) {
+              (line.contains('Recording started') ||
+                  line.contains('Defaulting to display:'))) {
             startupCompleter.complete();
           }
         });

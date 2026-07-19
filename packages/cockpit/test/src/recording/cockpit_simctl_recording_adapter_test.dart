@@ -82,7 +82,8 @@ void main() {
 
       final runtime = _FakeSimctlRuntime(
         pid: 4201,
-        startupLine: 'Recording started',
+        startupLine:
+            'Note: No display specified. Defaulting to display: screen-1',
       );
 
       final adapter = CockpitSimctlRecordingAdapter(

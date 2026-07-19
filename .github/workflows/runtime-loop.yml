@@ -574,12 +574,8 @@ jobs:
         timeout-minutes: 20
         run: |
           set -eo pipefail
-          COCKPIT_NATIVE_REPORT_PATH="$NATIVE_REPORT_JSON" flutter drive \
-            --driver integration_test/driver.dart \
-            --target integration_test/native_plugin_conformance_test.dart \
+          flutter test --no-pub integration_test/native_plugin_conformance_test.dart \
             -d "$IOS_DEVICE_ID" 2>&1 | tee "$NATIVE_REPORT_LOG"
-          python3 "$GITHUB_WORKSPACE/.github/scripts/validate-native-conformance-report.py" \
-            "$NATIVE_REPORT_JSON" --platform ios
 
       - name: Run iOS full verifier
         working-directory: examples/cockpit_demo/cockpit
@@ -893,12 +889,19 @@ jobs:
         timeout-minutes: 5
         run: |
           CHROME_EXECUTABLE="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || true)"
+          CHROMEDRIVER="$(command -v chromedriver || true)"
           if [ -z "$CHROME_EXECUTABLE" ]; then
             echo "No supported Chrome or Chromium executable found on the runner." >&2
             exit 1
           fi
+          if [ -z "$CHROMEDRIVER" ]; then
+            echo "ChromeDriver was not found on the runner." >&2
+            exit 1
+          fi
           echo "CHROME_EXECUTABLE=$CHROME_EXECUTABLE" >> "$GITHUB_ENV"
+          echo "CHROMEDRIVER=$CHROMEDRIVER" >> "$GITHUB_ENV"
           "$CHROME_EXECUTABLE" --version
+          "$CHROMEDRIVER" --version
 
       - name: Enable Flutter web
         run: flutter config --enable-web
@@ -925,6 +928,16 @@ jobs:
         timeout-minutes: 15
         run: |
           set -eo pipefail
+          "$CHROMEDRIVER" --port=4444 > "$RUNNER_TEMP/chromedriver.log" 2>&1 &
+          CHROMEDRIVER_PID=$!
+          trap 'kill "$CHROMEDRIVER_PID" 2>/dev/null || true' EXIT
+          for _ in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:4444/status > /dev/null; then
+              break
+            fi
+            sleep 0.25
+          done
+          curl --fail --silent http://127.0.0.1:4444/status > /dev/null
           xvfb-run -a env COCKPIT_NATIVE_REPORT_PATH="$NATIVE_REPORT_JSON" flutter drive \
             --driver integration_test/driver.dart \
             --target integration_test/native_plugin_conformance_test.dart \

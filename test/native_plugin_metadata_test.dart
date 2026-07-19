@@ -230,6 +230,21 @@ void main() {
     expect(plugin, contains('captureDrawFailed'));
   });
 
+  test(
+    'Windows GDI capture makes copied pixels opaque before PNG encoding',
+    () {
+      final source = File(
+        '$root/packages/flutter_cockpit/windows/flutter_cockpit_plugin.cpp',
+      ).readAsStringSync();
+
+      final alphaNormalization = source.indexOf('pixels[offset] = 0xFF;');
+      final frameCopy = source.indexOf('frame->pixels.assign(');
+
+      expect(alphaNormalization, isNonNegative);
+      expect(frameCopy, greaterThan(alphaNormalization));
+    },
+  );
+
   test('Android recording source declares lifecycle and cleanup contracts', () {
     final source = File(
       '$root/packages/flutter_cockpit/android/src/main/kotlin/dev/cockpit/flutter_cockpit/FlutterCockpitRecordingCoordinator.kt',

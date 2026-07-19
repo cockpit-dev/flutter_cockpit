@@ -47,7 +47,7 @@ def main() -> None:
         assert recording.get("recordingKind") == "nativeScreen", recording
         assert recording.get("postFinalizeStopRejected") is True, recording
     else:
-        assert args.platform in ("ios", "web"), recording
+        assert args.platform in ("ios", "linux", "web"), recording
         assert recording.get("unavailableBranchTested") is True, recording
         assert recording.get("reason") == "recordingUnavailable", recording
 

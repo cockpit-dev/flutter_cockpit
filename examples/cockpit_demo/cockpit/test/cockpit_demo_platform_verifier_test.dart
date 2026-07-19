@@ -1347,6 +1347,72 @@ void main() {
     );
   });
 
+  test(
+    'reports stable host driver separately from its implementation',
+    () async {
+      final outputRoot = await Directory.systemTemp.createTemp(
+        'cockpit_demo_host_recording_driver_',
+      );
+      final recordingFile = await _createRecordingArtifact();
+      addTearDown(() async {
+        if (await outputRoot.exists()) {
+          await outputRoot.delete(recursive: true);
+        }
+        if (await recordingFile.parent.exists()) {
+          await recordingFile.parent.delete(recursive: true);
+        }
+      });
+      final verifier = await _createSinglePlatformVerifier(
+        platform: 'macos',
+        deviceId: 'macos',
+        recordingAdapterResolver:
+            ({
+              required platform,
+              required deviceId,
+              required app,
+              required client,
+              required recording,
+            }) => _ProvenanceFakeRecordingAdapter(
+              provenance: const CockpitRecordingProvenance(
+                implementation: 'macosHost',
+                sourcePlane: CockpitRecordingSourcePlane.host,
+              ),
+              onStart: (request) async => CockpitRecordingSession(
+                request: request,
+                state: CockpitRecordingState.recording,
+              ),
+              onStop: () async => CockpitRecordingResult(
+                state: CockpitRecordingState.completed,
+                purpose: CockpitRecordingPurpose.acceptance,
+                recordingKind: CockpitRecordingKind.nativeScreen,
+                effectiveLayer: CockpitRecordingLayer.hostScreen,
+                artifact: const CockpitArtifactRef(
+                  role: 'recording',
+                  relativePath: 'recordings/host-recording.mp4',
+                ),
+                durationMs: 3200,
+                sourceFilePath: recordingFile.path,
+              ),
+            ),
+      );
+
+      final result = await verifier.verify(
+        CockpitDemoPlatformVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo/cockpit',
+          platforms: const <String>['macos'],
+          outputRoot: outputRoot.path,
+        ),
+      );
+
+      expect(result.success, isTrue, reason: jsonEncode(result.toJson()));
+      final platform = result.platforms.single;
+      expect(platform.recordingDriver, 'macos-host');
+      expect(platform.recordingImplementation, 'macosHost');
+      expect(platform.recordingSourcePlane, 'host');
+      expect(platform.hostEvidence, contains('recording'));
+    },
+  );
+
   test('verifier fails when a nonempty screenshot cannot be decoded', () async {
     final verifier = await _createSinglePlatformVerifier(
       platform: 'macos',
@@ -3741,7 +3807,7 @@ void main() {
       );
       expect(platform.recordingOutputPath, isNotNull);
       expect(File(platform.recordingOutputPath!).existsSync(), isTrue);
-      expect(platform.recordingDriver, isNull);
+      expect(platform.recordingDriver, 'browser-host-fallback');
       expect(platform.recordingKind, 'timelineScreenshotFallback');
       expect(platform.verifiedCommands, <String>[
         'launch-app',
@@ -3986,7 +4052,7 @@ void main() {
       );
       expect(platform.recordingOutputPath, isNotNull);
       expect(File(platform.recordingOutputPath!).existsSync(), isTrue);
-      expect(platform.recordingDriver, isNull);
+      expect(platform.recordingDriver, 'browser-host-fallback');
       expect(platform.recordingKind, 'timelineScreenshotFallback');
       expect(platform.exportedScreenshotCount, platform.autoScreenshotCount);
       expect(platform.verifiedCommands, contains('stop-recording'));
@@ -4133,7 +4199,7 @@ void main() {
       );
       expect(platform.recordingOutputPath, isNotNull);
       expect(File(platform.recordingOutputPath!).existsSync(), isTrue);
-      expect(platform.recordingDriver, isNull);
+      expect(platform.recordingDriver, 'simctl-fallback');
       expect(platform.recordingKind, 'timelineScreenshotFallback');
       expect(platform.verifiedCommands, contains('start-recording'));
       expect(platform.verifiedCommands, contains('stop-recording'));
@@ -4366,7 +4432,7 @@ void main() {
       );
       expect(platform.recordingOutputPath, isNotNull);
       expect(File(platform.recordingOutputPath!).existsSync(), isTrue);
-      expect(platform.recordingDriver, isNull);
+      expect(platform.recordingDriver, 'windows-host-fallback');
       expect(platform.recordingKind, 'timelineScreenshotFallback');
       expect(platform.exportedScreenshotCount, platform.autoScreenshotCount);
       expect(
@@ -4945,6 +5011,33 @@ final class _AppNativeFakeRecordingAdapter
         implementation: 'ios-app-native',
         sourcePlane: CockpitRecordingSourcePlane.app,
       );
+
+  @override
+  Future<CockpitRecordingSession> startRecording(
+    CockpitRecordingRequest request,
+  ) => onStart(request);
+
+  @override
+  Future<CockpitRecordingResult> stopRecording() => onStop();
+}
+
+final class _ProvenanceFakeRecordingAdapter
+    implements CockpitRecordingAdapter, CockpitRecordingProvenanceProvider {
+  _ProvenanceFakeRecordingAdapter({
+    required this.provenance,
+    required this.onStart,
+    required this.onStop,
+  });
+
+  final CockpitRecordingProvenance provenance;
+  final Future<CockpitRecordingSession> Function(
+    CockpitRecordingRequest request,
+  )
+  onStart;
+  final Future<CockpitRecordingResult> Function() onStop;
+
+  @override
+  CockpitRecordingProvenance get recordingProvenance => provenance;
 
   @override
   Future<CockpitRecordingSession> startRecording(

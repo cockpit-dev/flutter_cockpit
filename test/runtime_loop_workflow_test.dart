@@ -28,6 +28,9 @@ void main() {
   final androidSdkInstallerScriptFile = File(
     '$root/.github/scripts/install-android-sdk-for-emulator-runner.sh',
   );
+  final nativeConformanceValidatorFile = File(
+    '$root/.github/scripts/validate-native-conformance-report.py',
+  );
 
   test('runtime loop workflow uses full verifier coverage on every platform', () {
     final workflow = workflowFile.readAsStringSync();
@@ -366,6 +369,7 @@ void main() {
   test('runtime loop verifies the public native plugin on every platform', () {
     final workflow = workflowFile.readAsStringSync();
     final androidScript = androidVerifierScriptFile.readAsStringSync();
+    final nativeValidator = nativeConformanceValidatorFile.readAsStringSync();
     final nativeTest = File(
       '$root/examples/cockpit_demo/cockpit/integration_test/native_plugin_conformance_test.dart',
     ).readAsStringSync();
@@ -403,6 +407,22 @@ void main() {
     expect(nativeTest, contains('nativeCaptureUnavailable'));
     expect(nativeDriver, contains('responseDataCallback'));
     expect(nativeDriver, contains('COCKPIT_NATIVE_REPORT_PATH'));
+    expect(nativeValidator, contains('("ios", "linux", "web")'));
+
+    final iosBlock = _workflowJobBlock(workflow, 'ios-runtime-loop');
+    expect(
+      iosBlock,
+      contains(
+        'flutter test --no-pub integration_test/native_plugin_conformance_test.dart',
+      ),
+    );
+    expect(iosBlock, isNot(contains('flutter drive \\')));
+
+    final webBlock = _workflowJobBlock(workflow, 'web-runtime-loop');
+    expect(webBlock, contains('CHROMEDRIVER='));
+    expect(webBlock, contains(r'"$CHROMEDRIVER" --port=4444'));
+    expect(webBlock, contains('CHROMEDRIVER_PID'));
+    expect(webBlock, contains('trap '));
   });
 
   test('runtime loop command assertions track full verifier output', () {

@@ -1486,7 +1486,15 @@ final class CockpitDemoPlatformVerifier {
       }
 
       final recordingImplementation = recordingProvenance?.implementation;
-      final recordingDriver = recordingImplementation;
+      final expectedHostRecordingDriver = cockpitDemoRecordingDriverForPlatform(
+        platform: platform,
+        deviceId: deviceId,
+      );
+      final recordingDriver = recordingKind == 'timelineScreenshotFallback'
+          ? '$expectedHostRecordingDriver-fallback'
+          : recordingProvenance?.sourcePlane == CockpitRecordingSourcePlane.host
+          ? expectedHostRecordingDriver
+          : recordingImplementation;
       final recordingEvidence = <String, Object?>{
         'artifactRef': recordingArtifactRef,
         'outputPath': recordingOutputPath,

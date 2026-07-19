@@ -1511,7 +1511,8 @@ int   sum( int left,int right ){return left+right;}
   }) {
     return <String, Object?>{
       'launch': <String, Object?>{
-        'projectDir': p.join(_repoRoot, 'examples', 'cockpit_demo'),
+        'projectDir': p.join(_repoRoot, 'examples', 'cockpit_demo', 'cockpit'),
+        'target': 'main.dart',
         'platform': 'macos',
         'deviceId': 'macos',
         'sessionPort': sessionPort,
