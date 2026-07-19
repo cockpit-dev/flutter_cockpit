@@ -21,6 +21,15 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import java.io.File
 
+private const val MIN_FINALIZABLE_RECORDING_DURATION_MS = 2_000L
+
+internal fun recordingFinalizationDelayMillis(
+    startedAtElapsedMs: Long,
+    nowElapsedMs: Long,
+): Long =
+    (MIN_FINALIZABLE_RECORDING_DURATION_MS - (nowElapsedMs - startedAtElapsedMs))
+        .coerceAtLeast(0L)
+
 internal class FlutterCockpitRecordingService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -123,6 +132,27 @@ internal class FlutterCockpitRecordingService : Service() {
 
         isStopping = true
         isFinalizing = true
+        val finalizationDelayMs =
+            recordingFinalizationDelayMillis(
+                startedAtElapsedMs = startedAtElapsedMs,
+                nowElapsedMs = SystemClock.elapsedRealtime(),
+            )
+        if (finalizationDelayMs > 0L) {
+            mainHandler.postDelayed(
+                {
+                    if (sessionToken == activeSessionToken && isRecording && isStopping) {
+                        stopRecordingInternal(
+                            failureReason = null,
+                            onComplete = onComplete,
+                        )
+                    } else {
+                        onComplete(failedPayload("recordingNotActive"))
+                    }
+                },
+                finalizationDelayMs,
+            )
+            return
+        }
         stopRecordingInternal(
             failureReason = null,
             onComplete = onComplete,

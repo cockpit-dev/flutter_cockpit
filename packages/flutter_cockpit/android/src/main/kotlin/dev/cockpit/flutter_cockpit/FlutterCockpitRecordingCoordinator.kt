@@ -109,6 +109,7 @@ internal class FlutterCockpitRecordingCoordinator(
                 "recordingLimitations" to listOf(
                     "System recording consent is required.",
                     "Protected content may not be recorded.",
+                    "Very short recordings may be extended for encoder finalization.",
                 ),
             ),
         )

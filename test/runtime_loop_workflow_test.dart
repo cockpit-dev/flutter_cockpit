@@ -415,9 +415,10 @@ void main() {
     expect(
       iosBlock,
       contains(
-        'flutter test --no-pub integration_test/native_plugin_conformance_test.dart',
+        'flutter test integration_test/native_plugin_conformance_test.dart',
       ),
     );
+    expect(iosBlock, isNot(contains('flutter test --no-pub')));
     expect(
       iosBlock,
       contains('flutter config --no-enable-swift-package-manager'),

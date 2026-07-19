@@ -122,3 +122,34 @@ class FlutterCockpitRecordingPathResolverTest {
         )
     }
 }
+
+class FlutterCockpitRecordingTimingTest {
+    @Test
+    fun delaysFinalizationUntilRecorderHasRunForMinimumDuration() {
+        assertEquals(
+            1_000L,
+            recordingFinalizationDelayMillis(
+                startedAtElapsedMs = 5_000L,
+                nowElapsedMs = 6_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun finalizesImmediatelyAtOrAfterMinimumDuration() {
+        assertEquals(
+            0L,
+            recordingFinalizationDelayMillis(
+                startedAtElapsedMs = 5_000L,
+                nowElapsedMs = 7_000L,
+            ),
+        )
+        assertEquals(
+            0L,
+            recordingFinalizationDelayMillis(
+                startedAtElapsedMs = 5_000L,
+                nowElapsedMs = 8_000L,
+            ),
+        )
+    }
+}
