@@ -123,33 +123,20 @@ class FlutterCockpitRecordingPathResolverTest {
     }
 }
 
-class FlutterCockpitRecordingTimingTest {
+class FlutterCockpitRecordingVideoDimensionsTest {
     @Test
-    fun delaysFinalizationUntilRecorderHasRunForMinimumDuration() {
+    fun limitsPortraitRecordingToEncoderSafeResolution() {
         assertEquals(
-            2_000L,
-            recordingFinalizationDelayMillis(
-                startedAtElapsedMs = 5_000L,
-                nowElapsedMs = 6_000L,
-            ),
+            Pair(576, 1280),
+            recordingVideoDimensions(width = 1080, height = 2400),
         )
     }
 
     @Test
-    fun finalizesImmediatelyAtOrAfterMinimumDuration() {
+    fun preservesAspectRatioForLandscapeRecording() {
         assertEquals(
-            0L,
-            recordingFinalizationDelayMillis(
-                startedAtElapsedMs = 5_000L,
-                nowElapsedMs = 8_000L,
-            ),
-        )
-        assertEquals(
-            0L,
-            recordingFinalizationDelayMillis(
-                startedAtElapsedMs = 5_000L,
-                nowElapsedMs = 9_000L,
-            ),
+            Pair(1280, 576),
+            recordingVideoDimensions(width = 2400, height = 1080),
         )
     }
 }

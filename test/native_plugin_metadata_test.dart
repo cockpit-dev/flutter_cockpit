@@ -286,8 +286,6 @@ void main() {
     expect(serviceSource, contains('length() > 0'));
     expect(serviceSource, contains('mutableSetOf<Long>()'));
     expect(serviceSource, contains('resolveSessionTermination'));
-    expect(serviceSource, contains('MAX_VIDEO_DIMENSION'));
-    expect(serviceSource, contains('scaledVideoDimensions'));
     expect(source, contains('completeUnexpectedTermination'));
     expect(
       serviceSource.indexOf('mediaProjection = projection'),

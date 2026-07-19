@@ -21,14 +21,22 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import java.io.File
 
-private const val MIN_FINALIZABLE_RECORDING_DURATION_MS = 3_000L
+private const val MAX_VIDEO_DIMENSION = 1280
 
-internal fun recordingFinalizationDelayMillis(
-    startedAtElapsedMs: Long,
-    nowElapsedMs: Long,
-): Long =
-    (MIN_FINALIZABLE_RECORDING_DURATION_MS - (nowElapsedMs - startedAtElapsedMs))
-        .coerceAtLeast(0L)
+internal fun recordingVideoDimensions(width: Int, height: Int): Pair<Int, Int> {
+    val sourceWidth = width.coerceAtLeast(2)
+    val sourceHeight = height.coerceAtLeast(2)
+    val largest = maxOf(sourceWidth, sourceHeight)
+    if (largest <= MAX_VIDEO_DIMENSION) {
+        return Pair(evenVideoDimension(sourceWidth), evenVideoDimension(sourceHeight))
+    }
+    val scaledWidth = sourceWidth * MAX_VIDEO_DIMENSION / largest
+    val scaledHeight = sourceHeight * MAX_VIDEO_DIMENSION / largest
+    return Pair(evenVideoDimension(scaledWidth), evenVideoDimension(scaledHeight))
+}
+
+private fun evenVideoDimension(value: Int): Int =
+    (value.coerceAtLeast(2) / 2) * 2
 
 internal class FlutterCockpitRecordingService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -132,27 +140,6 @@ internal class FlutterCockpitRecordingService : Service() {
 
         isStopping = true
         isFinalizing = true
-        val finalizationDelayMs =
-            recordingFinalizationDelayMillis(
-                startedAtElapsedMs = startedAtElapsedMs,
-                nowElapsedMs = SystemClock.elapsedRealtime(),
-            )
-        if (finalizationDelayMs > 0L) {
-            mainHandler.postDelayed(
-                {
-                    if (sessionToken == activeSessionToken && isRecording && isStopping) {
-                        stopRecordingInternal(
-                            failureReason = null,
-                            onComplete = onComplete,
-                        )
-                    } else {
-                        onComplete(failedPayload("recordingNotActive"))
-                    }
-                },
-                finalizationDelayMs,
-            )
-            return
-        }
         stopRecordingInternal(
             failureReason = null,
             onComplete = onComplete,
@@ -216,7 +203,7 @@ internal class FlutterCockpitRecordingService : Service() {
 
             val metrics = resources.displayMetrics
             val dimensions =
-                scaledVideoDimensions(
+                recordingVideoDimensions(
                     metrics.widthPixels,
                     metrics.heightPixels,
                 )
@@ -457,21 +444,6 @@ internal class FlutterCockpitRecordingService : Service() {
     private fun hasRunningSession(): Boolean =
         activeSessionToken != null || isFinalizing
 
-    private fun scaledVideoDimensions(width: Int, height: Int): Pair<Int, Int> {
-        val sourceWidth = width.coerceAtLeast(2)
-        val sourceHeight = height.coerceAtLeast(2)
-        val largest = maxOf(sourceWidth, sourceHeight)
-        if (largest <= MAX_VIDEO_DIMENSION) {
-            return Pair(evenDimension(sourceWidth), evenDimension(sourceHeight))
-        }
-        val scaledWidth = sourceWidth * MAX_VIDEO_DIMENSION / largest
-        val scaledHeight = sourceHeight * MAX_VIDEO_DIMENSION / largest
-        return Pair(evenDimension(scaledWidth), evenDimension(scaledHeight))
-    }
-
-    private fun evenDimension(value: Int): Int =
-        (value.coerceAtLeast(2) / 2) * 2
-
     companion object {
         private const val ACTION_START = "dev.cockpit.flutter_cockpit.action.START_RECORDING"
         private const val EXTRA_RESULT_CODE = "resultCode"
@@ -481,8 +453,6 @@ internal class FlutterCockpitRecordingService : Service() {
         private const val INVALID_SESSION_TOKEN = -1L
         private const val NOTIFICATION_CHANNEL_ID = "flutter_cockpit_recording"
         private const val NOTIFICATION_ID = 1042
-        private const val MAX_VIDEO_DIMENSION = 1920
-
         @Volatile private var activeService: FlutterCockpitRecordingService? = null
         private var pendingStartToken: Long? = null
         private var pendingStartCallback: ((Map<String, Any?>) -> Unit)? = null

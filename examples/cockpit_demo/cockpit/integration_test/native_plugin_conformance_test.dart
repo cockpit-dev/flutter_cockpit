@@ -84,7 +84,7 @@ void main() {
         }
         expect(recordingReport['duplicateStartRejected'], isTrue);
 
-        await tester.pump(const Duration(seconds: 1));
+        await tester.pump(const Duration(seconds: 3));
         final stopped = await nativeRecording.stopRecording(session: session);
         expect(stopped.state, CockpitRecordingState.completed);
         expect(stopped.artifact, isNotNull);
