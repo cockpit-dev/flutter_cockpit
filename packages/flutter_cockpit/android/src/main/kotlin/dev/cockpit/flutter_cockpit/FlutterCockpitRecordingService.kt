@@ -21,7 +21,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import java.io.File
 
-private const val MIN_FINALIZABLE_RECORDING_DURATION_MS = 2_000L
+private const val MIN_FINALIZABLE_RECORDING_DURATION_MS = 3_000L
 
 internal fun recordingFinalizationDelayMillis(
     startedAtElapsedMs: Long,

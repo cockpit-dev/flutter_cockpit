@@ -127,7 +127,7 @@ class FlutterCockpitRecordingTimingTest {
     @Test
     fun delaysFinalizationUntilRecorderHasRunForMinimumDuration() {
         assertEquals(
-            1_000L,
+            2_000L,
             recordingFinalizationDelayMillis(
                 startedAtElapsedMs = 5_000L,
                 nowElapsedMs = 6_000L,
@@ -141,14 +141,14 @@ class FlutterCockpitRecordingTimingTest {
             0L,
             recordingFinalizationDelayMillis(
                 startedAtElapsedMs = 5_000L,
-                nowElapsedMs = 7_000L,
+                nowElapsedMs = 8_000L,
             ),
         )
         assertEquals(
             0L,
             recordingFinalizationDelayMillis(
                 startedAtElapsedMs = 5_000L,
-                nowElapsedMs = 8_000L,
+                nowElapsedMs = 9_000L,
             ),
         )
     }
