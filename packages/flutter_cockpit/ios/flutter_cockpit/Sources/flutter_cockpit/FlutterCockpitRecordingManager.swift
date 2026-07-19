@@ -22,8 +22,19 @@ final class FlutterCockpitRecordingManager {
   private var sessionToken: UUID?
   private var session: RecordingSession?
 
-  func queryCapabilities() -> [String: Any] {
+  private var nativeRecordingAvailable: Bool {
+#if targetEnvironment(simulator)
+    return false
+#else
     if #available(iOS 14.0, *) {
+      return recorder.isAvailable
+    }
+    return false
+#endif
+  }
+
+  func queryCapabilities() -> [String: Any] {
+    if #available(iOS 14.0, *), nativeRecordingAvailable {
       return [
         "supportsNativeRecording": recorder.isAvailable,
         "preferredAcceptanceRecordingKind": "nativeScreen",
@@ -41,7 +52,7 @@ final class FlutterCockpitRecordingManager {
       "preferredAcceptanceRecordingKind": "nativeScreen",
       "supportedLayers": [],
       "recordingLimitations": [
-        "Native recording requires iOS 14 or newer.",
+        "ReplayKit recording is unavailable in the current environment.",
       ],
     ]
   }
@@ -65,7 +76,7 @@ final class FlutterCockpitRecordingManager {
       return
     }
 
-    guard recorder.isAvailable else {
+    guard nativeRecordingAvailable else {
       sendError(
         result,
         code: "recordingUnavailable",
