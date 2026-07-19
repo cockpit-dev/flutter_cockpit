@@ -895,8 +895,11 @@ final class _PolicyAwareRecordingAdapter
     required String implementation,
   }) {
     if (adapter is CockpitRecordingProvenanceProvider) {
-      return (adapter as CockpitRecordingProvenanceProvider)
-          .recordingProvenance;
+      final provenance =
+          (adapter as CockpitRecordingProvenanceProvider).recordingProvenance;
+      if (provenance != null) {
+        return provenance;
+      }
     }
     if (adapter is CockpitHostRecordingAdapter) {
       return CockpitRecordingProvenance(

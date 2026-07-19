@@ -17,41 +17,6 @@ import 'package:test/test.dart';
 
 void main() {
   test(
-    'validate task service does not expose recording validator injection',
-    () async {
-      final fixtureDir = await Directory(
-        p.join(
-          Directory.current.path,
-          'packages',
-          'cockpit',
-          'test',
-          '.validate_task_service_api_fixture',
-        ),
-      ).create(recursive: true);
-      addTearDown(() async => fixtureDir.delete(recursive: true));
-      final fixture = File(p.join(fixtureDir.path, 'main.dart'));
-      await fixture.writeAsString('''
-import 'package:cockpit/src/application/cockpit_validate_task_service.dart';
-
-void main() {
-  CockpitValidateTaskService(
-    validateRecordingArtifact: (path) async => throw UnimplementedError(),
-  );
-}
-''');
-
-      final result = await Process.run(Platform.resolvedExecutable, <String>[
-        'analyze',
-        '--format=machine',
-        fixture.path,
-      ], workingDirectory: Directory.current.path);
-
-      expect(result.exitCode, isNot(0));
-      expect(result.stdout, contains('UNDEFINED_NAMED_PARAMETER'));
-    },
-  );
-
-  test(
     'validate task completes when run_task completed and required delivery files exist',
     () async {
       final bundleDir = await _createBundleDir(

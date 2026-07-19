@@ -478,6 +478,27 @@ void main() {
     },
   );
 
+  test('uses the host marker when an explicit provider returns null', () {
+    final resolver = CockpitRecordingStrategyResolver(
+      macosAdapterFactory: (appId) => _NullProvenanceHostRecordingAdapter(),
+    );
+    final resolution = resolver.resolveDetailed(
+      platform: 'macos',
+      recording: autoRequest,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      platformAppId: 'dev.cockpit.demo',
+    );
+    final provider = resolution!.adapter! as CockpitRecordingProvenanceProvider;
+
+    expect(provider.recordingProvenance?.implementation, 'macosHost');
+    expect(
+      provider.recordingProvenance?.sourcePlane,
+      CockpitRecordingSourcePlane.host,
+    );
+  });
+
   test('uses process-scoped host recording for Windows full mode', () {
     String? capturedAppId;
     int? capturedProcessId;
@@ -1024,6 +1045,27 @@ final class _ThrowingHostRecordingAdapter
     CockpitRecordingRequest request,
   ) async {
     throw error;
+  }
+
+  @override
+  Future<CockpitRecordingResult> stopRecording() async {
+    throw StateError('Recording was never started.');
+  }
+}
+
+final class _NullProvenanceHostRecordingAdapter
+    implements CockpitHostRecordingAdapter, CockpitRecordingProvenanceProvider {
+  @override
+  CockpitRecordingProvenance? get recordingProvenance => null;
+
+  @override
+  Future<CockpitRecordingSession> startRecording(
+    CockpitRecordingRequest request,
+  ) async {
+    return CockpitRecordingSession(
+      request: request,
+      state: CockpitRecordingState.recording,
+    );
   }
 
   @override

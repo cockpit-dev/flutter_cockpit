@@ -3608,7 +3608,9 @@ CockpitRecordingProvenance? _recordingProvenanceForAdapter(
   if (adapter is CockpitRecordingProvenanceProvider) {
     final provenance =
         (adapter as CockpitRecordingProvenanceProvider).recordingProvenance;
-    return provenance;
+    if (provenance != null) {
+      return provenance;
+    }
   }
   if (adapter is CockpitHostRecordingAdapter) {
     return const CockpitRecordingProvenance(
