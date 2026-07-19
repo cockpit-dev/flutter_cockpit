@@ -299,6 +299,10 @@ final class CockpitDemoPlatformVerification {
     this.recordingDurationMs,
     this.recordingKind,
     this.recordingDriver,
+    this.recordingImplementation,
+    this.recordingSourcePlane,
+    this.recordingFallbackUsed = false,
+    this.recordingFallbackReason,
     this.screenshotArtifactRef,
     this.screenshotOutputPath,
     this.screenshotByteLength,
@@ -354,6 +358,10 @@ final class CockpitDemoPlatformVerification {
   final int? recordingDurationMs;
   final String? recordingKind;
   final String? recordingDriver;
+  final String? recordingImplementation;
+  final String? recordingSourcePlane;
+  final bool recordingFallbackUsed;
+  final String? recordingFallbackReason;
   final String? screenshotArtifactRef;
   final String? screenshotOutputPath;
   final int? screenshotByteLength;
@@ -414,6 +422,13 @@ final class CockpitDemoPlatformVerification {
     if (recordingDurationMs != null) 'recordingDurationMs': recordingDurationMs,
     if (recordingKind != null) 'recordingKind': recordingKind,
     if (recordingDriver != null) 'recordingDriver': recordingDriver,
+    if (recordingImplementation != null)
+      'recordingImplementation': recordingImplementation,
+    if (recordingSourcePlane != null)
+      'recordingSourcePlane': recordingSourcePlane,
+    'recordingFallbackUsed': recordingFallbackUsed,
+    if (recordingFallbackReason != null)
+      'recordingFallbackReason': recordingFallbackReason,
     if (screenshotArtifactRef != null)
       'screenshotArtifactRef': screenshotArtifactRef,
     if (screenshotOutputPath != null)
@@ -817,14 +832,19 @@ final class CockpitDemoPlatformVerifier {
       String? recordingKind;
       String? recordingEffectiveLayer;
       var recordingFallbackUsed = false;
-      Object? recordingFallbackReason;
+      String? recordingFallbackReason;
+      Object? recordingStartupFailure;
+      CockpitRecordingProvenance? recordingProvenance =
+          _recordingProvenanceForAdapter(recordingAdapter);
       activeRecordingAdapter = recordingAdapter;
       _reportProgress(
         request: request,
         platform: platform,
         stage: 'recording',
         message:
-            'starting recording driver=${cockpitDemoRecordingDriverForPlatform(platform: platform, deviceId: deviceId)}',
+            'starting recording '
+            'implementation=${recordingProvenance?.implementation ?? 'unclassified'} '
+            'sourcePlane=${recordingProvenance?.sourcePlane.name ?? 'unclassified'}',
       );
       try {
         final recordingStart = await recordingAdapter.startRecording(
@@ -850,7 +870,8 @@ final class CockpitDemoPlatformVerifier {
         )) {
           rethrow;
         }
-        recordingFallbackReason = error;
+        recordingStartupFailure = error;
+        recordingFallbackReason = '$error';
         warnings.add(
           'Host recording could not be started on this machine; a timeline recording will be synthesized from exported key-step screenshots: $error',
         );
@@ -914,6 +935,11 @@ final class CockpitDemoPlatformVerifier {
           recordingDurationMs = recordingStop.durationMs;
           recordingKind = recordingStop.recordingKind?.name;
           recordingEffectiveLayer = recordingStop.effectiveLayer?.jsonValue;
+          recordingFallbackUsed = recordingStop.fallbackUsed;
+          recordingFallbackReason = recordingStop.fallbackReason;
+          recordingProvenance = _recordingProvenanceForAdapter(
+            recordingAdapter,
+          );
         } on Object catch (error) {
           if (!_shouldAllowHostRecordingPrerequisiteFailure(
             platform: platform,
@@ -927,6 +953,7 @@ final class CockpitDemoPlatformVerifier {
             platform: platform,
             outputDir: outputDir,
             recordingName: recordingRequest.name,
+            exportedScreenshotPaths: exportedScreenshotPaths,
           );
           if (timelineRecording == null) {
             rethrow;
@@ -937,6 +964,9 @@ final class CockpitDemoPlatformVerifier {
           recordingOutputPath = timelineRecording.outputPath;
           recordingDurationMs = timelineRecording.durationMs;
           recordingKind = timelineRecording.kind;
+          recordingFallbackUsed = true;
+          recordingFallbackReason ??= '$error';
+          recordingProvenance = null;
           verifiedCommands.add('stop-recording');
           verifiedCommands.add('timeline-recording-fallback');
           warnings.add(
@@ -1307,11 +1337,12 @@ final class CockpitDemoPlatformVerifier {
             'exported screenshots=$exportedScreenshotCount explicitScreenshot=$screenshotOutputPath',
       );
 
-      if (recordingFallbackReason != null) {
+      if (recordingStartupFailure != null) {
         final timelineRecording = await _buildTimelineRecordingFallback(
           platform: platform,
           outputDir: outputDir,
           recordingName: recordingRequest.name,
+          exportedScreenshotPaths: exportedScreenshotPaths,
         );
         if (timelineRecording == null) {
           throw CockpitApplicationServiceException(
@@ -1330,6 +1361,9 @@ final class CockpitDemoPlatformVerifier {
         recordingOutputPath = timelineRecording.outputPath;
         recordingDurationMs = timelineRecording.durationMs;
         recordingKind = timelineRecording.kind;
+        recordingFallbackUsed = true;
+        recordingFallbackReason ??= '$recordingStartupFailure';
+        recordingProvenance = null;
         verifiedCommands.add('timeline-recording-fallback');
         warnings.add(
           'Synthesized a timeline recording from exported key-step screenshots after host recording startup failed.',
@@ -1397,30 +1431,46 @@ final class CockpitDemoPlatformVerifier {
           break;
       }
 
-      final recordingDriver = _recordingDriverForVerification(
-        platform: platform,
-        deviceId: deviceId,
-        fallbackUsed: recordingFallbackUsed,
-      );
+      final recordingImplementation = recordingProvenance?.implementation;
+      final recordingDriver = recordingImplementation;
       final recordingEvidence = <String, Object?>{
         'artifactRef': recordingArtifactRef,
         'outputPath': recordingOutputPath,
         'recordingKind': recordingKind,
         'effectiveLayer': recordingEffectiveLayer,
-        'recordingDriver': recordingDriver,
+        ...?recordingDriver == null
+            ? null
+            : <String, Object?>{'recordingDriver': recordingDriver},
+        ...?recordingImplementation == null
+            ? null
+            : <String, Object?>{
+                'recordingImplementation': recordingImplementation,
+              },
+        ...?recordingProvenance == null
+            ? null
+            : <String, Object?>{
+                'sourcePlane': recordingProvenance.sourcePlane.name,
+              },
+        'fallbackUsed': recordingFallbackUsed,
+        ...?recordingFallbackReason == null
+            ? null
+            : <String, Object?>{'fallbackReason': recordingFallbackReason},
         'validation': videoValidation,
       };
-      if (recordingFallbackUsed) {
+      if (recordingKind == 'timelineScreenshotFallback') {
         synthesizedEvidence = <String, Object?>{
           'recording': recordingEvidence,
           'source': 'timelineScreenshotFallback',
         };
-      } else if (_isHostRecordingDriver(recordingDriver)) {
+      } else if (recordingProvenance?.sourcePlane ==
+          CockpitRecordingSourcePlane.host) {
         hostEvidence = <String, Object?>{
           ...hostEvidence,
           'recording': recordingEvidence,
         };
-      } else if (recordingKind == CockpitRecordingKind.nativeScreen.name) {
+      } else if (recordingProvenance?.sourcePlane ==
+              CockpitRecordingSourcePlane.app &&
+          recordingKind == CockpitRecordingKind.nativeScreen.name) {
         appNativeEvidence = <String, Object?>{
           ...appNativeEvidence,
           'recording': recordingEvidence,
@@ -1546,6 +1596,10 @@ final class CockpitDemoPlatformVerifier {
         recordingDurationMs: recordingDurationMs,
         recordingKind: recordingKind,
         recordingDriver: recordingDriver,
+        recordingImplementation: recordingImplementation,
+        recordingSourcePlane: recordingProvenance?.sourcePlane.name,
+        recordingFallbackUsed: recordingFallbackUsed,
+        recordingFallbackReason: recordingFallbackReason,
         screenshotArtifactRef: screenshotArtifact.relativePath,
         screenshotOutputPath: screenshotOutputPath,
         screenshotByteLength: screenshotArtifact.byteLength,
@@ -2608,19 +2662,18 @@ final class CockpitDemoPlatformVerifier {
     required String platform,
     required String outputDir,
     required String recordingName,
+    required List<String> exportedScreenshotPaths,
   }) async {
     if (!_canBuildTimelineRecordingFallback(platform)) {
       return null;
     }
-    final screenshotsDir = Directory(p.join(outputDir, 'screenshots'));
-    if (!screenshotsDir.existsSync()) {
-      return null;
-    }
     final screenshots =
-        screenshotsDir
-            .listSync(recursive: true)
-            .whereType<File>()
-            .where((file) => p.extension(file.path).toLowerCase() == '.png')
+        exportedScreenshotPaths
+            .map((path) => p.normalize(p.absolute(path)))
+            .where((path) => p.extension(path).toLowerCase() == '.png')
+            .where((path) => File(path).existsSync())
+            .toSet()
+            .map(File.new)
             .toList(growable: false)
           ..sort((left, right) => left.path.compareTo(right.path));
     if (screenshots.isEmpty) {
@@ -3549,23 +3602,21 @@ String _formatRuntimeLogLine(CockpitRuntimeEvent entry) {
 
 Future<void> _defaultWait(Duration duration) => Future<void>.delayed(duration);
 
-String _recordingDriverForVerification({
-  required String platform,
-  required String deviceId,
-  required bool fallbackUsed,
-}) {
-  final driver = cockpitDemoRecordingDriverForPlatform(
-    platform: platform,
-    deviceId: deviceId,
-  );
-  return fallbackUsed ? '$driver-fallback' : driver;
-}
-
-bool _isHostRecordingDriver(String driver) {
-  return driver == 'adb' ||
-      driver == 'simctl' ||
-      driver == 'browser-host' ||
-      driver.endsWith('-host');
+CockpitRecordingProvenance? _recordingProvenanceForAdapter(
+  CockpitRecordingAdapter adapter,
+) {
+  if (adapter is CockpitRecordingProvenanceProvider) {
+    final provenance =
+        (adapter as CockpitRecordingProvenanceProvider).recordingProvenance;
+    return provenance.implementation == 'unknown' ? null : provenance;
+  }
+  if (adapter is CockpitHostRecordingAdapter) {
+    return const CockpitRecordingProvenance(
+      implementation: 'host',
+      sourcePlane: CockpitRecordingSourcePlane.host,
+    );
+  }
+  return null;
 }
 
 bool _shouldAllowHostRecordingPrerequisiteFailure({

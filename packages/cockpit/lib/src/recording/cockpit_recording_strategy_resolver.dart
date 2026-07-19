@@ -315,6 +315,7 @@ final class CockpitRecordingStrategyResolver {
       implementation: candidate.implementation,
       adapter: _PolicyAwareRecordingAdapter(
         delegate: candidate.factory(),
+        delegateImplementation: candidate.implementation,
         runtimeFallbackCandidates: runtimeFallbackCandidates,
         requestedMode: request.mode,
         requestedLayer: request.layer,
@@ -769,9 +770,11 @@ final class _RecordingCandidate {
   final Future<bool> Function()? liveSessionChecker;
 }
 
-final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {
+final class _PolicyAwareRecordingAdapter
+    implements CockpitRecordingAdapter, CockpitRecordingProvenanceProvider {
   _PolicyAwareRecordingAdapter({
     required CockpitRecordingAdapter delegate,
+    required String delegateImplementation,
     required List<_RecordingCandidate> runtimeFallbackCandidates,
     required CockpitRecordingMode requestedMode,
     required CockpitRecordingLayer? requestedLayer,
@@ -779,6 +782,7 @@ final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {
     required bool fallbackUsed,
     required String? fallbackReason,
   }) : _delegate = delegate,
+       _delegateImplementation = delegateImplementation,
        _runtimeFallbackCandidates = runtimeFallbackCandidates,
        _requestedMode = requestedMode,
        _requestedLayer = requestedLayer,
@@ -787,6 +791,7 @@ final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {
        _fallbackReason = fallbackReason;
 
   final CockpitRecordingAdapter _delegate;
+  final String _delegateImplementation;
   final List<_RecordingCandidate> _runtimeFallbackCandidates;
   final CockpitRecordingMode _requestedMode;
   final CockpitRecordingLayer? _requestedLayer;
@@ -797,6 +802,16 @@ final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {
   CockpitRecordingLayer? _activeEffectiveLayer;
   bool _runtimeFallbackUsed = false;
   String? _runtimeFallbackReason;
+  CockpitRecordingProvenance? _activeProvenance;
+
+  @override
+  CockpitRecordingProvenance get recordingProvenance {
+    return _activeProvenance ??
+        _provenanceFor(
+          adapter: _delegate,
+          implementation: _delegateImplementation,
+        );
+  }
 
   @override
   Future<CockpitRecordingSession> startRecording(
@@ -806,6 +821,10 @@ final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {
       final session = await _delegate.startRecording(request);
       _activeDelegate = _delegate;
       _activeEffectiveLayer = _effectiveLayer;
+      _activeProvenance = _provenanceFor(
+        adapter: _delegate,
+        implementation: _delegateImplementation,
+      );
       return session;
     } on Object catch (primaryError, primaryStackTrace) {
       if (_runtimeFallbackCandidates.isEmpty) {
@@ -818,6 +837,10 @@ final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {
           final session = await fallbackDelegate.startRecording(request);
           _activeDelegate = fallbackDelegate;
           _activeEffectiveLayer = candidate.layer;
+          _activeProvenance = _provenanceFor(
+            adapter: fallbackDelegate,
+            implementation: candidate.implementation,
+          );
           _runtimeFallbackUsed = true;
           _runtimeFallbackReason =
               'Recording layer ${_effectiveLayer.jsonValue} failed to start: '
@@ -862,6 +885,26 @@ final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {
           result.fallbackUsed || _fallbackUsed || _runtimeFallbackUsed,
       fallbackReason:
           result.fallbackReason ?? _runtimeFallbackReason ?? _fallbackReason,
+    );
+  }
+
+  CockpitRecordingProvenance _provenanceFor({
+    required CockpitRecordingAdapter adapter,
+    required String implementation,
+  }) {
+    if (adapter is CockpitRecordingProvenanceProvider) {
+      return (adapter as CockpitRecordingProvenanceProvider)
+          .recordingProvenance;
+    }
+    if (adapter is CockpitHostRecordingAdapter) {
+      return CockpitRecordingProvenance(
+        implementation: implementation,
+        sourcePlane: CockpitRecordingSourcePlane.host,
+      );
+    }
+    return const CockpitRecordingProvenance(
+      implementation: 'unknown',
+      sourcePlane: CockpitRecordingSourcePlane.app,
     );
   }
 }

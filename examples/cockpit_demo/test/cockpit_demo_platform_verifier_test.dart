@@ -901,14 +901,7 @@ void main() {
       );
       expect(
         result.platforms.map((platform) => platform.recordingDriver),
-        <String>[
-          'macos-host',
-          'simctl',
-          'adb',
-          'linux-host',
-          'windows-host',
-          'browser-host',
-        ],
+        <String?>[null, null, null, null, null, null],
       );
       expect(
         result.platforms.map((platform) => platform.systemControlAdapter),
@@ -1251,7 +1244,7 @@ void main() {
             required client,
             required recording,
           }) {
-            return _FakeRecordingAdapter(
+            return _AppNativeFakeRecordingAdapter(
               onStart: (request) async => CockpitRecordingSession(
                 request: request,
                 state: CockpitRecordingState.recording,
@@ -1261,6 +1254,8 @@ void main() {
                 purpose: CockpitRecordingPurpose.acceptance,
                 recordingKind: CockpitRecordingKind.nativeScreen,
                 effectiveLayer: CockpitRecordingLayer.system,
+                fallbackUsed: true,
+                fallbackReason: 'simctl unavailable; app-native plugin used',
                 artifact: const CockpitArtifactRef(
                   role: 'recording',
                   relativePath: 'recordings/plugin-recording.mp4',
@@ -1282,7 +1277,14 @@ void main() {
 
     expect(result.success, isTrue, reason: jsonEncode(result.toJson()));
     final platform = result.platforms.single;
-    expect(platform.recordingDriver, 'remote');
+    expect(platform.recordingDriver, 'ios-app-native');
+    expect(platform.recordingImplementation, 'ios-app-native');
+    expect(platform.recordingSourcePlane, 'app');
+    expect(platform.recordingFallbackUsed, isTrue);
+    expect(
+      platform.recordingFallbackReason,
+      'simctl unavailable; app-native plugin used',
+    );
     expect(platform.hostEvidence, isNot(contains('recording')));
     expect(platform.appNativeEvidence, contains('recording'));
     expect(
@@ -3460,6 +3462,18 @@ void main() {
           await outputRoot.delete(recursive: true);
         }
       });
+      final staleScreenshot = File(
+        p.join(
+          outputRoot.path,
+          'web',
+          'screenshots',
+          'stale-from-previous-run.png',
+        ),
+      );
+      await staleScreenshot.parent.create(recursive: true);
+      final staleBytes = <int>[222, 173, 190, 239];
+      await staleScreenshot.writeAsBytes(staleBytes, flush: true);
+      var staleFrameSeen = false;
       final verifier = CockpitDemoPlatformVerifier(
         artifactValidator: _passingArtifactValidator(),
         describeSystemControl: _fakeDescribeSystemControl,
@@ -3642,6 +3656,13 @@ void main() {
         ),
         timelineRecordingProcessRunner: (executable, arguments) async {
           expect(executable, 'ffmpeg');
+          final inputPattern = arguments[arguments.indexOf('-i') + 1];
+          final framesDirectory = Directory(p.dirname(inputPattern));
+          for (final frame in framesDirectory.listSync().whereType<File>()) {
+            if (frame.readAsBytesSync().toString() == staleBytes.toString()) {
+              staleFrameSeen = true;
+            }
+          }
           final outputPath = arguments.last;
           await File(outputPath).writeAsBytes(<int>[1, 2, 3, 4], flush: true);
           return ProcessResult(0, 0, '', '');
@@ -3657,6 +3678,7 @@ void main() {
       );
 
       expect(result.success, isTrue);
+      expect(staleFrameSeen, isFalse);
       expect(result.platforms, hasLength(1));
       final platform = result.platforms.single;
       expect(platform.status, 'passed');
@@ -3666,7 +3688,7 @@ void main() {
       );
       expect(platform.recordingOutputPath, isNotNull);
       expect(File(platform.recordingOutputPath!).existsSync(), isTrue);
-      expect(platform.recordingDriver, 'browser-host-fallback');
+      expect(platform.recordingDriver, isNull);
       expect(platform.recordingKind, 'timelineScreenshotFallback');
       expect(platform.verifiedCommands, <String>[
         'launch-app',
@@ -3911,7 +3933,7 @@ void main() {
       );
       expect(platform.recordingOutputPath, isNotNull);
       expect(File(platform.recordingOutputPath!).existsSync(), isTrue);
-      expect(platform.recordingDriver, 'browser-host-fallback');
+      expect(platform.recordingDriver, isNull);
       expect(platform.recordingKind, 'timelineScreenshotFallback');
       expect(platform.exportedScreenshotCount, platform.autoScreenshotCount);
       expect(platform.verifiedCommands, contains('stop-recording'));
@@ -4058,7 +4080,7 @@ void main() {
       );
       expect(platform.recordingOutputPath, isNotNull);
       expect(File(platform.recordingOutputPath!).existsSync(), isTrue);
-      expect(platform.recordingDriver, 'simctl-fallback');
+      expect(platform.recordingDriver, isNull);
       expect(platform.recordingKind, 'timelineScreenshotFallback');
       expect(platform.verifiedCommands, contains('start-recording'));
       expect(platform.verifiedCommands, contains('stop-recording'));
@@ -4291,7 +4313,7 @@ void main() {
       );
       expect(platform.recordingOutputPath, isNotNull);
       expect(File(platform.recordingOutputPath!).existsSync(), isTrue);
-      expect(platform.recordingDriver, 'windows-host-fallback');
+      expect(platform.recordingDriver, isNull);
       expect(platform.recordingKind, 'timelineScreenshotFallback');
       expect(platform.exportedScreenshotCount, platform.autoScreenshotCount);
       expect(
@@ -4849,6 +4871,35 @@ final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
   Future<CockpitRecordingResult> stopRecording() {
     return onStop();
   }
+}
+
+final class _AppNativeFakeRecordingAdapter
+    implements CockpitRecordingAdapter, CockpitRecordingProvenanceProvider {
+  const _AppNativeFakeRecordingAdapter({
+    required this.onStart,
+    required this.onStop,
+  });
+
+  final Future<CockpitRecordingSession> Function(
+    CockpitRecordingRequest request,
+  )
+  onStart;
+  final Future<CockpitRecordingResult> Function() onStop;
+
+  @override
+  CockpitRecordingProvenance get recordingProvenance =>
+      const CockpitRecordingProvenance(
+        implementation: 'ios-app-native',
+        sourcePlane: CockpitRecordingSourcePlane.app,
+      );
+
+  @override
+  Future<CockpitRecordingSession> startRecording(
+    CockpitRecordingRequest request,
+  ) => onStart(request);
+
+  @override
+  Future<CockpitRecordingResult> stopRecording() => onStop();
 }
 
 Future<void> _createDatabaseArtifacts(String containerPath) async {

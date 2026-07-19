@@ -16,8 +16,6 @@ typedef CockpitValidateTaskFunction =
     Future<CockpitValidateTaskResult> Function(
       CockpitValidateTaskRequest request,
     );
-typedef CockpitRecordingArtifactValidationFunction =
-    Future<CockpitBundleArtifactValidationResult> Function(String path);
 
 enum CockpitValidationClassification {
   completed('completed'),
@@ -177,7 +175,6 @@ final class CockpitValidateTaskService {
     CockpitTaskOrchestrationFunction? orchestrateTask,
     CockpitRunTaskFunction? runTask,
     CockpitBundleArtifactValidator? artifactValidator,
-    CockpitRecordingArtifactValidationFunction? validateRecordingArtifact,
   }) : _validateTaskOverride = validateTask,
        _orchestrateTask = runTask == null && runTaskService == null
            ? (orchestrateTask ??
@@ -186,15 +183,12 @@ final class CockpitValidateTaskService {
            : null,
        _runTask = runTask ?? runTaskService?.run,
        _artifactValidator =
-           artifactValidator ?? CockpitBundleArtifactValidator(),
-       _validateRecordingArtifactOverride = validateRecordingArtifact;
+           artifactValidator ?? CockpitBundleArtifactValidator();
 
   final CockpitValidateTaskFunction? _validateTaskOverride;
   final CockpitTaskOrchestrationFunction? _orchestrateTask;
   final CockpitRunTaskFunction? _runTask;
   final CockpitBundleArtifactValidator _artifactValidator;
-  final CockpitRecordingArtifactValidationFunction?
-  _validateRecordingArtifactOverride;
 
   Future<CockpitValidateTaskResult> validate(
     CockpitValidateTaskRequest request,
@@ -891,9 +885,7 @@ final class CockpitValidateTaskService {
   Future<CockpitValidationFailure?> _validateRecordingArtifact(
     String path,
   ) async {
-    final result =
-        await (_validateRecordingArtifactOverride ??
-            _artifactValidator.validateRecording)(path);
+    final result = await _artifactValidator.validateRecording(path);
     if (result.isValid) {
       return null;
     }

@@ -343,6 +343,73 @@ void main() {
     },
   );
 
+  test(
+    'exposes custom app-native provenance for an iOS simulator adapter',
+    () async {
+      final adapter = _AppNativeRecordingAdapter();
+      final resolver = CockpitRecordingStrategyResolver(
+        remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+        simctlAdapterFactory: (deviceId) => adapter,
+      );
+      final resolution = resolver.resolveDetailed(
+        platform: 'ios',
+        recording: autoRequest,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        iosDeviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      );
+
+      final provenance =
+          resolution!.adapter! as CockpitRecordingProvenanceProvider;
+      expect(provenance.recordingProvenance.implementation, 'ios-app-native');
+      expect(
+        provenance.recordingProvenance.sourcePlane,
+        CockpitRecordingSourcePlane.app,
+      );
+      await resolution.adapter!.startRecording(autoRequest);
+      expect(provenance.recordingProvenance.implementation, 'ios-app-native');
+    },
+  );
+
+  test(
+    'switches provenance atomically when runtime recording fallback starts',
+    () async {
+      final fallbackAdapter = _AppNativeRecordingAdapter();
+      final resolver = CockpitRecordingStrategyResolver(
+        remoteAdapterFactory: (client) => fallbackAdapter,
+        macosAdapterFactory: (appId) => _ThrowingHostRecordingAdapter(
+          StateError('screen permission missing'),
+        ),
+      );
+      final resolution = resolver.resolveDetailed(
+        platform: 'macos',
+        recording: autoRequest,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        platformAppId: 'dev.cockpit.demo',
+      );
+      final provenance =
+          resolution!.adapter! as CockpitRecordingProvenanceProvider;
+
+      expect(provenance.recordingProvenance.implementation, 'macosHost');
+      expect(
+        provenance.recordingProvenance.sourcePlane,
+        CockpitRecordingSourcePlane.host,
+      );
+      await resolution.adapter!.startRecording(autoRequest);
+      expect(provenance.recordingProvenance.implementation, 'ios-app-native');
+      expect(
+        provenance.recordingProvenance.sourcePlane,
+        CockpitRecordingSourcePlane.app,
+      );
+      final result = await resolution.adapter!.stopRecording();
+      expect(result.fallbackUsed, isTrue);
+      expect(result.fallbackReason, contains('screen permission missing'));
+    },
+  );
+
   test('uses process-scoped host recording for Windows full mode', () {
     String? capturedAppId;
     int? capturedProcessId;
@@ -830,6 +897,57 @@ final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
 
 final class _ThrowingRecordingAdapter implements CockpitRecordingAdapter {
   const _ThrowingRecordingAdapter(this.error);
+
+  final Object error;
+
+  @override
+  Future<CockpitRecordingSession> startRecording(
+    CockpitRecordingRequest request,
+  ) async {
+    throw error;
+  }
+
+  @override
+  Future<CockpitRecordingResult> stopRecording() async {
+    throw StateError('Recording was never started.');
+  }
+}
+
+final class _AppNativeRecordingAdapter
+    implements CockpitRecordingAdapter, CockpitRecordingProvenanceProvider {
+  CockpitRecordingRequest? request;
+
+  @override
+  CockpitRecordingProvenance get recordingProvenance =>
+      const CockpitRecordingProvenance(
+        implementation: 'ios-app-native',
+        sourcePlane: CockpitRecordingSourcePlane.app,
+      );
+
+  @override
+  Future<CockpitRecordingSession> startRecording(
+    CockpitRecordingRequest request,
+  ) async {
+    this.request = request;
+    return CockpitRecordingSession(
+      request: request,
+      state: CockpitRecordingState.recording,
+    );
+  }
+
+  @override
+  Future<CockpitRecordingResult> stopRecording() async {
+    return CockpitRecordingResult(
+      state: CockpitRecordingState.completed,
+      purpose: request?.purpose,
+      recordingKind: CockpitRecordingKind.nativeScreen,
+    );
+  }
+}
+
+final class _ThrowingHostRecordingAdapter
+    implements CockpitHostRecordingAdapter {
+  const _ThrowingHostRecordingAdapter(this.error);
 
   final Object error;
 
