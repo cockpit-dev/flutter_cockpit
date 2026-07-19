@@ -84,12 +84,12 @@ jobs:
         run: |
           dart test test
           (cd packages/flutter_cockpit_protocol && dart test)
-          flutter test packages/flutter_cockpit/test
+          flutter test --no-pub packages/flutter_cockpit/test
           dart test packages/cockpit/test
           flutter pub get
           git diff --exit-code pubspec.lock
-          (cd examples/cockpit_demo && flutter test)
-          (cd examples/cockpit_demo/cockpit && flutter test)
+          (cd examples/cockpit_demo && flutter test --no-pub)
+          (cd examples/cockpit_demo/cockpit && flutter test --no-pub)
 
   macos-mcp-surface:
     needs: shared-ai-surface-regressions

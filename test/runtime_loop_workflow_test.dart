@@ -51,12 +51,18 @@ void main() {
       workflow,
       contains('(cd packages/flutter_cockpit_protocol && dart test)'),
     );
-    expect(workflow, contains('flutter test packages/flutter_cockpit/test'));
-    expect(workflow, contains('dart test packages/cockpit/test'));
-    expect(workflow, contains('(cd examples/cockpit_demo && flutter test)'));
     expect(
       workflow,
-      contains('(cd examples/cockpit_demo/cockpit && flutter test)'),
+      contains('flutter test --no-pub packages/flutter_cockpit/test'),
+    );
+    expect(workflow, contains('dart test packages/cockpit/test'));
+    expect(
+      workflow,
+      contains('(cd examples/cockpit_demo && flutter test --no-pub)'),
+    );
+    expect(
+      workflow,
+      contains('(cd examples/cockpit_demo/cockpit && flutter test --no-pub)'),
     );
     expect(workflow, isNot(contains('run: melos run test')));
     expect(workflow, isNot(contains('run: dart run melos test')));
@@ -640,19 +646,34 @@ void main() {
     expect(demoReadme, isNot(contains('dart run melos bootstrap')));
   });
 
-  test('workspace tests scope CocoaPods mode to the standalone shell', () {
-    final melosConfig = melosConfigFile.readAsStringSync();
-    final cockpitShellPubspec = cockpitShellPubspecFile.readAsStringSync();
+  test(
+    'workspace tests keep the CocoaPods shell compatible with Flutter 3.32',
+    () {
+      final melosConfig = melosConfigFile.readAsStringSync();
+      final cockpitShellPubspec = cockpitShellPubspecFile.readAsStringSync();
 
-    expect(
-      melosConfig,
-      isNot(contains('flutter config --no-enable-swift-package-manager')),
-    );
-    expect(
-      cockpitShellPubspec,
-      contains('enable-swift-package-manager: false'),
-    );
-  });
+      expect(
+        melosConfig,
+        isNot(contains('flutter config --no-enable-swift-package-manager')),
+      );
+      expect(
+        cockpitShellPubspec,
+        isNot(contains('enable-swift-package-manager')),
+      );
+      expect(
+        melosConfig,
+        contains('flutter test --no-pub packages/flutter_cockpit/test'),
+      );
+      expect(
+        melosConfig,
+        contains('(cd examples/cockpit_demo && flutter test --no-pub)'),
+      );
+      expect(
+        melosConfig,
+        contains('(cd examples/cockpit_demo/cockpit && flutter test --no-pub)'),
+      );
+    },
+  );
 
   test('publish dry-runs restore Flutter workspace dependency resolution', () {
     final workflow = workflowFile.readAsStringSync();

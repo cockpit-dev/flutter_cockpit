@@ -13,7 +13,7 @@ scripts:
   test:
     run: >-
       (dart test test) &&
-      (flutter test packages/flutter_cockpit/test) &&
+      (flutter test --no-pub packages/flutter_cockpit/test) &&
       (dart test packages/cockpit/test) &&
-      (cd examples/cockpit_demo && flutter test) &&
-      (cd examples/cockpit_demo/cockpit && flutter test)
+      (cd examples/cockpit_demo && flutter test --no-pub) &&
+      (cd examples/cockpit_demo/cockpit && flutter test --no-pub)
