@@ -66,8 +66,20 @@ public final class FlutterCockpitPlugin: NSObject, FlutterPlugin {
       }
 
       let renderer = UIGraphicsImageRenderer(bounds: bounds)
+      var drawSucceeded = false
       let image = renderer.image { _ in
-        window.drawHierarchy(in: bounds, afterScreenUpdates: true)
+        drawSucceeded = window.drawHierarchy(in: bounds, afterScreenUpdates: true)
+      }
+
+      guard drawSucceeded else {
+        result(
+          FlutterError(
+            code: "captureDrawFailed",
+            message: "The active UIWindow could not be drawn for native capture.",
+            details: nil
+          )
+        )
+        return
       }
 
       guard let data = image.pngData() else {

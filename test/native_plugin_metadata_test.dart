@@ -153,6 +153,31 @@ void main() {
     expect(linuxSource, contains('dev.cockpit.flutter_cockpit/recording'));
   });
 
+  test('iOS native capture and recording keep lifecycle and path contracts', () {
+    final manager = File(
+      '$root/packages/flutter_cockpit/ios/flutter_cockpit/Sources/flutter_cockpit/FlutterCockpitRecordingManager.swift',
+    ).readAsStringSync();
+    final plugin = File(
+      '$root/packages/flutter_cockpit/ios/flutter_cockpit/Sources/flutter_cockpit/FlutterCockpitPlugin.swift',
+    ).readAsStringSync();
+
+    expect(manager, contains('enum RecordingState'));
+    expect(manager, contains('case starting'));
+    expect(manager, contains('case recording'));
+    expect(manager, contains('case stopping'));
+    expect(manager, contains('sessionToken'));
+    expect(manager, contains('recordingAlreadyActive'));
+    expect(manager, contains('recordingNotReady'));
+    expect(manager, contains('recordingAlreadyStopping'));
+    expect(manager, contains('recordingNotActive'));
+    expect(manager, contains('recordingInvalidPath'));
+    expect(manager, contains('resolvingSymlinksInPath'));
+    expect(manager, contains('recordingOutputMissing'));
+    expect(manager, contains('localizedDescription'));
+    expect(plugin, contains('drawSucceeded = window.drawHierarchy'));
+    expect(plugin, contains('captureDrawFailed'));
+  });
+
   test('Android recording source declares lifecycle and cleanup contracts', () {
     final source = File(
       '$root/packages/flutter_cockpit/android/src/main/kotlin/dev/cockpit/flutter_cockpit/FlutterCockpitRecordingCoordinator.kt',
