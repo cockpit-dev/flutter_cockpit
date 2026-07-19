@@ -461,6 +461,9 @@ jobs:
         timeout-minutes: 15
         run: brew install ffmpeg
 
+      - name: Use CocoaPods for cockpit shell
+        run: flutter config --no-enable-swift-package-manager
+
       - name: Bootstrap workspace
         timeout-minutes: 10
         run: flutter pub get
@@ -1017,8 +1020,12 @@ jobs:
           assert platform.get("systemAvailableActions", []) == [], platform
           assert platform.get("systemVerifiedActions", []) == [], platform
           verified_commands = platform["verifiedCommands"]
-          recording_driver = platform["recordingDriver"]
-          if platform["recordingDriver"] == "browser-host":
+          recording_driver = platform.get("recordingDriver")
+          if recording_driver is None:
+              assert platform["recordingKind"] == "nativeScreen", platform
+              assert verified_commands == expected_commands, platform
+              assert "timeline-recording-fallback" not in verified_commands, platform
+          elif recording_driver == "browser-host":
               assert verified_commands == expected_commands, platform
               assert "start-recording" in verified_commands, platform
               assert "stop-recording" in verified_commands, platform
@@ -1029,7 +1036,7 @@ jobs:
                   startup_fallback_commands,
                   stop_fallback_commands,
               ), platform
-          assert recording_driver in ("browser-host", "browser-host-fallback"), platform
+          assert recording_driver in (None, "browser-host", "browser-host-fallback"), platform
           assert platform["batchCommandCount"] == 31, platform
           assert platform["autoScreenshotCount"] >= 18, platform
           assert platform["networkFailureCount"] == 0, platform
@@ -1518,9 +1525,13 @@ jobs:
           assert "readSystemState" in platform["systemAvailableActions"], platform
           assert "readProcessList" in platform["systemAvailableActions"], platform
           assert platform["systemVerifiedActions"] == ["readSystemState", "readProcessList"], platform
-          recording_driver = platform["recordingDriver"]
+          recording_driver = platform.get("recordingDriver")
           expected_driver = os.environ["EXPECTED_RECORDING_DRIVER"]
-          if recording_driver == expected_driver:
+          if recording_driver is None:
+              assert platform["recordingKind"] == "nativeScreen", platform
+              assert verified_commands == expected_commands, platform
+              assert "timeline-recording-fallback" not in verified_commands, platform
+          elif recording_driver == expected_driver:
               assert verified_commands == expected_commands, platform
               assert "start-recording" in verified_commands, platform
               assert "stop-recording" in verified_commands, platform

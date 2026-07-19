@@ -416,6 +416,10 @@ void main() {
         'flutter test --no-pub integration_test/native_plugin_conformance_test.dart',
       ),
     );
+    expect(
+      iosBlock,
+      contains('flutter config --no-enable-swift-package-manager'),
+    );
     expect(iosBlock, isNot(contains('flutter drive \\')));
 
     final webBlock = _workflowJobBlock(workflow, 'web-runtime-loop');
@@ -424,6 +428,23 @@ void main() {
     expect(webBlock, contains('CHROMEDRIVER_PID'));
     expect(webBlock, contains('trap '));
   });
+
+  test(
+    'runtime loop accepts successful recordings with unclassified provenance',
+    () {
+      final workflow = workflowFile.readAsStringSync();
+      final webBlock = _workflowJobBlock(workflow, 'web-runtime-loop');
+      final windowsBlock = _workflowJobBlock(workflow, 'windows-runtime-loop');
+
+      for (final block in <String>[webBlock, windowsBlock]) {
+        expect(
+          block,
+          contains('recording_driver = platform.get("recordingDriver")'),
+        );
+        expect(block, contains('if recording_driver is None:'));
+      }
+    },
+  );
 
   test('runtime loop command assertions track full verifier output', () {
     final workflow = workflowFile.readAsStringSync();
