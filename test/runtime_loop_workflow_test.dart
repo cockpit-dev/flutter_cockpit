@@ -405,6 +405,8 @@ void main() {
     expect(nativeTest, contains('postFinalizeStopRejected'));
     expect(nativeTest, contains('recordingUnavailable'));
     expect(nativeTest, contains('nativeCaptureUnavailable'));
+    expect(nativeTest, contains('Duration(seconds: 1)'));
+    expect(nativeTest, isNot(contains('Duration(milliseconds: 250)')));
     expect(nativeDriver, contains('responseDataCallback'));
     expect(nativeDriver, contains('COCKPIT_NATIVE_REPORT_PATH'));
     expect(nativeValidator, contains('("ios", "linux", "web")'));

@@ -123,6 +123,12 @@ void main() {
       ).existsSync(),
       isTrue,
     );
+    expect(
+      File(
+        '${shellIosRoot.path}/Runner.xcodeproj/project.pbxproj',
+      ).readAsStringSync(),
+      isNot(contains('FlutterGeneratedPluginSwiftPackage')),
+    );
 
     for (final relativePath in <String>[
       'Flutter/Debug.xcconfig',
