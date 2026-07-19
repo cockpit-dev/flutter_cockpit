@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:cockpit_demo/main.dart' as app;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -10,9 +11,6 @@ void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('public native plugin conformance', (tester) async {
-    app.main();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
     final report = <String, Object?>{
       'status': 'passed',
       'platform': _platformName(),
@@ -23,6 +21,10 @@ void main() {
     };
 
     try {
+      app.main();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
       final nativeCapture = const CockpitNativeCapture();
       final nativeRecording = const CockpitNativeRecording();
       final captureAvailable = await nativeCapture.queryAvailability();
@@ -118,6 +120,9 @@ void main() {
       report['status'] = 'failed';
       report['error'] = '$error';
       report['stackTrace'] = '$stackTrace';
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
     }
 
     binding.reportData = <String, dynamic>{'nativePluginConformance': report};
