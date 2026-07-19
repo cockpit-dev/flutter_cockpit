@@ -29,7 +29,10 @@ internal class FlutterCockpitRecordingService : Service() {
     private var virtualDisplay: VirtualDisplay? = null
     private var projectionCallback: MediaProjection.Callback? = null
     private var outputPath: String? = null
+    private var activeSessionToken: Long? = null
     private var isRecording = false
+    private var isStopping = false
+    private var isFinalizing = false
     private var startedAtElapsedMs: Long = 0L
 
     override fun onCreate() {
@@ -42,85 +45,144 @@ internal class FlutterCockpitRecordingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action != ACTION_START) {
-            stopSelf()
+            if (activeSessionToken == null && !hasPendingStart()) {
+                isFinalizing = true
+                stopSelf()
+            }
+            return START_NOT_STICKY
+        }
+
+        val sessionToken = intent.getLongExtra(EXTRA_SESSION_TOKEN, INVALID_SESSION_TOKEN)
+        if (sessionToken == INVALID_SESSION_TOKEN) {
+            if (activeSessionToken == null && !hasPendingStart()) {
+                isFinalizing = true
+                stopSelf()
+            }
+            return START_NOT_STICKY
+        }
+        if (consumeCancelledSession(sessionToken)) {
+            if (activeSessionToken == null && !hasPendingStart()) {
+                isFinalizing = true
+                stopSelf()
+            }
+            return START_NOT_STICKY
+        }
+        if (activeSessionToken != null || isFinalizing) {
+            resolvePendingStart(
+                sessionToken,
+                failedPayload("recordingAlreadyActive"),
+            )
             return START_NOT_STICKY
         }
 
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, Activity.RESULT_CANCELED)
         val projectionData = intentExtraIntent(intent, EXTRA_PROJECTION_DATA)
         val relativePath = intent.getStringExtra(EXTRA_RELATIVE_PATH)
-
-        if (projectionData == null || relativePath.isNullOrBlank()) {
-            resolvePendingStart(
-                mapOf<String, Any>(
-                    "state" to "failed",
-                    "failureReason" to "invalidStartArguments",
-                ),
-            )
+        if (projectionData == null || relativePath == null) {
+            isFinalizing = true
+            resolvePendingStart(sessionToken, failedPayload("invalidStartArguments"))
             stopSelf()
             return START_NOT_STICKY
         }
 
-        startForegroundCompat(buildNotification())
-        startRecording(resultCode, projectionData, relativePath)
+        activeSessionToken = sessionToken
+        startRecording(sessionToken, resultCode, projectionData, relativePath)
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
+        val token = activeSessionToken
         activeService = null
+        isFinalizing = false
         cleanupProjection()
+        if (token != null) {
+            resolvePendingStart(token, failedPayload("recordingDetached"))
+        }
         super.onDestroy()
     }
 
-    fun stopRecording(onComplete: (Map<String, Any?>) -> Unit) {
-        if (!isRecording) {
-            onComplete(
-                mapOf<String, Any>(
-                    "state" to "failed",
-                    "failureReason" to "recordingNotActive",
-                ),
-            )
+    fun stopRecording(
+        sessionToken: Long,
+        onComplete: (Map<String, Any?>) -> Unit,
+    ) {
+        if (sessionToken != activeSessionToken || !isRecording) {
+            onComplete(failedPayload("recordingNotActive"))
+            return
+        }
+        if (isStopping) {
+            onComplete(failedPayload("recordingAlreadyStopping"))
             return
         }
 
+        isStopping = true
+        isFinalizing = true
         stopRecordingInternal(
             failureReason = null,
             onComplete = onComplete,
         )
     }
 
+    fun cancelSession(sessionToken: Long) {
+        if (sessionToken != activeSessionToken) {
+            return
+        }
+        if (isRecording && !isStopping) {
+            isStopping = true
+            isFinalizing = true
+            stopRecordingInternal(
+                failureReason = "recordingDetached",
+                onComplete = null,
+            )
+            return
+        }
+        isFinalizing = true
+        cleanupProjection()
+        stopForegroundCompat()
+        stopSelf()
+    }
+
     private fun startRecording(
+        sessionToken: Long,
         resultCode: Int,
         projectionData: Intent,
         relativePath: String,
     ) {
-        val outputFile = File(cacheDir, relativePath)
-        outputFile.parentFile?.mkdirs()
-        if (outputFile.exists()) {
-            outputFile.delete()
-        }
-
-        val metrics = resources.displayMetrics
-        val width = metrics.widthPixels.coerceAtLeast(1)
-        val height = metrics.heightPixels.coerceAtLeast(1)
-        val density = metrics.densityDpi.coerceAtLeast(1)
-
-        try {
-            val projectionManager =
-                getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-            val projection = projectionManager.getMediaProjection(resultCode, projectionData)
-            if (projection == null) {
-                resolvePendingStart(
-                    mapOf<String, Any>(
-                        "state" to "failed",
-                        "failureReason" to "projectionUnavailable",
-                    ),
-                )
-                stopSelf()
+        val outputFile =
+            try {
+                FlutterCockpitRecordingPathResolver.resolve(cacheDir, relativePath)
+            } catch (_: Exception) {
+                failStart(sessionToken, "recordingInvalidPath")
                 return
             }
 
+        try {
+            val parent = outputFile.parentFile
+            if (parent == null || (!parent.isDirectory && !parent.mkdirs())) {
+                failStart(sessionToken, "recordingStartFailed")
+                return
+            }
+            if (outputFile.exists() && !outputFile.delete()) {
+                failStart(sessionToken, "recordingStartFailed")
+                return
+            }
+            outputPath = outputFile.absolutePath
+            startForegroundCompat(buildNotification())
+
+            val projectionManager =
+                getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
+            val projection = projectionManager?.getMediaProjection(resultCode, projectionData)
+            if (projection == null) {
+                failStart(sessionToken, "projectionUnavailable")
+                return
+            }
+            mediaProjection = projection
+
+            val metrics = resources.displayMetrics
+            val width = metrics.widthPixels.coerceAtLeast(1)
+            val height = metrics.heightPixels.coerceAtLeast(1)
+            val density = metrics.densityDpi.coerceAtLeast(1)
             val recorder = MediaRecorder()
+            mediaRecorder = recorder
             recorder.setVideoSource(MediaRecorder.VideoSource.SURFACE)
             recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             recorder.setOutputFile(outputFile.absolutePath)
@@ -133,7 +195,8 @@ internal class FlutterCockpitRecordingService : Service() {
             val callback =
                 object : MediaProjection.Callback() {
                     override fun onStop() {
-                        if (isRecording) {
+                        if (isRecording && !isStopping) {
+                            isStopping = true
                             stopRecordingInternal(
                                 failureReason = "projectionStopped",
                                 onComplete = null,
@@ -142,6 +205,7 @@ internal class FlutterCockpitRecordingService : Service() {
                     }
                 }
 
+            projectionCallback = callback
             projection.registerCallback(callback, mainHandler)
             val display =
                 projection.createVirtualDisplay(
@@ -155,30 +219,28 @@ internal class FlutterCockpitRecordingService : Service() {
                     null,
                 )
 
-            outputPath = outputFile.absolutePath
-            projectionCallback = callback
-            mediaProjection = projection
-            mediaRecorder = recorder
             virtualDisplay = display
             recorder.start()
             startedAtElapsedMs = SystemClock.elapsedRealtime()
             isRecording = true
 
             resolvePendingStart(
-                mapOf<String, Any>(
-                    "state" to "recording",
-                ),
+                sessionToken,
+                mapOf<String, Any>("state" to "recording"),
             )
-        } catch (error: Exception) {
-            cleanupProjection()
-            resolvePendingStart(
-                mapOf<String, Any>(
-                    "state" to "failed",
-                    "failureReason" to (error.message ?: "recordingStartFailed"),
-                ),
-            )
-            stopSelf()
+        } catch (_: Exception) {
+            failStart(sessionToken, "recordingStartFailed")
         }
+    }
+
+    private fun failStart(sessionToken: Long, failureReason: String) {
+        val partialOutput = outputPath?.let(::File)
+        isFinalizing = true
+        cleanupProjection()
+        partialOutput?.delete()
+        resolvePendingStart(sessionToken, failedPayload(failureReason))
+        stopForegroundCompat()
+        stopSelf()
     }
 
     private fun stopRecordingInternal(
@@ -191,20 +253,35 @@ internal class FlutterCockpitRecordingService : Service() {
             } else {
                 (SystemClock.elapsedRealtime() - startedAtElapsedMs).toInt()
             }
-
+        val outputFile = outputPath?.let(::File)
         var resolvedFailureReason = failureReason
+        var finalized = false
+
         try {
-            mediaRecorder?.stop()
+            val recorder = mediaRecorder
+            if (recorder == null) {
+                resolvedFailureReason = resolvedFailureReason ?: "recordingFinalizeFailed"
+            } else {
+                recorder.stop()
+                finalized = true
+            }
         } catch (_: RuntimeException) {
-            resolvedFailureReason = resolvedFailureReason ?: "recordingStopFailed"
-            outputPath?.let { File(it).delete() }
+            resolvedFailureReason = resolvedFailureReason ?: "recordingFinalizeFailed"
+        } finally {
+            cleanupProjection()
         }
 
-        val outputFile = outputPath?.let(::File)
-        cleanupProjection()
+        val outputIsUsable =
+            finalized && outputFile != null && outputFile.isFile && outputFile.length() > 0
+        if (!outputIsUsable && resolvedFailureReason == null) {
+            resolvedFailureReason = "recordingOutputMissing"
+        }
+        if (resolvedFailureReason != null) {
+            outputFile?.delete()
+        }
 
         val payload =
-            if (resolvedFailureReason == null && outputFile != null && outputFile.exists()) {
+            if (resolvedFailureReason == null && outputFile != null) {
                 mapOf<String, Any?>(
                     "state" to "completed",
                     "recordingKind" to "nativeScreen",
@@ -213,19 +290,20 @@ internal class FlutterCockpitRecordingService : Service() {
                     "sourceFilePath" to outputFile.absolutePath,
                 )
             } else {
-                mapOf<String, Any?>(
-                    "state" to "failed",
-                    "failureReason" to (resolvedFailureReason ?: "recordingOutputMissing"),
-                )
+                failedPayload(resolvedFailureReason ?: "recordingOutputMissing")
             }
 
-        onComplete?.invoke(payload)
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        try {
+            onComplete?.invoke(payload)
+        } finally {
+            stopForegroundCompat()
+            stopSelf()
+        }
     }
 
     private fun cleanupProjection() {
         isRecording = false
+        isStopping = false
         startedAtElapsedMs = 0L
 
         try {
@@ -258,6 +336,7 @@ internal class FlutterCockpitRecordingService : Service() {
         }
         mediaProjection = null
         outputPath = null
+        activeSessionToken = null
     }
 
     private fun buildNotification(): Notification {
@@ -297,6 +376,13 @@ internal class FlutterCockpitRecordingService : Service() {
         startForeground(NOTIFICATION_ID, notification)
     }
 
+    private fun stopForegroundCompat() {
+        try {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } catch (_: Exception) {
+        }
+    }
+
     private fun intentExtraIntent(intent: Intent, key: String): Intent? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(key, Intent::class.java)
@@ -316,47 +402,111 @@ internal class FlutterCockpitRecordingService : Service() {
         }
     }
 
+    private fun hasRunningSession(): Boolean =
+        activeSessionToken != null || isFinalizing
+
     companion object {
         private const val ACTION_START = "dev.cockpit.flutter_cockpit.action.START_RECORDING"
         private const val EXTRA_RESULT_CODE = "resultCode"
         private const val EXTRA_PROJECTION_DATA = "projectionData"
         private const val EXTRA_RELATIVE_PATH = "relativePath"
+        private const val EXTRA_SESSION_TOKEN = "sessionToken"
+        private const val INVALID_SESSION_TOKEN = -1L
         private const val NOTIFICATION_CHANNEL_ID = "flutter_cockpit_recording"
         private const val NOTIFICATION_ID = 1042
 
         @Volatile private var activeService: FlutterCockpitRecordingService? = null
-        @Volatile private var pendingStartCallback: ((Map<String, Any?>) -> Unit)? = null
+        private var pendingStartToken: Long? = null
+        private var pendingStartCallback: ((Map<String, Any?>) -> Unit)? = null
+        private val cancelledSessionTokens = mutableSetOf<Long>()
 
         fun requestStart(
             context: Context,
             resultCode: Int,
             projectionData: Intent,
             relativePath: String,
+            sessionToken: Long,
             onStarted: (Map<String, Any?>) -> Unit,
         ) {
-            pendingStartCallback = onStarted
+            synchronized(this) {
+                if (pendingStartCallback != null) {
+                    onStarted(failedPayload("recordingAlreadyActive"))
+                    return
+                }
+                pendingStartToken = sessionToken
+                pendingStartCallback = onStarted
+            }
+
             val intent =
                 Intent(context, FlutterCockpitRecordingService::class.java).apply {
                     action = ACTION_START
                     putExtra(EXTRA_RESULT_CODE, resultCode)
                     putExtra(EXTRA_PROJECTION_DATA, projectionData)
                     putExtra(EXTRA_RELATIVE_PATH, relativePath)
+                    putExtra(EXTRA_SESSION_TOKEN, sessionToken)
                 }
-            ContextCompat.startForegroundService(context, intent)
+            try {
+                ContextCompat.startForegroundService(context, intent)
+            } catch (_: Exception) {
+                resolvePendingStart(sessionToken, failedPayload("recordingStartFailed"))
+            }
         }
 
-        fun stopActiveRecording(onComplete: (Map<String, Any?>) -> Unit): Boolean {
+        fun stopActiveRecording(
+            sessionToken: Long,
+            onComplete: (Map<String, Any?>) -> Unit,
+        ): Boolean {
             val service = activeService ?: return false
-            service.stopRecording(onComplete)
+            if (service.activeSessionToken != sessionToken) {
+                return false
+            }
+            service.stopRecording(sessionToken, onComplete)
             return true
         }
 
-        fun isRecordingActive(): Boolean = activeService?.isRecording == true
-
-        private fun resolvePendingStart(payload: Map<String, Any?>) {
-            val callback = pendingStartCallback ?: return
-            pendingStartCallback = null
-            callback(payload)
+        fun cancelPendingStart(sessionToken: Long) {
+            synchronized(this) {
+                if (pendingStartToken == sessionToken) {
+                    pendingStartToken = null
+                    pendingStartCallback = null
+                    cancelledSessionTokens.add(sessionToken)
+                }
+            }
+            activeService?.cancelSession(sessionToken)
         }
+
+        fun hasActiveSession(): Boolean =
+            synchronized(this) {
+                pendingStartToken != null || activeService?.hasRunningSession() == true
+            }
+
+        private fun hasPendingStart(): Boolean =
+            synchronized(this) {
+                pendingStartToken != null
+            }
+
+        private fun consumeCancelledSession(sessionToken: Long): Boolean =
+            synchronized(this) {
+                cancelledSessionTokens.remove(sessionToken)
+            }
+
+        private fun resolvePendingStart(sessionToken: Long, payload: Map<String, Any?>) {
+            val callback =
+                synchronized(this) {
+                    if (pendingStartToken != sessionToken) {
+                        null
+                    } else {
+                        pendingStartToken = null
+                        pendingStartCallback.also { pendingStartCallback = null }
+                    }
+                }
+            callback?.invoke(payload)
+        }
+
+        private fun failedPayload(failureReason: String): Map<String, Any?> =
+            mapOf(
+                "state" to "failed",
+                "failureReason" to failureReason,
+            )
     }
 }

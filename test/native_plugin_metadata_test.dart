@@ -153,6 +153,52 @@ void main() {
     expect(linuxSource, contains('dev.cockpit.flutter_cockpit/recording'));
   });
 
+  test('Android recording source declares lifecycle and cleanup contracts', () {
+    final source = File(
+      '$root/packages/flutter_cockpit/android/src/main/kotlin/dev/cockpit/flutter_cockpit/FlutterCockpitRecordingCoordinator.kt',
+    ).readAsStringSync();
+    final pluginSource = File(
+      '$root/packages/flutter_cockpit/android/src/main/kotlin/dev/cockpit/flutter_cockpit/FlutterCockpitPlugin.kt',
+    ).readAsStringSync();
+    final serviceSource = File(
+      '$root/packages/flutter_cockpit/android/src/main/kotlin/dev/cockpit/flutter_cockpit/FlutterCockpitRecordingService.kt',
+    ).readAsStringSync();
+
+    expect(source, contains('enum class RecordingState'));
+    expect(source, contains('Idle'));
+    expect(source, contains('Starting'));
+    expect(source, contains('Recording'));
+    expect(source, contains('Stopping'));
+    expect(source, contains('recordingDetached'));
+    expect(source, contains('recordingAlreadyStopping'));
+    expect(source, contains('recordingNotReady'));
+    expect(source, contains('startActivityForResult'));
+    expect(source, contains('catch'));
+    expect(source, contains('MediaProjectionManager'));
+    expect(pluginSource, contains('detachActivityForConfigChanges'));
+    expect(pluginSource, contains('detachActivityPermanently'));
+    expect(pluginSource, contains('finally'));
+    expect(pluginSource, contains('bitmap.recycle()'));
+    expect(
+      serviceSource,
+      contains('FlutterCockpitRecordingPathResolver.resolve'),
+    );
+    expect(serviceSource, contains('length() > 0'));
+    expect(serviceSource, contains('mutableSetOf<Long>()'));
+    expect(
+      serviceSource.indexOf('mediaProjection = projection'),
+      lessThan(serviceSource.indexOf('projection.registerCallback')),
+    );
+    expect(
+      serviceSource.indexOf('mediaRecorder = recorder'),
+      lessThan(serviceSource.indexOf('recorder.prepare()')),
+    );
+    expect(
+      serviceSource.indexOf('projectionCallback = callback'),
+      lessThan(serviceSource.indexOf('projection.registerCallback')),
+    );
+  });
+
   test('native package metadata uses flutter_cockpit names', () {
     final podspec = File(
       '$root/packages/flutter_cockpit/ios/flutter_cockpit.podspec',

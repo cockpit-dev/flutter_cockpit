@@ -66,37 +66,70 @@ class FlutterCockpitPlugin : FlutterPlugin, ActivityAware {
             return
         }
 
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        PixelCopy.request(currentActivity.window, bitmap, { copyResult ->
-            if (copyResult != PixelCopy.SUCCESS) {
+        val bitmap =
+            try {
+                Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            } catch (error: Exception) {
                 result.error(
                     "captureFailed",
-                    "PixelCopy failed with code $copyResult.",
+                    error.message ?: "Unable to allocate a native screenshot bitmap.",
                     null,
                 )
-                return@request
+                return
             }
 
-            val stream = ByteArrayOutputStream()
-            val encoded = bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        try {
+            PixelCopy.request(currentActivity.window, bitmap, { copyResult ->
+                try {
+                    if (copyResult != PixelCopy.SUCCESS) {
+                        result.error(
+                            "captureFailed",
+                            "PixelCopy failed with code $copyResult.",
+                            null,
+                        )
+                        return@request
+                    }
+
+                    val stream = ByteArrayOutputStream()
+                    val encoded = bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                    if (!encoded) {
+                        result.error(
+                            "encodeFailed",
+                            "Failed to encode native screenshot as PNG.",
+                            null,
+                        )
+                        return@request
+                    }
+
+                    result.success(
+                        mapOf<String, Any>(
+                            "bytes" to stream.toByteArray(),
+                        ),
+                    )
+                } catch (error: Exception) {
+                    result.error(
+                        "captureFailed",
+                        error.message ?: "Native screenshot capture failed.",
+                        null,
+                    )
+                } finally {
+                    bitmap.recycle()
+                }
+            }, Handler(Looper.getMainLooper()))
+        } catch (error: Exception) {
             bitmap.recycle()
-
-            if (!encoded) {
-                result.error("encodeFailed", "Failed to encode native screenshot as PNG.", null)
-                return@request
-            }
-
-            result.success(
-                mapOf<String, Any>(
-                    "bytes" to stream.toByteArray(),
-                )
+            result.error(
+                "captureFailed",
+                error.message ?: "Unable to schedule native screenshot capture.",
+                null,
             )
-        }, Handler(Looper.getMainLooper()))
+        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         captureChannel.setMethodCallHandler(null)
         recordingChannel.setMethodCallHandler(null)
+        recordingCoordinator.detachFromEngine()
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -105,7 +138,7 @@ class FlutterCockpitPlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        recordingCoordinator.detachActivity()
+        recordingCoordinator.detachActivityForConfigChanges()
         activity = null
     }
 
@@ -115,7 +148,7 @@ class FlutterCockpitPlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onDetachedFromActivity() {
-        recordingCoordinator.detachActivity()
+        recordingCoordinator.detachActivityPermanently()
         activity = null
     }
 
