@@ -1,13 +1,13 @@
 Pod::Spec.new do |s|
   s.name             = 'flutter_cockpit'
   s.version          = '1.1.4'
-  s.summary          = 'Native acceptance screenshot support for flutter_cockpit.'
+  s.summary          = 'Native screenshot and recording support for flutter_cockpit.'
   s.description      = <<-DESC
-Native acceptance screenshot support for flutter_cockpit.
+Native screenshot and recording support for flutter_cockpit development workflows.
                        DESC
   s.homepage         = 'https://github.com/cockpit-dev/flutter_cockpit'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'cockpit-dev' => 'devnull@example.com' }
+  s.author           = { 'cockpit-dev' => 'dev@cockpit.dev' }
   s.source           = { :path => '.' }
   s.source_files = 'flutter_cockpit/Sources/flutter_cockpit/**/*.swift'
   s.resource_bundles = {

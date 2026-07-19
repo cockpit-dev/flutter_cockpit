@@ -21,7 +21,13 @@ These stages are decision gates, not a fixed command script or command quota. Sa
 
 ## First-Time App Wiring
 
-Add `flutter_cockpit`; add `cockpit/main.dart`; keep the production entrypoint intact. Keep imports out of production `lib/`. In `cockpit/`, use `FlutterCockpitApp` or `FlutterCockpit.runApp`, register `FlutterCockpit.navigatorObserver` only on its navigator, and enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`. App-owned routers call `FlutterCockpit.setCurrentRouteName(...)`.
+Use a standalone `cockpit/` dev project with `main.dart`; keep `flutter_cockpit`
+and `cockpit` in its `dev_dependencies`. The shell rule: keep the production entrypoint intact,
+production `lib/`, and release graph untouched. Do not add `flutter_cockpit` imports to production `lib/` code. Run `--project-dir cockpit --target main.dart`;
+wire `FlutterCockpitApp`; rely on automatic public Router provider discovery; add
+`FlutterCockpit.navigatorObserver` only to shell-owned navigators and one observer per
+plain nested Navigator. Bridge only routers without provider or observer support. Use
+`CockpitRemoteSessionConfiguration.resolveFromEnvironment` for shell sessions.
 
 ## Stage Protocol
 
@@ -33,16 +39,18 @@ Add `flutter_cockpit`; add `cockpit/main.dart`; keep the production entrypoint i
 6. **judge**: compare baseline, observed state, and outcome. Do not open screenshots, videos, or raw artifacts unless the content is the unresolved question, the artifact looks wrong, or user asks.
 7. **deliver**: for acceptance work, run `validate-task` and report the smallest useful evidence. `stop-app` is cleanup or recovery only, not a normal loop step.
 
-Release proof must come after the judged deployment on the same target and state. Bundle production is not host delivery. Required missing checks are never `N/A`. A proven app failure keeps the outcome `needs_more_work`.
+Release proof comes after the judged deployment on the same target and state.
+Bundle production is not host delivery. Required missing checks are never `N/A`.
+A proven app failure keeps the outcome `needs_more_work`.
 
 ## Fast Command Pack
 
-Default stdout is AI-readable. Add `--stdout-format json` only for `jq`; add `--output <path>` for files, `--output-format json` for machine-readable files.
-`dart run cockpit`; global `cockpit`; align SDK.
+Add `--stdout-format json` for `jq`; use
+`--output <path>` and `--output-format json` for files.
 
 ```bash
 dart run cockpit list-targets
-dart run cockpit launch-app --project-dir <dir> --platform <platform> --device-id <id>
+dart run cockpit launch-app --project-dir cockpit --target main.dart --platform <platform> --device-id <id>
 dart run cockpit read-app --profile minimal
 dart run cockpit analyze-files --path <changed-file>
 dart run cockpit hot-reload
@@ -91,7 +99,7 @@ Short deterministic flow:
 dart run cockpit run-batch --commands-file /tmp/flutter_cockpit_batch.json --profile standard
 ```
 
-Motion, transition, gesture, or repro video:
+For motion or repro video:
 
 ```bash
 dart run cockpit start-recording
@@ -101,7 +109,7 @@ dart run cockpit stop-recording
 
 Recording defaults to `mode:auto`: app handles prefer system/host capture and fall back only when allowed. For strict layer, pass `--recording-json` with `layer` and `allowFallback:false`.
 
-Native/system or non-Flutter surface after Flutter semantics cannot answer it:
+For native or non-Flutter surfaces:
 
 ```bash
 dart run cockpit read-system-capabilities [--platform <platform>] [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] [--wda-url http://127.0.0.1:8100]
@@ -112,7 +120,7 @@ Use `parameters=[name*:type[range](allowed|values)]`; `*` means required. Do not
 Use JSON `actionGroups`, not platform guesses. Android uses adb. iOS Simulator uses simctl plus WDA; WDA actions stay blocked unless reachable. Unsupported actions stay blocked instead of faked. Use `readSystemLogs` for pre-attach native crashes. `activateWindow` must preserve Flutter debug/hot-reload; use `terminateApp` only for restart.
 Trust only actions reported as `available`. Desktop coordinates use screen pixels. macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. If not `available`, follow its requirement/fallback or report `blocked_by_environment`.
 
-Acceptance, release, or artifact handoff:
+Acceptance or release:
 
 ```bash
 dart run cockpit validate-task --config /tmp/flutter_cockpit_validate_task.yaml
@@ -189,8 +197,6 @@ Use the same `--output-root`; `sessionId` is a job, `taskId` names it, and `runI
 - Target-first: `launch-target --target-json <file>` -> `read-target --profile minimal` -> `inspect-surface` only when needed.
 - Native/System Control Plane: `read-system-capabilities` first, then `run-system-action` only for actions reported as `available` using the returned `parameters` contract.
 - Persistent development: `launch-development-session` -> `collect-development-probe --profile quick` -> edit -> `reload-development-session --mode hot_reload` -> collect or compare probe. Use the app handle for screenshots and recording.
-- MCP is equivalent to CLI when available.
-- Code facts before broad tools: `grep-package-uris`, `read-package-uris`, `pub`, `lsp`, `analyze-files`, `run-tests`.
 
 ## Common Mistakes
 

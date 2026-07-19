@@ -2,6 +2,8 @@
 
 Use this pattern when the task must end with bundle-backed evidence. Do not use it for ordinary edit -> reload -> verify loops; use rapid development validation until the user asks for acceptance, delivery, release readiness, or artifact-backed handoff.
 
+Evidence must be captured after the judged deployment on the same target and state. Bundle production is not host delivery: handoff is complete only when the intended host-side consumer can read the delivered bundle or report. Required missing checks are never `N/A`.
+
 ## Recommended Flow
 
 1. confirm this is acceptance-facing work, not a small development check

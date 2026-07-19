@@ -1,6 +1,5 @@
 import 'dart:ui';
 
-import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
 import 'package:cockpit_demo/src/data/todo_repository.dart';
@@ -31,15 +30,7 @@ void main() {
         ),
       );
 
-      await pumpTodoApp(
-        tester,
-        controller: CockpitSessionController(
-          sessionId: 'todo-sync-widget-session',
-          taskId: 'todo-sync-widget-task',
-          platform: 'test',
-        ),
-        database: database,
-      );
+      await pumpTodoApp(tester, database: database);
 
       await scrollTodoCollectionUntilVisible(
         tester,
@@ -100,15 +91,7 @@ void main() {
         ),
       );
 
-      await pumpTodoApp(
-        tester,
-        controller: CockpitSessionController(
-          sessionId: 'todo-sync-search-session',
-          taskId: 'todo-sync-search-task',
-          platform: 'test',
-        ),
-        database: database,
-      );
+      await pumpTodoApp(tester, database: database);
 
       await tester.enterText(
         textFieldByLabel('Search title or notes'),
@@ -169,15 +152,7 @@ void main() {
         ),
       );
 
-      await pumpTodoApp(
-        tester,
-        controller: CockpitSessionController(
-          sessionId: 'todo-sync-layout-session',
-          taskId: 'todo-sync-layout-task',
-          platform: 'test',
-        ),
-        database: database,
-      );
+      await pumpTodoApp(tester, database: database);
       await tester.pumpAndSettle();
 
       await scrollTodoCollectionUntilVisible(

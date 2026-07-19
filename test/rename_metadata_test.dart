@@ -22,18 +22,27 @@ void main() {
     expect(melosConfig, contains('scripts:'));
   });
 
-  test('cockpit_demo depends on flutter_cockpit packages', () {
-    final examplePubspec = File(
-      'examples/cockpit_demo/pubspec.yaml',
-    ).readAsStringSync();
-    final runtimeVersion = _readPackageVersion('packages/flutter_cockpit');
-    final devtoolsVersion = _readPackageVersion('packages/cockpit');
+  test(
+    'cockpit_demo workspace and standalone shell depend on cockpit packages',
+    () {
+      final examplePubspec = File(
+        'examples/cockpit_demo/pubspec.yaml',
+      ).readAsStringSync();
+      final shellPubspec = File(
+        'examples/cockpit_demo/cockpit/pubspec.yaml',
+      ).readAsStringSync();
+      final runtimeVersion = _readPackageVersion('packages/flutter_cockpit');
+      final devtoolsVersion = _readPackageVersion('packages/cockpit');
 
-    expect(examplePubspec, contains('flutter_cockpit: ^$runtimeVersion'));
-    expect(examplePubspec, contains('cockpit: ^$devtoolsVersion'));
-    expect(examplePubspec, isNot(contains('flutter_pilot: ^1.0.0')));
-    expect(examplePubspec, isNot(contains('flutter_pilot_devtools: ^1.0.0')));
-  });
+      expect(shellPubspec, contains('flutter_cockpit: ^$runtimeVersion'));
+      expect(shellPubspec, contains('cockpit: ^$devtoolsVersion'));
+      expect(shellPubspec, contains('integration_test:'));
+      expect(examplePubspec, isNot(contains('flutter_cockpit:')));
+      expect(examplePubspec, isNot(contains('cockpit:')));
+      expect(examplePubspec, isNot(contains('flutter_pilot: ^1.0.0')));
+      expect(examplePubspec, isNot(contains('flutter_pilot_devtools: ^1.0.0')));
+    },
+  );
 }
 
 String _readPackageVersion(String packageDir) {

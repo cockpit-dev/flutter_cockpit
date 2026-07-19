@@ -163,7 +163,7 @@ void main() {
     expect(skill, contains('launch once or reuse a handle'));
     expect(skill, contains('never shell-background it'));
     expect(skill, contains('.dart_tool/flutter_cockpit/latest_app.json'));
-    expect(skill, contains('add `cockpit/main.dart`'));
+    expect(skill, contains('standalone `cockpit/` dev project'));
     expect(skill, contains('keep the production entrypoint intact'));
     expect(skill, contains('FlutterCockpitApp'));
     expect(skill, contains('FlutterCockpit.navigatorObserver'));
@@ -243,7 +243,7 @@ void main() {
     expect(
       skill,
       contains(
-        'launch-app --project-dir <dir> --platform <platform> --device-id <id>',
+        'launch-app --project-dir cockpit --target main.dart --platform <platform> --device-id <id>',
       ),
     );
     expect(skill, contains('read-app --profile minimal'));

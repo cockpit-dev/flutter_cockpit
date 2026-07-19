@@ -71,7 +71,7 @@ final class FlutterCockpitBinding {
               )
             : null);
     _installNetworkOverridesIfEnabled();
-    navigatorObserver = _FlutterCockpitNavigatorObserver(_setRouteName);
+    navigatorObserver = createNavigatorObserver();
     registry.routeName = _normalizeConfiguredRouteName(
       configuration.initialRouteName,
     );
@@ -88,11 +88,27 @@ final class FlutterCockpitBinding {
   final CockpitRuntimeStepBuffer runtimeStepBuffer;
   final ValueNotifier<String> currentRouteName;
   late final NavigatorObserver navigatorObserver;
+  final Set<_FlutterCockpitNavigatorObserver> _navigatorObservers =
+      <_FlutterCockpitNavigatorObserver>{};
+  final Map<_FlutterCockpitNavigatorObserver, int> _navigatorActivity =
+      <_FlutterCockpitNavigatorObserver, int>{};
+  final Map<Route<dynamic>, AnimationStatusListener> _routeTransitionListeners =
+      <Route<dynamic>, AnimationStatusListener>{};
+  final Set<_FlutterCockpitRouteInformationBinding> _routeInformationBindings =
+      <_FlutterCockpitRouteInformationBinding>{};
   CockpitRecordingSession? _activeRecordingSession;
   bool _isDisposed = false;
   HttpOverrides? _previousHttpOverrides;
   bool _installedGlobalNetworkOverride = false;
   int _routeNameUpdateGeneration = 0;
+  bool _isRouteTransitioning = false;
+  Route<dynamic>? _pendingNavigatorRoute;
+  bool _hasPendingNavigatorRoute = false;
+  bool _pendingNavigatorPublicationScheduled = false;
+  String? _lastRouteInformationName;
+  String? _discoveredRouteName;
+
+  bool get isRouteTransitioning => _isRouteTransitioning;
 
   FlutterCockpitConfiguration get configuration => _configuration;
 
@@ -159,6 +175,23 @@ final class FlutterCockpitBinding {
       _installedGlobalNetworkOverride = false;
     }
     currentRouteName.dispose();
+    _navigatorObservers.clear();
+    _navigatorActivity.clear();
+    for (final entry in _routeTransitionListeners.entries) {
+      final animation = entry.key is ModalRoute<dynamic>
+          ? (entry.key as ModalRoute<dynamic>).animation
+          : null;
+      animation?.removeStatusListener(entry.value);
+    }
+    _routeTransitionListeners.clear();
+    _isRouteTransitioning = false;
+    _pendingNavigatorRoute = null;
+    _hasPendingNavigatorRoute = false;
+    _pendingNavigatorPublicationScheduled = false;
+    for (final binding in _routeInformationBindings.toList()) {
+      binding.dispose();
+    }
+    _routeInformationBindings.clear();
     _activeRecordingSession = null;
     rebuildTracker?.dispose();
     runtimeObserver?.dispose();
@@ -328,14 +361,211 @@ final class FlutterCockpitBinding {
       return;
     }
 
+    _setRouteNameValue(nextRouteName);
+  }
+
+  /// Binds a Flutter [RouteInformationProvider] without depending on a
+  /// particular router package. This also covers go_router's public provider.
+  ///
+  /// The returned callback releases this caller's binding. Calling it more
+  /// than once is harmless.
+  VoidCallback bindRouteInformationProvider(RouteInformationProvider provider) {
+    if (_isDisposed) {
+      return () {};
+    }
+    for (final binding in _routeInformationBindings) {
+      if (identical(binding.provider, provider)) {
+        binding.retain();
+        return _routeInformationReleaseCallback(binding);
+      }
+    }
+
+    final binding = _FlutterCockpitRouteInformationBinding(
+      provider: provider,
+      onChanged: _setRouteInformation,
+    );
+    _routeInformationBindings.add(binding);
+    binding.retain();
+    return _routeInformationReleaseCallback(binding);
+  }
+
+  VoidCallback _routeInformationReleaseCallback(
+    _FlutterCockpitRouteInformationBinding binding,
+  ) {
+    var released = false;
+    return () {
+      if (released) {
+        return;
+      }
+      released = true;
+      if (binding.release()) {
+        _routeInformationBindings.remove(binding);
+      }
+    };
+  }
+
+  void _setRouteInformation(RouteInformation information) {
+    if (_isDisposed) {
+      return;
+    }
+    _clearPendingNavigatorRoute();
+    final trimmedRouteName = information.uri.toString().trim();
+    final routeName = trimmedRouteName.isEmpty
+        ? _normalizeConfiguredRouteName(configuration.initialRouteName)
+        : trimmedRouteName;
+    if (_lastRouteInformationName == routeName &&
+        _discoveredRouteName != null &&
+        _discoveredRouteName != routeName &&
+        currentRouteName.value == _discoveredRouteName) {
+      return;
+    }
+    _lastRouteInformationName = routeName;
+    _discoveredRouteName = null;
+    _setRouteNameValue(routeName);
+  }
+
+  void _setRouteNameValue(String routeName) {
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      _routeNameUpdateGeneration++;
+      _applyRouteName(routeName);
+      return;
+    }
+
     final generation = ++_routeNameUpdateGeneration;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_isDisposed || generation != _routeNameUpdateGeneration) {
         return;
       }
-      _applyRouteName(nextRouteName);
+      _applyRouteName(routeName);
     });
-    SchedulerBinding.instance.ensureVisualUpdate();
+  }
+
+  NavigatorObserver createNavigatorObserver() {
+    final observer = _FlutterCockpitNavigatorObserver(
+      _handleNavigatorRouteChanged,
+    );
+    _navigatorObservers.add(observer);
+    _navigatorActivity[observer] = 0;
+    return observer;
+  }
+
+  Route<dynamic>? _mostRecentObservedRoute() {
+    Route<dynamic>? fallback;
+    var fallbackActivity = -1;
+    for (final candidate in _navigatorObservers) {
+      final candidateRoute = candidate.currentRoute;
+      final candidateActivity = _navigatorActivity[candidate] ?? 0;
+      if (candidateRoute != null && candidateActivity > fallbackActivity) {
+        fallback = candidateRoute;
+        fallbackActivity = candidateActivity;
+      }
+    }
+    return fallback;
+  }
+
+  void _handleNavigatorRouteChanged(
+    _FlutterCockpitNavigatorObserver observer,
+    Route<dynamic>? route,
+    Route<dynamic>? transitionRoute,
+  ) {
+    if (_isDisposed) {
+      return;
+    }
+    final nextActivity =
+        _navigatorActivity.values.fold<int>(
+          0,
+          (maximum, value) => value > maximum ? value : maximum,
+        ) +
+        1;
+    _navigatorActivity[observer] = nextActivity;
+    _trackRouteTransition(transitionRoute);
+    final nextRoute = route ?? _mostRecentObservedRoute();
+    if (_isRouteTransitioning) {
+      _pendingNavigatorRoute = nextRoute;
+      _hasPendingNavigatorRoute = true;
+      _schedulePendingNavigatorRoutePublication();
+      return;
+    }
+    _setRouteName(nextRoute);
+  }
+
+  void _trackRouteTransition(Route<dynamic>? route) {
+    final animation = route is ModalRoute<dynamic> ? route.animation : null;
+    if (route == null || animation == null) {
+      return;
+    }
+    final existingListener = _routeTransitionListeners.remove(route);
+    if (existingListener != null) {
+      animation.removeStatusListener(existingListener);
+    }
+    final status = animation.status;
+    if (status == AnimationStatus.completed ||
+        status == AnimationStatus.dismissed) {
+      _isRouteTransitioning = _routeTransitionListeners.isNotEmpty;
+      return;
+    }
+
+    late final AnimationStatusListener listener;
+    listener = (nextStatus) {
+      if (nextStatus != AnimationStatus.completed &&
+          nextStatus != AnimationStatus.dismissed) {
+        return;
+      }
+      animation.removeStatusListener(listener);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_isDisposed ||
+              !identical(_routeTransitionListeners[route], listener)) {
+            return;
+          }
+          _routeTransitionListeners.remove(route);
+          _isRouteTransitioning = _routeTransitionListeners.isNotEmpty;
+          if (!_isRouteTransitioning && _hasPendingNavigatorRoute) {
+            _publishPendingNavigatorRoute();
+          }
+        });
+      });
+    };
+    _routeTransitionListeners[route] = listener;
+    animation.addStatusListener(listener);
+    _isRouteTransitioning = true;
+  }
+
+  void _schedulePendingNavigatorRoutePublication() {
+    if (_pendingNavigatorPublicationScheduled) {
+      return;
+    }
+    _pendingNavigatorPublicationScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pendingNavigatorPublicationScheduled = false;
+      if (_isDisposed || !_hasPendingNavigatorRoute) {
+        return;
+      }
+      if (!_isRouteTransitioning ||
+          _hasVisibleTargetsForRoute(_pendingNavigatorRoute)) {
+        _publishPendingNavigatorRoute();
+        return;
+      }
+      _schedulePendingNavigatorRoutePublication();
+    });
+  }
+
+  bool _hasVisibleTargetsForRoute(Route<dynamic>? route) {
+    final routeName = _normalizeObservedRouteName(route?.settings.name);
+    return registry.visibleTargets.any(
+      (target) => target.isVisible && target.routeName == routeName,
+    );
+  }
+
+  void _publishPendingNavigatorRoute() {
+    if (_isDisposed || !_hasPendingNavigatorRoute) {
+      return;
+    }
+    final pendingRoute = _pendingNavigatorRoute;
+    _pendingNavigatorRoute = null;
+    _hasPendingNavigatorRoute = false;
+    _setRouteName(pendingRoute);
   }
 
   void _applyRouteName(String routeName) {
@@ -350,8 +580,36 @@ final class FlutterCockpitBinding {
     if (_isDisposed) {
       return;
     }
-    _routeNameUpdateGeneration++;
-    _applyRouteName(_normalizeExplicitRouteName(routeName));
+    _clearPendingNavigatorRoute();
+    _setRouteNameValue(_normalizeExplicitRouteName(routeName));
+  }
+
+  void setObservedRouteName(String? routeName) {
+    if (_isDisposed) {
+      return;
+    }
+    _clearPendingNavigatorRoute();
+    _setRouteNameValue(_normalizeObservedRouteName(routeName));
+  }
+
+  /// Synchronizes a route discovered from the current widget tree.
+  void setDiscoveredRouteName(String? routeName) {
+    if (_isDisposed) {
+      return;
+    }
+    final normalizedRouteName = _normalizeObservedRouteName(routeName);
+    if (normalizedRouteName == currentRouteName.value) {
+      return;
+    }
+    _discoveredRouteName = normalizedRouteName;
+    // Discovery runs as part of a live target read. Apply this observation
+    // synchronously so an expected-route wait can consume it in the same loop.
+    _applyRouteName(normalizedRouteName);
+  }
+
+  void _clearPendingNavigatorRoute() {
+    _pendingNavigatorRoute = null;
+    _hasPendingNavigatorRoute = false;
   }
 
   String _normalizeObservedRouteName(String? routeName) {
@@ -448,25 +706,95 @@ String _normalizeConfiguredRouteName(String routeName) {
 final class _FlutterCockpitNavigatorObserver extends NavigatorObserver {
   _FlutterCockpitNavigatorObserver(this._onRouteChanged);
 
-  final void Function(Route<dynamic>? route) _onRouteChanged;
+  final void Function(
+    _FlutterCockpitNavigatorObserver observer,
+    Route<dynamic>? route,
+    Route<dynamic>? transitionRoute,
+  )
+  _onRouteChanged;
+  final List<Route<dynamic>> _routes = <Route<dynamic>>[];
+
+  Route<dynamic>? get currentRoute => _routes.isEmpty ? null : _routes.last;
 
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _onRouteChanged(route);
+    _routes.remove(route);
+    _routes.add(route);
+    _onRouteChanged(this, route, route);
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _onRouteChanged(previousRoute);
+    _routes.remove(route);
+    if (previousRoute != null && !_routes.contains(previousRoute)) {
+      _routes.add(previousRoute);
+    }
+    _onRouteChanged(this, previousRoute ?? currentRoute, route);
   }
 
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _onRouteChanged(previousRoute);
+    _routes.remove(route);
+    if (previousRoute != null && !_routes.contains(previousRoute)) {
+      _routes.add(previousRoute);
+    }
+    _onRouteChanged(this, previousRoute ?? currentRoute, route);
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    _onRouteChanged(newRoute);
+    if (oldRoute != null) {
+      _routes.remove(oldRoute);
+    }
+    if (newRoute != null) {
+      _routes.add(newRoute);
+    }
+    _onRouteChanged(this, newRoute ?? currentRoute, newRoute);
+  }
+}
+
+final class _FlutterCockpitRouteInformationBinding {
+  _FlutterCockpitRouteInformationBinding({
+    required this.provider,
+    required this.onChanged,
+  });
+
+  final RouteInformationProvider provider;
+  final void Function(RouteInformation information) onChanged;
+  bool _attached = false;
+  int _retainCount = 0;
+
+  void _listener() {
+    onChanged(provider.value);
+  }
+
+  void retain() {
+    _retainCount++;
+    if (!_attached) {
+      _attached = true;
+      provider.addListener(_listener);
+      onChanged(provider.value);
+    }
+  }
+
+  bool release() {
+    if (_retainCount == 0) {
+      return false;
+    }
+    _retainCount--;
+    if (_retainCount > 0) {
+      return false;
+    }
+    dispose();
+    return true;
+  }
+
+  void dispose() {
+    _retainCount = 0;
+    if (!_attached) {
+      return;
+    }
+    _attached = false;
+    provider.removeListener(_listener);
   }
 }

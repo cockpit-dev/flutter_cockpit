@@ -115,7 +115,8 @@ probes.
 
 - keep `app.json`
 - keep the app alive across edit loops unless cleanup or recovery requires `stop-app`
-- let `launch-app` auto-detect `cockpit/main.dart` before spelling out a target
+- launch the standalone `cockpit/` dev project explicitly with
+  `--project-dir cockpit --target main.dart`
 - start with the smallest useful profile
 - do not trust command success without a follow-up read
 - if the workflow used target-first control, inspect `targetKind`, `primaryExecutionPlane`, `planesUsed`, and `fallbackCount` before claiming success

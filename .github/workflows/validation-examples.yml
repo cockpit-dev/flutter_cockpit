@@ -6,7 +6,7 @@ on:
     paths:
       - '.github/workflows/validation-examples.yml'
       - '.github/scripts/run-validation-example-android.sh'
-      - 'examples/cockpit_demo/validation/**'
+      - 'examples/cockpit_demo/cockpit/**'
       - 'packages/cockpit/**'
       - 'packages/flutter_cockpit/**'
   push:
@@ -15,7 +15,7 @@ on:
     paths:
       - '.github/workflows/validation-examples.yml'
       - '.github/scripts/run-validation-example-android.sh'
-      - 'examples/cockpit_demo/validation/**'
+      - 'examples/cockpit_demo/cockpit/**'
       - 'packages/cockpit/**'
       - 'packages/flutter_cockpit/**'
 
@@ -106,7 +106,7 @@ jobs:
             ios|macos)
               brew install ffmpeg
               flutter config --enable-macos-desktop
-              flutter config --enable-swift-package-manager
+              flutter config --no-enable-swift-package-manager
               ;;
             linux)
               apt_retry sudo apt-get update
@@ -226,7 +226,7 @@ jobs:
 
       - name: Run rapid validation workflow example
         if: matrix.platform != 'android' && matrix.platform != 'windows'
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 35
         env:
           APP_JSON: ${{ runner.temp }}/cockpit-demo-validation-app.json
@@ -246,8 +246,8 @@ jobs:
             DEVICE_ARGS=(--device-id "$IOS_DEVICE_ID")
           fi
           dart run cockpit launch-app \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
-            --target cockpit/main.dart \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
+            --target main.dart \
             --platform "$VALIDATION_PLATFORM" \
             "${DEVICE_ARGS[@]}" \
             --session-port 58491 \
@@ -281,7 +281,7 @@ jobs:
 
       - name: Run rapid validation workflow example (Windows)
         if: matrix.platform == 'windows'
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 35
         shell: pwsh
         env:
@@ -291,8 +291,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Continue"
           dart run cockpit launch-app `
-            --project-dir "$env:GITHUB_WORKSPACE/examples/cockpit_demo" `
-            --target cockpit/main.dart `
+            --project-dir "$env:GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" `
+            --target main.dart `
             --platform windows `
             --session-port 58491 `
             --launch-timeout-seconds 600 `

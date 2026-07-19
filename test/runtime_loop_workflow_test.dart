@@ -12,12 +12,15 @@ void main() {
     '$root/.github/workflows/platform-capabilities.yml',
   );
   final melosConfigFile = File('$root/melos.yaml');
+  final cockpitShellPubspecFile = File(
+    '$root/examples/cockpit_demo/cockpit/pubspec.yaml',
+  );
   final demoReadmeFile = File('$root/examples/cockpit_demo/README.md');
   final platformVerifierFile = File(
-    '$root/examples/cockpit_demo/tool/verify_platforms.dart',
+    '$root/examples/cockpit_demo/cockpit/tool/verify_platforms.dart',
   );
   final rapidDevVerifierFile = File(
-    '$root/examples/cockpit_demo/tool/verify_rapid_dev.dart',
+    '$root/examples/cockpit_demo/cockpit/tool/verify_rapid_dev.dart',
   );
   final androidVerifierScriptFile = File(
     '$root/.github/scripts/run-android-verifier.sh',
@@ -38,7 +41,7 @@ void main() {
     expect(
       workflow,
       contains(
-        'flutter analyze packages/flutter_cockpit_protocol packages/flutter_cockpit packages/cockpit examples/cockpit_demo test',
+        'flutter analyze packages/flutter_cockpit_protocol packages/flutter_cockpit packages/cockpit examples/cockpit_demo examples/cockpit_demo/cockpit test',
       ),
     );
     expect(workflow, contains('flutter pub publish --dry-run'));
@@ -48,9 +51,13 @@ void main() {
       workflow,
       contains('(cd packages/flutter_cockpit_protocol && dart test)'),
     );
-    expect(workflow, contains('(cd packages/flutter_cockpit && flutter test)'));
-    expect(workflow, contains('(cd packages/cockpit && dart test)'));
+    expect(workflow, contains('flutter test packages/flutter_cockpit/test'));
+    expect(workflow, contains('dart test packages/cockpit/test'));
     expect(workflow, contains('(cd examples/cockpit_demo && flutter test)'));
+    expect(
+      workflow,
+      contains('(cd examples/cockpit_demo/cockpit && flutter test)'),
+    );
     expect(workflow, isNot(contains('run: melos run test')));
     expect(workflow, isNot(contains('run: dart run melos test')));
     expect(workflow, contains('android-runtime-loop:'));
@@ -117,6 +124,25 @@ void main() {
     expect(workflow, contains(r'STATUS=${PIPESTATUS[0]}'));
     expect(workflow, contains('xvfb-run -a dart run'));
     expect(workflow, contains('reactivecircus/android-emulator-runner@v2'));
+    expect(workflow, contains('examples/cockpit_demo/cockpit/**'));
+    expect(
+      workflow,
+      contains('working-directory: examples/cockpit_demo/cockpit'),
+    );
+    expect(
+      workflow,
+      contains(
+        '--project-dir "\$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit"',
+      ),
+    );
+    expect(workflow, contains('--target main.dart'));
+    expect(workflow, isNot(contains('examples/cockpit_demo/tool/**')));
+    expect(
+      workflow,
+      isNot(contains('examples/cockpit_demo/integration_test/**')),
+    );
+    expect(workflow, isNot(contains('examples/cockpit_demo/validation/**')));
+    expect(workflow, isNot(contains('--target cockpit/main.dart')));
     expect(workflow, contains('subprocess.TimeoutExpired'));
     expect(workflow, contains('xcrun", "simctl", "bootstatus"'));
     expect(workflow, isNot(contains('timeout 150 xcrun')));
@@ -335,10 +361,10 @@ void main() {
     final workflow = workflowFile.readAsStringSync();
     final androidScript = androidVerifierScriptFile.readAsStringSync();
     final nativeTest = File(
-      '$root/examples/cockpit_demo/integration_test/native_plugin_conformance_test.dart',
+      '$root/examples/cockpit_demo/cockpit/integration_test/native_plugin_conformance_test.dart',
     ).readAsStringSync();
     final nativeDriver = File(
-      '$root/examples/cockpit_demo/integration_test/driver.dart',
+      '$root/examples/cockpit_demo/cockpit/integration_test/driver.dart',
     ).readAsStringSync();
 
     expect(
@@ -361,6 +387,8 @@ void main() {
     expect(androidScript, contains('uiautomator dump'));
     expect(androidScript, contains('android:id/button1'));
     expect(androidScript, contains('android_media_projection_hierarchy.xml'));
+    expect(androidScript, contains('cockpit_demo'));
+    expect(androidScript, contains('Choose app to share'));
     expect(nativeTest, contains('CockpitNativeCapture'));
     expect(nativeTest, contains('CockpitNativeRecording'));
     expect(nativeTest, contains('duplicateStartRejected'));
@@ -612,6 +640,20 @@ void main() {
     expect(demoReadme, isNot(contains('dart run melos bootstrap')));
   });
 
+  test('workspace tests scope CocoaPods mode to the standalone shell', () {
+    final melosConfig = melosConfigFile.readAsStringSync();
+    final cockpitShellPubspec = cockpitShellPubspecFile.readAsStringSync();
+
+    expect(
+      melosConfig,
+      isNot(contains('flutter config --no-enable-swift-package-manager')),
+    );
+    expect(
+      cockpitShellPubspec,
+      contains('enable-swift-package-manager: false'),
+    );
+  });
+
   test('publish dry-runs restore Flutter workspace dependency resolution', () {
     final workflow = workflowFile.readAsStringSync();
     final readinessBlock = _workflowStepBlock(
@@ -642,7 +684,7 @@ void main() {
         regressionBlock,
         contains('(cd packages/flutter_cockpit_protocol && dart test)'),
       );
-      expect(regressionBlock, contains('(cd packages/cockpit && dart test)'));
+      expect(regressionBlock, contains('dart test packages/cockpit/test'));
       expect(regressionBlock, contains('flutter pub get'));
       expect(regressionBlock, contains('git diff --exit-code pubspec.lock'));
     },
@@ -796,7 +838,7 @@ void main() {
   test('platform capability workflow verifies actions strictly', () {
     final workflow = platformCapabilitiesWorkflowFile.readAsStringSync();
     final verifier = File(
-      '$root/examples/cockpit_demo/tool/src/cockpit_demo_platform_verifier.dart',
+      '$root/examples/cockpit_demo/cockpit/tool/src/cockpit_demo_platform_verifier.dart',
     ).readAsStringSync();
 
     expect(workflow, contains('name: platform-capabilities'));

@@ -440,6 +440,47 @@ void main() {
     expect(latestScale, greaterThan(1.2));
   });
 
+  testWidgets('pinchZoom supports an explicit viewport coordinate', (
+    tester,
+  ) async {
+    var latestScale = 1.0;
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Center(
+          child: GestureDetector(
+            key: const ValueKey<String>('coordinate-pinch-target'),
+            behavior: HitTestBehavior.opaque,
+            onScaleUpdate: (details) {
+              latestScale = details.scale;
+            },
+            child: const SizedBox(width: 220, height: 220),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final target = _targetFor(tester, 'coordinate-pinch-target');
+    final geometry = CockpitTargetGeometryResolver.maybeFromTarget(target)!;
+    final engine = CockpitGestureEngine(
+      delay: tester.pump,
+      viewportGeometryProvider: () => geometry,
+    );
+
+    await engine.perform(
+      CockpitGestureAction.pinchZoom(
+        origin: Offset(geometry.centerX, geometry.centerY),
+        scale: 1.8,
+        startSpan: 56,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(latestScale, greaterThan(1.2));
+  });
+
   testWidgets('rotate dispatches a rotation-aware scale gesture', (
     tester,
   ) async {

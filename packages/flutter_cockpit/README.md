@@ -23,20 +23,25 @@ It provides:
 Requires Flutter 3.32.0 or newer.
 
 ```yaml
-dependencies:
+dev_dependencies:
   flutter_cockpit: ^1.1.4
 ```
 
-If only `cockpit/main.dart` imports the runtime, prefer putting
-`flutter_cockpit` under `dev_dependencies`. Use production `dependencies` only
-for an explicit shared-entrypoint or shipped-runtime integration.
+Keep the runtime development-only. Put every `flutter_cockpit` import and all
+integration code under `cockpit/`; production `lib/` code and production
+entrypoints remain unchanged.
+
+Darwin integration supports both CocoaPods and Swift Package Manager. The
+package includes an iOS and macOS `.podspec` as well as `Package.swift`
+manifests backed by the same native sources and privacy manifests. Flutter uses
+the integration selected by the host project, so CocoaPods projects do not
+need to migrate to SwiftPM.
 
 The runtime package declares native plugin entries for Android, iOS, macOS,
 Linux, Windows, and web. That lets app-window screenshots and recording
 fallbacks register consistently whenever the cockpit entrypoint is compiled.
-Keep the integration low-intrusion by importing it from `cockpit/main.dart`
-instead of production `lib/` code unless the host app explicitly ships a shared
-runtime entrypoint. Flutter-view screenshots, semantic control, network signals,
+Keep the integration isolated by importing it only from `cockpit/`, never from
+production `lib/` code. Flutter-view screenshots, semantic control, network signals,
 runtime diagnostics, and remote sessions work in-app. System dialogs,
 notifications, host screenshots, and host recordings should still be driven by
 `cockpit` system actions so capability discovery and platform fallbacks remain
@@ -44,7 +49,10 @@ truthful.
 
 ## Recommended Integration
 
-Keep the normal production entrypoint unchanged and add `cockpit/main.dart`. Do not add `flutter_cockpit` imports to production `lib/` code.
+Create a standalone `cockpit/` development project with `main.dart`, and keep
+`flutter_cockpit` and `cockpit` in that shell's `dev_dependencies`. Keep the
+normal production entrypoint, production `lib/`, and production release
+dependency graph untouched. Do not add `flutter_cockpit` imports to production `lib/` code.
 
 ```dart
 import 'package:flutter/material.dart';
@@ -78,12 +86,26 @@ Widget buildCockpitDevelopmentApp() {
 ```
 
 Replace `package:your_app/app_shell.dart` with the import that already exposes your app root widget or bootstrap. `launch-app` injects the `FLUTTER_COCKPIT_REMOTE_*` dart-defines, so `resolveFromEnvironment(...)` enables the remote surface without taking over the production bootstrap.
-Only wire `FlutterCockpit.navigatorObserver` inside a navigator created by the cockpit entrypoint, or in a shared entrypoint the host explicitly accepts. If your production app already owns `MaterialApp`, `GoRouter`, or another router, wrap the existing root with `FlutterCockpitApp` from `cockpit/main.dart` and keep route synchronization in that cockpit layer, for example by listening to the app router and calling `FlutterCockpit.setCurrentRouteName(...)`.
+Only wire `FlutterCockpit.navigatorObserver` from the standalone shell entrypoint. `FlutterCockpitApp` automatically discovers the public `RouteInformationProvider` used by Flutter Router, `RouterConfig`, `go_router`, and other Router-based libraries, so an app-owned router normally needs no additional route bridge.
+
+For nested navigators, create one observer per navigator so route state can return to the parent stack after a nested pop:
+
+```dart
+Navigator(
+  observers: <NavigatorObserver>[
+    FlutterCockpit.createNavigatorObserver(),
+  ],
+  onGenerateRoute: buildRoute,
+)
+```
+
+The same factory works with router libraries that expose navigator observers, including root and shell navigators. For dynamically created routers that cannot be discovered from the mounted tree, bind their public provider from `cockpit/` with `FlutterCockpit.bindRouteInformationProvider(...)`. Use `FlutterCockpit.setCurrentRouteName(...)` only when a router exposes neither a provider nor observers; `flutter_cockpit` does not depend on any third-party router package.
 
 Run it with:
 
 ```bash
-flutter run -t cockpit/main.dart
+cd cockpit
+flutter run --target main.dart
 ```
 
 ## What The Runtime Exposes

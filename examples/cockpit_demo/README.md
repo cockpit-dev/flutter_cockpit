@@ -1,6 +1,10 @@
 # cockpit_demo
 
-`cockpit_demo` is the repository's production-grade validation app for `flutter_cockpit` and `cockpit`.
+`cockpit_demo` is the repository's production Flutter demo package. Its
+standalone `cockpit/` directory is a separate, non-published development shell
+that owns all Cockpit tooling, validation workflows, integration tests, native
+plugin registrants, and `flutter_cockpit`/`cockpit` dev dependencies. The
+production package and release dependency graph remain Cockpit-free.
 
 It is not a throwaway sample. The demo is the executable proof target used by:
 
@@ -26,10 +30,19 @@ CI extends the same verifier to `linux`, `windows`, and `web`.
 
 Use Flutter 3.32.0 or newer for this repository and demo app.
 
+The Darwin fixtures deliberately cover both dependency managers. The
+production iOS and macOS projects use Flutter's SwiftPM integration without
+Podfiles, while the standalone `cockpit/` iOS and macOS projects retain
+CocoaPods Podfiles. Both resolve the same published plugin sources and privacy
+manifests.
+
 Bootstrap the workspace first:
 
 ```bash
 flutter pub get
+cd examples/cockpit_demo/cockpit
+flutter pub get
+cd ../../..
 ```
 
 Host prerequisites for the full verifier:
@@ -42,7 +55,7 @@ Host prerequisites for the full verifier:
 If you want to validate web locally, prepare the generated worker and wasm assets:
 
 ```bash
-cd examples/cockpit_demo
+cd examples/cockpit_demo/cockpit
 dart run tool/prepare_web_assets.dart
 ```
 
@@ -55,7 +68,7 @@ macOS:
 ```bash
 dart run cockpit \
   launch-app \
-  --project-dir examples/cockpit_demo \
+  --project-dir examples/cockpit_demo/cockpit \
   --platform macos \
   --device-id macos
 ```
@@ -65,7 +78,7 @@ Web:
 ```bash
 dart run cockpit \
   launch-app \
-  --project-dir examples/cockpit_demo \
+  --project-dir examples/cockpit_demo/cockpit \
   --platform web \
   --device-id chrome
 ```
@@ -80,7 +93,7 @@ When the task is not purely an app-first semantic loop, drive the same demo thro
 ```bash
 dart run cockpit \
   launch-target \
-  --project-dir examples/cockpit_demo \
+  --project-dir examples/cockpit_demo/cockpit \
   --platform web \
   --device-id chrome \
   --target-json /tmp/cockpit_demo_target.json
@@ -114,7 +127,8 @@ Persist `target.json` the same way you persist `app.json`: keep it around for th
 For fast feature development on the local machine, run the rapid verifier first:
 
 ```bash
-dart run examples/cockpit_demo/tool/verify_rapid_dev.dart \
+cd examples/cockpit_demo/cockpit
+dart run tool/verify_rapid_dev.dart \
   --output /tmp/cockpit_demo_rapid_dev.json
 ```
 
@@ -132,22 +146,27 @@ the failed command and final text previews, and `runtimeErrorPreviews` carries
 bounded Flutter runtime errors. A `Queue brief` count larger than expected is a
 state-isolation problem until those fields prove a UI bug.
 
-Run the example-local verifier:
+Run the standalone shell verifier (tool and validation paths are relative to
+the shell):
 
 ```bash
-cd examples/cockpit_demo
+cd examples/cockpit_demo/cockpit
 dart run tool/verify_platforms.dart \
   --output /tmp/cockpit_demo_verification.json
 ```
 
-From the repository root you can also run:
+From any working directory, pass the shell explicitly:
 
 ```bash
-dart run examples/cockpit_demo/tool/verify_platforms.dart \
+dart run cockpit launch-app \
+  --project-dir examples/cockpit_demo/cockpit \
+  --target main.dart \
+  --platform macos \
+  --device-id macos
+cd examples/cockpit_demo/cockpit
+dart run tool/verify_platforms.dart \
   --output /tmp/cockpit_demo_verification.json
 ```
-
-The tool now resolves `examples/cockpit_demo` as its default `--project-dir` automatically when launched through the repository-owned entrypoint.
 
 The full verifier covers:
 
@@ -187,7 +206,7 @@ structured warning.
 Require a real browser-host recording only when that is the claim being tested:
 
 ```bash
-cd examples/cockpit_demo
+cd examples/cockpit_demo/cockpit
 dart run tool/verify_platforms.dart \
   --platform web \
   --strict-web-host-recording \

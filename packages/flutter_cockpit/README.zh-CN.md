@@ -23,25 +23,29 @@
 需要 Flutter 3.32.0 或更高版本。
 
 ```yaml
-dependencies:
+dev_dependencies:
   flutter_cockpit: ^1.1.4
 ```
 
-如果只有 `cockpit/main.dart` import runtime，优先把 `flutter_cockpit`
-放到 `dev_dependencies`。只有宿主明确选择共享入口，或需要把 runtime
-作为正式发布集成的一部分时，才放到生产 `dependencies`。
+runtime 只作为开发依赖。所有 `flutter_cockpit` import 和接入代码都放在
+`cockpit/` 下面，生产 `lib/` 代码和生产入口保持不变。
+
+Darwin 原生接入同时支持 CocoaPods 与 Swift Package Manager。包内为 iOS 和
+macOS 都提供 `.podspec` 与 `Package.swift`，二者复用同一套原生源码和隐私清单。
+Flutter 会使用宿主工程选择的集成方式，CocoaPods 工程无需迁移到 SwiftPM。
 
 runtime 包会为 Android、iOS、macOS、Linux、Windows 和 web 声明原生插件入口。
-这样 cockpit 入口被编译时，应用窗口截图和录屏 fallback 可以稳定注册。低侵入接入
-仍然应该把 import 放在 `cockpit/main.dart`，不要放进生产 `lib/` 代码；只有宿主明确
-选择共享入口或正式发布集成时，才把 runtime 接到生产入口里。应用内的 Flutter-view
+这样 cockpit 入口被编译时，应用窗口截图和录屏 fallback 可以稳定注册。接入代码
+必须放在 `cockpit/`，不要放进生产 `lib/` 代码。应用内的 Flutter-view
 截图、语义控制、网络信号、运行时诊断和远程会话都在 runtime 内完成。系统弹窗、通知、
 宿主截图、宿主录屏等系统级证据仍应通过 `cockpit` 的 system action 驱动，这样能力发现
 和平台降级路径才保持真实。
 
 ## 推荐接入方式
 
-保留正常生产入口不动，新增 `cockpit/main.dart`。不要把 `flutter_cockpit` import 加到生产 `lib/` 代码里。
+创建独立的 `cockpit/` 开发项目，入口为 `main.dart`，并把 `flutter_cockpit`
+和 `cockpit` 保留在 shell 的 `dev_dependencies` 中。保持正常生产入口、生产
+`lib/` 和正式发布依赖图不变。不要把 `flutter_cockpit` import 加到生产 `lib/` 代码里。
 
 ```dart
 import 'package:flutter/material.dart';
@@ -75,12 +79,26 @@ Widget buildCockpitDevelopmentApp() {
 ```
 
 把 `package:your_app/app_shell.dart` 换成你现有应用根组件或 bootstrap 的真实 import。`launch-app` 会注入 `FLUTTER_COCKPIT_REMOTE_*` 这组 dart-define，所以 `resolveFromEnvironment(...)` 可以在不接管生产入口的前提下启用远程控制面。
-只有 cockpit 入口自己创建 navigator，或者宿主明确接受共享入口时，才把 `FlutterCockpit.navigatorObserver` 接进去。如果生产应用已经自己持有 `MaterialApp`、`GoRouter` 或其他 router，就在 `cockpit/main.dart` 里用 `FlutterCockpitApp` 包住现有根组件，并把 route 同步留在 cockpit 层，例如监听 app router 后调用 `FlutterCockpit.setCurrentRouteName(...)`。
+只从独立 shell 的 `main.dart` 接入 `FlutterCockpit.navigatorObserver`。`FlutterCockpitApp` 会自动发现 Flutter Router、`RouterConfig`、`go_router` 及其他 Router 类库使用的公开 `RouteInformationProvider`，所以业务 app 自有 router 通常不需要额外 route bridge。
+
+嵌套 Navigator 需要各自使用独立 observer，这样嵌套路由 pop 后可以恢复当前父级路由：
+
+```dart
+Navigator(
+  observers: <NavigatorObserver>[
+    FlutterCockpit.createNavigatorObserver(),
+  ],
+  onGenerateRoute: buildRoute,
+)
+```
+
+同一工厂可用于暴露 navigator observer 的路由库，包括 root navigator 和 shell navigator。对于挂载后才动态创建、无法从组件树发现的 router，可在 `cockpit/` 中通过 `FlutterCockpit.bindRouteInformationProvider(...)` 绑定其公开 provider。仅当 router 既不暴露 provider 也不暴露 observer 时，才使用 `FlutterCockpit.setCurrentRouteName(...)`；`flutter_cockpit` 不直接依赖任何第三方路由包。
 
 运行：
 
 ```bash
-flutter run -t cockpit/main.dart
+cd cockpit
+flutter run --target main.dart
 ```
 
 ## 运行时暴露的能力

@@ -25,6 +25,7 @@ import 'cockpit_target.dart';
 import 'cockpit_target_geometry.dart';
 import 'cockpit_target_geometry_resolver.dart';
 import 'cockpit_target_registry.dart';
+import 'flutter_cockpit.dart';
 
 final class CockpitSurface extends StatefulWidget {
   const CockpitSurface({
@@ -216,16 +217,45 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       routeName: _registry.routeName,
       explicitTargets: _registry.registeredTargets,
     );
+    _syncRouteFromDiscoveredTargets(discovered);
     if (discovered.isNotEmpty || _registry.routeName == null) {
       return discovered;
     }
 
-    return _discoveryEngine.discover(
+    final fallbackDiscovered = _discoveryEngine.discover(
       rootContext: rootContext,
       routeName: _registry.routeName,
       explicitTargets: _registry.registeredTargets,
       allowInactiveRouteFallback: true,
     );
+    _syncRouteFromDiscoveredTargets(fallbackDiscovered);
+    return fallbackDiscovered;
+  }
+
+  void _syncRouteFromDiscoveredTargets(List<CockpitTarget> targets) {
+    if (targets.isEmpty) {
+      return;
+    }
+    final routeCounts = <String, int>{};
+    for (final target in targets) {
+      final routeName = target.routeName.trim();
+      if (routeName.isEmpty || routeName == '/') {
+        continue;
+      }
+      routeCounts[routeName] = (routeCounts[routeName] ?? 0) + 1;
+    }
+    if (routeCounts.isEmpty) {
+      return;
+    }
+    var routeName = routeCounts.keys.first;
+    var routeCount = routeCounts[routeName]!;
+    for (final entry in routeCounts.entries.skip(1)) {
+      if (entry.value > routeCount) {
+        routeName = entry.key;
+        routeCount = entry.value;
+      }
+    }
+    FlutterCockpit.binding.setDiscoveredRouteName(routeName);
   }
 
   bool _hasDiscoveredNativeTarget({
@@ -2063,11 +2093,13 @@ final class CockpitTargetNode extends StatefulWidget {
 
 final class _CockpitTargetNodeState extends State<CockpitTargetNode> {
   CockpitTargetRegistry? _registry;
+  String? _modalRouteName;
   final GlobalKey _diagnosticKey = GlobalKey(debugLabel: 'CockpitTargetNode');
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _modalRouteName = ModalRoute.of(context)?.settings.name?.trim();
     _registerTarget();
   }
 
@@ -2095,6 +2127,14 @@ final class _CockpitTargetNodeState extends State<CockpitTargetNode> {
       _registry = registry;
     }
 
+    final routeName = _modalRouteName;
+    final registeredRouteName =
+        routeName == null ||
+            routeName.isEmpty ||
+            (routeName == '/' && registry.routeName != '/')
+        ? registry.routeName ?? ''
+        : routeName;
+
     registry.register(
       CockpitTarget(
         registrationId: widget.registrationId,
@@ -2103,7 +2143,7 @@ final class _CockpitTargetNodeState extends State<CockpitTargetNode> {
         text: widget.text,
         tooltip: widget.tooltip,
         typeName: widget.typeName,
-        routeName: registry.routeName ?? '',
+        routeName: registeredRouteName,
         supportedCommands: widget.supportedCommands,
         onTap: widget.onTap,
         onEnterText: widget.onEnterText,

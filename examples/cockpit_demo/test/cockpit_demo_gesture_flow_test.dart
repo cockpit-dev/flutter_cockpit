@@ -1,6 +1,5 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
 import 'package:cockpit_demo/src/data/todo_repository.dart';
@@ -24,11 +23,7 @@ void main() {
         notes: 'Double tap should complete the task.',
       );
 
-      await pumpTodoApp(
-        tester,
-        controller: _testController('gesture-selection'),
-        database: database,
-      );
+      await pumpTodoApp(tester, database: database);
 
       final firstOpenFinder = taskRowByTitle(firstTask.title);
       await scrollTodoCollectionUntilVisible(tester, firstOpenFinder);
@@ -62,11 +57,7 @@ void main() {
     await repository.createTask(title: 'Queue second');
     await repository.createTask(title: 'Queue third');
 
-    await pumpTodoApp(
-      tester,
-      controller: _testController('gesture-zoom'),
-      database: database,
-    );
+    await pumpTodoApp(tester, database: database);
 
     final zoomLabelFinder = find.textContaining('Canvas ');
     final canvasFinder = planningSurfaceCanvas();
@@ -100,11 +91,7 @@ void main() {
     await repository.createTask(title: 'Queue second');
     await repository.createTask(title: 'Queue third');
 
-    await pumpTodoApp(
-      tester,
-      controller: _testController('gesture-reorder'),
-      database: database,
-    );
+    await pumpTodoApp(tester, database: database);
 
     await scrollTodoCollectionUntilVisible(tester, find.text('Manual queue'));
     final handleFinder = manualQueueReorderHandle('Queue third');
@@ -125,12 +112,4 @@ void main() {
       <String>['Queue first', 'Queue third', 'Queue second'],
     );
   });
-}
-
-CockpitSessionController _testController(String suffix) {
-  return CockpitSessionController(
-    sessionId: 'todo-gesture-$suffix',
-    taskId: 'todo-gesture-$suffix-task',
-    platform: 'test',
-  );
 }

@@ -4,11 +4,21 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'packages/flutter_cockpit/**'
+      - 'packages/cockpit/**'
+      - 'examples/cockpit_demo/cockpit/**'
+      - 'examples/cockpit_demo/lib/**'
+      - 'examples/cockpit_demo/pubspec.yaml'
+      - '.github/workflows/example-e2e.yml'
+      - 'pubspec.lock'
   pull_request:
     paths:
       - 'packages/flutter_cockpit/**'
       - 'packages/cockpit/**'
-      - 'examples/cockpit_demo/**'
+      - 'examples/cockpit_demo/cockpit/**'
+      - 'examples/cockpit_demo/lib/**'
+      - 'examples/cockpit_demo/pubspec.yaml'
       - '.github/workflows/example-e2e.yml'
       - 'pubspec.lock'
   workflow_dispatch:
@@ -48,10 +58,10 @@ jobs:
         timeout-minutes: 15
         run: brew install ffmpeg
 
-      - name: Enable macOS desktop and SwiftPM
+      - name: Enable macOS desktop and CocoaPods
         run: |
           flutter config --enable-macos-desktop
-          flutter config --enable-swift-package-manager
+          flutter config --no-enable-swift-package-manager
 
       - name: Bootstrap workspace
         timeout-minutes: 10
@@ -120,7 +130,7 @@ jobs:
           echo "IOS_DEVICE_ID=$IOS_DEVICE_ID" >> "$GITHUB_ENV"
 
       - name: Run rapid-dev verifier (macOS + iOS)
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 35
         env:
           OUTPUT_ROOT: ${{ runner.temp }}/rapid-dev-macos-ios-out
@@ -132,8 +142,9 @@ jobs:
           set -o pipefail
           dart run tool/verify_rapid_dev.dart \
             --platform macos \
+            --target main.dart \
             --platform ios \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
@@ -348,7 +359,7 @@ jobs:
         run: flutter pub get
 
       - name: Run rapid-dev verifier (Web)
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 30
         env:
           OUTPUT_ROOT: ${{ runner.temp }}/rapid-dev-web-out
@@ -360,7 +371,8 @@ jobs:
           set -o pipefail
           xvfb-run -a dart run tool/verify_rapid_dev.dart \
             --platform web \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --target main.dart \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
@@ -476,7 +488,7 @@ jobs:
         run: flutter pub get
 
       - name: Run rapid-dev verifier (Linux)
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 30
         env:
           OUTPUT_ROOT: ${{ runner.temp }}/rapid-dev-linux-out
@@ -488,7 +500,8 @@ jobs:
           set -o pipefail
           xvfb-run -a dart run tool/verify_rapid_dev.dart \
             --platform linux \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --target main.dart \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
@@ -580,7 +593,7 @@ jobs:
         run: flutter pub get
 
       - name: Run rapid-dev verifier (Windows)
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 40
         env:
           OUTPUT_ROOT: ${{ runner.temp }}/rapid-dev-windows-out
@@ -592,7 +605,8 @@ jobs:
           $ErrorActionPreference = "Continue"
           dart run tool/verify_rapid_dev.dart `
             --platform windows `
-            --project-dir "$env:GITHUB_WORKSPACE/examples/cockpit_demo" `
+            --target main.dart `
+            --project-dir "$env:GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" `
             --output-root "$env:OUTPUT_ROOT" `
             --output "$env:RESULT_JSON" `
             --output-format json `

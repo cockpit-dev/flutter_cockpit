@@ -38,8 +38,6 @@ final class CockpitNativeTargetDiscovery {
     // keeps discovery O(tree) instead of O(tree × depth) on deep trees.
     final rootScope = _seedInheritedScope(
       rootElement,
-      routeName: routeName,
-      allowInactiveRouteFallback: allowInactiveRouteFallback,
       rootViewport: rootViewport,
       explicitElements: explicitElements,
     );
@@ -53,19 +51,23 @@ final class CockpitNativeTargetDiscovery {
       if (!element.mounted ||
           policy.ignoresSubtree(element) ||
           scope.ancestorHidden ||
-          (!allowInactiveRouteFallback && !(scope.routeIsCurrent ?? true)) ||
+          (!allowInactiveRouteFallback &&
+              scope.routeScope?.isCurrent == false) ||
           _isExplicitTargetElement(element, explicitElements)) {
         return;
       }
 
-      final targetRouteName = scope.resolvedRouteName;
       final effectiveViewport = _marksViewportBoundary(element)
           ? _intersectViewports(scope.effectiveViewport, element)
           : scope.effectiveViewport;
 
+      final isRenderable = _isRenderable(element);
+      final targetRouteName = _effectiveDiscoveryRouteName(
+        scope.routeScope,
+        fallbackRouteName: routeName,
+      );
       final candidate =
-          _isRenderable(element) &&
-              _overlapsClippedViewport(element, effectiveViewport)
+          isRenderable && _overlapsClippedViewport(element, effectiveViewport)
           ? _buildTarget(
               element,
               routeName: targetRouteName,
@@ -94,7 +96,6 @@ final class CockpitNativeTargetDiscovery {
 
       final childScope = scope.scopeForChildren(
         element,
-        fallbackRouteName: routeName,
         effectiveViewport: effectiveViewport,
       );
       var childIndex = 0;
@@ -129,8 +130,6 @@ final class CockpitNativeTargetDiscovery {
     final session = _DiscoverySession();
     final rootScope = _seedInheritedScope(
       rootElement,
-      routeName: routeName,
-      allowInactiveRouteFallback: allowInactiveRouteFallback,
       rootViewport: rootViewport,
       explicitElements: explicitElements,
     );
@@ -145,12 +144,17 @@ final class CockpitNativeTargetDiscovery {
           !element.mounted ||
           policy.ignoresSubtree(element) ||
           scope.ancestorHidden ||
-          (!allowInactiveRouteFallback && !(scope.routeIsCurrent ?? true)) ||
+          (!allowInactiveRouteFallback &&
+              scope.routeScope?.isCurrent == false) ||
           _isExplicitTargetElement(element, explicitElements)) {
         return;
       }
 
-      final targetRouteName = scope.resolvedRouteName;
+      final isRenderable = _isRenderable(element);
+      final targetRouteName = _effectiveDiscoveryRouteName(
+        scope.routeScope,
+        fallbackRouteName: routeName,
+      );
       final candidateRouteMatches = _matchesDiscoveryRoute(
         targetRouteName,
         routeName: routeName,
@@ -161,7 +165,7 @@ final class CockpitNativeTargetDiscovery {
           : scope.effectiveViewport;
       final candidate =
           candidateRouteMatches &&
-              _isRenderable(element) &&
+              isRenderable &&
               _overlapsClippedViewport(element, effectiveViewport)
           ? _buildTarget(
               element,
@@ -192,7 +196,6 @@ final class CockpitNativeTargetDiscovery {
 
       final childScope = scope.scopeForChildren(
         element,
-        fallbackRouteName: routeName,
         effectiveViewport: effectiveViewport,
       );
       var childIndex = 0;
@@ -446,20 +449,14 @@ final class CockpitNativeTargetDiscovery {
     return origin & renderObject.size;
   }
 
-  /// Resolves the inherited discovery state for the discovery root by walking
-  /// its real ancestor chain once. The DFS then maintains these values
-  /// incrementally so per-element ancestor walks are no longer needed.
+  /// Resolves the inherited offstage and viewport state for the discovery root.
   _InheritedDiscoveryScope _seedInheritedScope(
     Element rootElement, {
-    required String? routeName,
-    required bool allowInactiveRouteFallback,
     required Rect? rootViewport,
     List<Element> explicitElements = const <Element>[],
   }) {
     var ancestorHidden = false;
-    bool? routeIsCurrent;
-    String? scopeRouteName;
-    var scopeResolved = false;
+    _CockpitRouteScope? routeScope;
     var effectiveViewport = rootViewport;
 
     if (rootElement.mounted) {
@@ -474,13 +471,7 @@ final class CockpitNativeTargetDiscovery {
         if (_isExplicitTargetElement(ancestor, explicitElements)) {
           ancestorHidden = true;
         }
-        if (!scopeResolved &&
-            widget.runtimeType.toString() == '_ModalScopeStatus') {
-          final candidate = widget as dynamic;
-          routeIsCurrent = candidate.isCurrent as bool;
-          scopeRouteName = (candidate.route as Route<dynamic>).settings.name;
-          scopeResolved = true;
-        }
+        routeScope ??= _cockpitRouteScopeForWidget(widget);
         if (_marksViewportBoundary(ancestor)) {
           effectiveViewport = _intersectViewports(effectiveViewport, ancestor);
         }
@@ -490,30 +481,9 @@ final class CockpitNativeTargetDiscovery {
 
     return _InheritedDiscoveryScope(
       ancestorHidden: ancestorHidden,
-      routeIsCurrent: routeIsCurrent,
-      resolvedRouteName: _resolveScopeRouteName(
-        scopeRouteName,
-        hasScope: scopeResolved,
-        fallbackRouteName: routeName,
-      ),
       effectiveViewport: effectiveViewport,
+      routeScope: routeScope,
     );
-  }
-
-  static String? _resolveScopeRouteName(
-    String? scopeRouteName, {
-    required bool hasScope,
-    required String? fallbackRouteName,
-  }) {
-    if (!hasScope || scopeRouteName == null || scopeRouteName.isEmpty) {
-      return fallbackRouteName;
-    }
-    if (scopeRouteName == '/' &&
-        fallbackRouteName != null &&
-        fallbackRouteName != '/') {
-      return fallbackRouteName;
-    }
-    return scopeRouteName;
   }
 
   Rect? _intersectViewports(Rect? current, Element boundaryElement) {
@@ -1946,59 +1916,92 @@ final class _ScrollableLocatorMetadata {
   final String? typeName;
 }
 
-/// Route, offstage, and viewport state inherited along the discovery DFS so
-/// each element is checked in O(1) instead of re-walking its ancestors.
+/// Offstage and viewport state inherited along the discovery DFS.
 final class _InheritedDiscoveryScope {
   const _InheritedDiscoveryScope({
     required this.ancestorHidden,
-    required this.routeIsCurrent,
-    required this.resolvedRouteName,
     required this.effectiveViewport,
+    this.routeScope,
   });
 
   /// Whether any ancestor is an active Offstage (subtree invisible).
   final bool ancestorHidden;
 
-  /// Nearest enclosing route's `isCurrent`, or null when no route scope.
-  final bool? routeIsCurrent;
-
-  /// Route name resolved with the discovery fallback rules.
-  final String? resolvedRouteName;
-
   /// Viewport bounds clipped by all enclosing scrollable boundaries.
   final Rect? effectiveViewport;
 
+  /// The nearest modal route reported by Flutter's public route state.
+  final _CockpitRouteScope? routeScope;
+
   _InheritedDiscoveryScope scopeForChildren(
     Element element, {
-    required String? fallbackRouteName,
     required Rect? effectiveViewport,
   }) {
     final widget = element.widget;
     final hidden = ancestorHidden || (widget is Offstage && widget.offstage);
-    var isCurrent = routeIsCurrent;
-    var routeName = resolvedRouteName;
-    if (widget.runtimeType.toString() == '_ModalScopeStatus') {
-      final candidate = widget as dynamic;
-      isCurrent = candidate.isCurrent as bool;
-      routeName = CockpitNativeTargetDiscovery._resolveScopeRouteName(
-        (candidate.route as Route<dynamic>).settings.name,
-        hasScope: true,
-        fallbackRouteName: fallbackRouteName,
-      );
-    }
+    final routeScope = _cockpitRouteScopeForWidget(widget) ?? this.routeScope;
     if (hidden == ancestorHidden &&
-        identical(isCurrent, routeIsCurrent) &&
-        routeName == resolvedRouteName &&
-        identical(effectiveViewport, this.effectiveViewport)) {
+        identical(effectiveViewport, this.effectiveViewport) &&
+        identical(routeScope, this.routeScope)) {
       return this;
     }
     return _InheritedDiscoveryScope(
       ancestorHidden: hidden,
-      routeIsCurrent: isCurrent,
-      resolvedRouteName: routeName,
       effectiveViewport: effectiveViewport,
+      routeScope: routeScope,
     );
   }
+}
+
+final class _CockpitRouteScope {
+  const _CockpitRouteScope({required this.routeName, required this.isCurrent});
+
+  final String? routeName;
+  final bool isCurrent;
+}
+
+_CockpitRouteScope? _cockpitRouteScopeForWidget(Widget widget) {
+  // Flutter's modal route marker is a private InheritedModel, so read its
+  // public route fields dynamically without registering a dependency during
+  // discovery. Registering dependencies here would make tree scans mutate the
+  // build graph and can invalidate an in-progress build.
+  if (widget is! InheritedModel<dynamic>) {
+    return null;
+  }
+  try {
+    final dynamic modalScopeStatus = widget;
+    final dynamic route = modalScopeStatus.route;
+    final dynamic isCurrent = modalScopeStatus.isCurrent;
+    if (route is! ModalRoute<dynamic> || isCurrent is! bool) {
+      return null;
+    }
+    return _CockpitRouteScope(
+      routeName: route.settings.name?.trim(),
+      isCurrent: isCurrent,
+    );
+  } on Object {
+    return null;
+  }
+}
+
+String? _effectiveDiscoveryRouteName(
+  _CockpitRouteScope? routeScope, {
+  required String? fallbackRouteName,
+}) {
+  if (routeScope == null) {
+    return fallbackRouteName;
+  }
+  final routeName = routeScope.routeName;
+  if (routeName == null || routeName.isEmpty) {
+    return routeScope.isCurrent ? fallbackRouteName : null;
+  }
+  if (routeName == '/' &&
+      routeScope.isCurrent &&
+      fallbackRouteName != null &&
+      fallbackRouteName != '/') {
+    return fallbackRouteName;
+  }
+  return routeName;
 }
 
 /// Per-discovery-pass memo so ancestor-derived metadata (locator paths,

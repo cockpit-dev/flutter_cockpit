@@ -98,6 +98,25 @@ void main() {
     expect(script, isNot(contains("Process.start('dart'")));
   });
 
+  test('MCP surface verifier launches the standalone development shell', () {
+    final packageRelativeScript = File('tool/verify_mcp_surface.dart');
+    final repoRelativeScript = File(
+      'packages/cockpit/tool/verify_mcp_surface.dart',
+    );
+    final scriptFile = packageRelativeScript.existsSync()
+        ? packageRelativeScript
+        : repoRelativeScript;
+    final script = scriptFile.readAsStringSync();
+
+    final shellProjectDirectories = RegExp(
+      r"'projectDir':\s*p\.join\(\s*_repoRoot,\s*'examples',\s*'cockpit_demo',\s*'cockpit',\s*\)",
+    ).allMatches(script);
+    final shellTargets = RegExp(r"'target':\s*'main\.dart'").allMatches(script);
+
+    expect(shellProjectDirectories, hasLength(2));
+    expect(shellTargets, hasLength(2));
+  });
+
   test('MCP surface verifier bounds serve-mcp shutdown cleanup', () {
     final packageRelativeScript = File('tool/verify_mcp_surface.dart');
     final repoRelativeScript = File(

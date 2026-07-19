@@ -1,9 +1,9 @@
 Pod::Spec.new do |s|
   s.name             = 'flutter_cockpit'
   s.version          = '1.1.4'
-  s.summary          = 'In-app runtime primitives for AI-driven Flutter development workflows.'
+  s.summary          = 'Native screenshot and recording support for flutter_cockpit.'
   s.description      = <<-DESC
-In-app runtime primitives for AI-driven Flutter development workflows.
+Native screenshot and recording support for flutter_cockpit development workflows.
                        DESC
   s.homepage         = 'https://github.com/cockpit-dev/flutter_cockpit'
   s.license          = { :file => '../LICENSE' }

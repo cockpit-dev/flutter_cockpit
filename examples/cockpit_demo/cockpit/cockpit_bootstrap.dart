@@ -19,26 +19,34 @@ Widget buildCockpitDemoDevelopmentApp() {
     defaultValue: true,
   );
 
-  return CockpitDemoApp(
-    configuration: FlutterCockpitConfiguration(
-      initialRouteName: '/inbox',
-      httpNetworkObserver: !enableHttpNetworkObserver
-          ? null
-          : CockpitHttpNetworkObserverConfiguration(maxRetainedEntries: 80),
-      runtimeObserverConfiguration: CockpitRuntimeObserverConfiguration(
-        enabled: enableRuntimeObserver,
+  final configuration = FlutterCockpitConfiguration(
+    initialRouteName: '/inbox',
+    httpNetworkObserver: !enableHttpNetworkObserver
+        ? null
+        : CockpitHttpNetworkObserverConfiguration(maxRetainedEntries: 80),
+    runtimeObserverConfiguration: CockpitRuntimeObserverConfiguration(
+      enabled: enableRuntimeObserver,
+    ),
+    diagnostics: CockpitDiagnosticsConfig(
+      enableRebuildTracking: enableDebugDiagnostics,
+      enableTapFeedback: enableTapFeedback,
+    ),
+    remoteSession: CockpitRemoteSessionConfiguration.resolveFromEnvironment(
+      fallback: const CockpitRemoteSessionConfiguration(
+        enabled: true,
+        host: '127.0.0.1',
+        port: 47331,
       ),
-      diagnostics: CockpitDiagnosticsConfig(
-        enableRebuildTracking: enableDebugDiagnostics,
-        enableTapFeedback: enableTapFeedback,
-      ),
-      remoteSession: CockpitRemoteSessionConfiguration.resolveFromEnvironment(
-        fallback: const CockpitRemoteSessionConfiguration(
-          enabled: true,
-          host: '127.0.0.1',
-          port: 47331,
-        ),
-      ),
+    ),
+  );
+
+  return FlutterCockpitApp(
+    config: FlutterCockpitConfig.fromRuntimeConfiguration(configuration),
+    child: CockpitDemoApp(
+      initialRouteName: configuration.initialRouteName,
+      navigatorObservers: <NavigatorObserver>[
+        FlutterCockpit.createNavigatorObserver(),
+      ],
     ),
   );
 }

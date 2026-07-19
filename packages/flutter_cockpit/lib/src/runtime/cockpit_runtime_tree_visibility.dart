@@ -1,9 +1,60 @@
 import 'package:flutter/widgets.dart';
 
-bool cockpitIsVisibleInRuntimeTree(
-  Element element, {
-  bool ignoreCurrentRoute = false,
-}) {
+/// Returns public Router providers in tree order, with nested routers last.
+///
+/// The scan is intentionally explicit and one-shot. Route changes are then
+/// delivered by each provider's public listenable contract.
+Iterable<RouteInformationProvider>
+cockpitRouteInformationProvidersInRuntimeTree(Element rootElement) {
+  final candidates = <({RouteInformationProvider provider, int depth})>[];
+
+  void visit(Element element, int depth) {
+    if (!element.mounted) {
+      return;
+    }
+    final widget = element.widget;
+    if (widget is Router<dynamic>) {
+      final provider = widget.routeInformationProvider;
+      if (provider != null) {
+        candidates.add((provider: provider, depth: depth));
+      }
+    }
+    element.visitChildElements((child) => visit(child, depth + 1));
+  }
+
+  visit(rootElement, 0);
+  candidates.sort((left, right) => left.depth.compareTo(right.depth));
+  return candidates.map((candidate) => candidate.provider);
+}
+
+Future<bool> cockpitMaybePopCurrentNavigator(Element rootElement) async {
+  final candidates = <({NavigatorState state, int depth})>[];
+
+  void visit(Element element, int depth) {
+    if (!element.mounted) {
+      return;
+    }
+    if (element is StatefulElement &&
+        element.widget is Navigator &&
+        element.state is NavigatorState &&
+        cockpitIsVisibleInRuntimeTree(element)) {
+      candidates.add((state: element.state as NavigatorState, depth: depth));
+    }
+    element.visitChildElements((child) => visit(child, depth + 1));
+  }
+
+  visit(rootElement, 0);
+  candidates.sort((left, right) => right.depth.compareTo(left.depth));
+  for (final candidate in candidates) {
+    final navigator = candidate.state;
+    if (navigator.mounted && navigator.canPop()) {
+      return navigator.maybePop();
+    }
+  }
+  return false;
+}
+
+bool cockpitIsVisibleInRuntimeTree(Element element) {
   if (!element.mounted) {
     return false;
   }
@@ -12,48 +63,7 @@ bool cockpitIsVisibleInRuntimeTree(
     return false;
   }
 
-  final routeScope = _nearestRouteScope(element);
-  if (routeScope == null) {
-    return true;
-  }
-  if (ignoreCurrentRoute) {
-    return true;
-  }
-  return routeScope.isCurrent;
-}
-
-String? cockpitResolvedElementRouteName(
-  Element element, {
-  required String? fallbackRouteName,
-}) {
-  final routeName = _nearestRouteScope(element)?.route.settings.name;
-  if (routeName == null || routeName.isEmpty) {
-    return fallbackRouteName;
-  }
-  if (routeName == '/' &&
-      fallbackRouteName != null &&
-      fallbackRouteName != '/') {
-    return fallbackRouteName;
-  }
-  return routeName;
-}
-
-_CockpitRouteScope? _nearestRouteScope(Element element) {
-  _CockpitRouteScope? scope;
-  element.visitAncestorElements((ancestor) {
-    final widget = ancestor.widget;
-    if (widget.runtimeType.toString() != '_ModalScopeStatus') {
-      return true;
-    }
-
-    final candidate = widget as dynamic;
-    scope = _CockpitRouteScope(
-      route: candidate.route as Route<dynamic>,
-      isCurrent: candidate.isCurrent as bool,
-    );
-    return false;
-  });
-  return scope;
+  return true;
 }
 
 bool _isVisibleInAncestorTree(Element element) {
@@ -67,11 +77,4 @@ bool _isVisibleInAncestorTree(Element element) {
     return true;
   });
   return isVisible;
-}
-
-final class _CockpitRouteScope {
-  const _CockpitRouteScope({required this.route, required this.isCurrent});
-
-  final Route<dynamic> route;
-  final bool isCurrent;
 }

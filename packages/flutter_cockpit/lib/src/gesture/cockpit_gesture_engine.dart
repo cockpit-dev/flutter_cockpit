@@ -392,9 +392,7 @@ final class CockpitGestureEngine {
     required Duration initialHoldDuration,
   }) async {
     final clampedScale = scale.clamp(0.25, 4.0);
-    final baseSpan = startSpan
-        .clamp(12.0, geometry.shortestSide * 0.85)
-        .toDouble();
+    final baseSpan = _resolveGestureSpan(geometry, startSpan);
     final endSpan = baseSpan * clampedScale;
     await _performInterpolatedMultiPointerGesture(
       geometry: geometry,
@@ -428,7 +426,7 @@ final class CockpitGestureEngine {
     Duration? frameInterval,
     required Duration initialHoldDuration,
   }) async {
-    final span = startSpan.clamp(12.0, geometry.shortestSide * 0.85).toDouble();
+    final span = _resolveGestureSpan(geometry, startSpan);
     final radius = span / 2;
     final endLeft = Offset(
       -radius * math.cos(rotation),
@@ -450,6 +448,17 @@ final class CockpitGestureEngine {
       frameInterval: frameInterval,
       initialHoldDuration: initialHoldDuration,
     );
+  }
+
+  double _resolveGestureSpan(
+    CockpitTargetGeometry geometry,
+    double requestedSpan,
+  ) {
+    final referenceShortestSide = geometry.shortestSide > 0
+        ? geometry.shortestSide
+        : math.min(geometry.viewportWidth, geometry.viewportHeight);
+    final maxSpan = math.max(12.0, referenceShortestSide * 0.85);
+    return requestedSpan.clamp(12.0, maxSpan).toDouble();
   }
 
   Future<void> _performPanZoom({

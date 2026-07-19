@@ -15,7 +15,6 @@ import 'package:flutter/widgets.dart'
 
 import 'cockpit_build_owner.dart';
 import 'cockpit_rebuild_models.dart';
-import 'cockpit_runtime_tree_visibility.dart';
 
 final class CockpitRebuildTracker {
   CockpitRebuildTracker({
@@ -101,12 +100,7 @@ final class CockpitRebuildTracker {
   }
 
   CockpitRebuildEntry _resolveEntry(Element element) {
-    final routeName =
-        cockpitResolvedElementRouteName(
-          element,
-          fallbackRouteName: _routeNameProvider(),
-        ) ??
-        _routeNameProvider();
+    final routeName = _routeNameProvider();
     final widget = element.widget;
     final typeName = widget.runtimeType.toString();
     final keyValue = _keyValue(widget.key);

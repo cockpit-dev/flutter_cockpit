@@ -39,6 +39,7 @@ void main() {
       isNot(contains('flutter:\n    sdk: flutter')),
       reason: 'The hosted cockpit executable must support pub global run.',
     );
+    expect(devtoolsPubspec, contains('dart_mcp: ^0.5.2'));
     expect(devtoolsPubspec, isNot(contains('flutter_pilot: ^1.0.0')));
   });
 
@@ -56,6 +57,9 @@ void main() {
     ).readAsStringSync();
     final demoPubspec = File(
       'examples/cockpit_demo/pubspec.yaml',
+    ).readAsStringSync();
+    final shellPubspec = File(
+      'examples/cockpit_demo/cockpit/pubspec.yaml',
     ).readAsStringSync();
     final rootReadme = File('README.md').readAsStringSync();
     final rootReadmeZh = File('README.zh-CN.md').readAsStringSync();
@@ -97,6 +101,7 @@ void main() {
       runtimePubspec,
       devtoolsPubspec,
       demoPubspec,
+      shellPubspec,
     ]) {
       expect(pubspec, contains("sdk: '>=3.8.0 <4.0.0'"));
       expect(pubspec, isNot(contains("sdk: '>=3.5.0 <4.0.0'")));
@@ -105,6 +110,7 @@ void main() {
     }
     expect(runtimePubspec, contains("flutter: '>=3.32.0'"));
     expect(demoPubspec, contains("flutter: '>=3.32.0'"));
+    expect(shellPubspec, contains("flutter: '>=3.32.0'"));
     if (Platform.version.startsWith('3.8.')) {
       expect(workspaceLockfile, contains('dart: ">=3.8.0 <4.0.0"'));
       expect(workspaceLockfile, contains('flutter: ">=3.32.0"'));
@@ -134,8 +140,13 @@ void main() {
     expect(protocolPubspec, contains('collection: ^1.18.0'));
     expect(devtoolsPubspec, contains('lints: ^6.1.0'));
     expect(demoPubspec, contains('flutter_lints: ^6.0.0'));
-    expect(devtoolsPubspec, contains('dart_mcp: ^0.5.1'));
-    expect(demoPubspec, contains('cockpit: ^$devtoolsVersion'));
+    expect(devtoolsPubspec, contains('dart_mcp: ^0.5.2'));
+    expect(shellPubspec, contains('cockpit: ^$devtoolsVersion'));
+    expect(shellPubspec, contains('flutter_cockpit:'));
+    expect(shellPubspec, contains('integration_test:'));
+    expect(demoPubspec, isNot(contains('flutter_cockpit:')));
+    expect(demoPubspec, isNot(contains('cockpit:')));
+    expect(demoPubspec, isNot(contains('integration_test:')));
     expect(
       demoPubspec,
       contains('drift: ">=2.29.0 <2.30.0"'),
@@ -156,7 +167,6 @@ void main() {
     expect(workspacePubspec, contains("test: '>=1.25.15 <2.0.0'"));
     expect(runtimePubspec, contains("test: '>=1.25.15 <2.0.0'"));
     expect(devtoolsPubspec, contains("test: '>=1.25.15 <2.0.0'"));
-    expect(demoPubspec, contains("test: '>=1.25.15 <2.0.0'"));
   });
 
   test('package readmes teach flutter_cockpit installation and usage', () {
@@ -181,7 +191,8 @@ void main() {
       runtimeReadme,
       contains("package:flutter_cockpit/flutter_cockpit_flutter.dart"),
     );
-    expect(runtimeReadme, contains('flutter run -t cockpit/main.dart'));
+    expect(runtimeReadme, contains('cd cockpit'));
+    expect(runtimeReadme, contains('--target main.dart'));
     expect(runtimeReadme, contains('https://pub.dev/packages/cockpit'));
     expect(runtimeReadme, isNot(contains('flutter_pilot')));
 
@@ -220,6 +231,51 @@ void main() {
         contains(
           'Do not add `flutter_cockpit` imports to production `lib/` code',
         ),
+      );
+    }
+  });
+
+  test('demo keeps cockpit integration out of production lib code', () {
+    final productionPubspec = File(
+      'examples/cockpit_demo/pubspec.yaml',
+    ).readAsStringSync();
+    final shellPubspec = File(
+      'examples/cockpit_demo/cockpit/pubspec.yaml',
+    ).readAsStringSync();
+    final devDependenciesIndex = shellPubspec.indexOf('dev_dependencies:');
+
+    expect(devDependenciesIndex, isNonNegative);
+    expect(
+      shellPubspec.indexOf('  flutter_cockpit:'),
+      greaterThan(devDependenciesIndex),
+    );
+    expect(
+      shellPubspec.indexOf('  cockpit:'),
+      greaterThan(devDependenciesIndex),
+    );
+    expect(
+      shellPubspec.indexOf('  integration_test:'),
+      greaterThan(devDependenciesIndex),
+    );
+    expect(productionPubspec, isNot(contains('flutter_cockpit:')));
+    expect(productionPubspec, isNot(contains('cockpit:')));
+    expect(productionPubspec, isNot(contains('integration_test:')));
+
+    for (final file
+        in Directory('examples/cockpit_demo/lib')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((file) => file.path.endsWith('.dart'))) {
+      final source = file.readAsStringSync();
+      expect(
+        source,
+        isNot(contains('package:flutter_cockpit/')),
+        reason: '${file.path} must remain production-only.',
+      );
+      expect(
+        source,
+        isNot(contains('package:cockpit/')),
+        reason: '${file.path} must remain production-only.',
       );
     }
   });
@@ -554,11 +610,18 @@ List<String> _trackedMarkdownFiles() {
   if (result.exitCode != 0) {
     throw StateError('Unable to list tracked markdown files: ${result.stderr}');
   }
-  return (result.stdout as String)
+  final tracked = (result.stdout as String)
       .split('\n')
       .where((path) => path.endsWith('.md'))
       .where((path) => !path.split('/').contains('third'))
-      .toList(growable: false);
+      .where((path) => File(path).existsSync())
+      .toList();
+  final shellValidationReadme =
+      'examples/cockpit_demo/cockpit/validation/README.md';
+  if (File(shellValidationReadme).existsSync()) {
+    tracked.add(shellValidationReadme);
+  }
+  return tracked;
 }
 
 String _stripMarkdownCode(String markdown) {

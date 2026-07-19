@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
-import 'package:cockpit_demo/src/cockpit_demo_app.dart';
 import 'package:cockpit_demo/src/ui/theme/orbit_todo_theme.dart';
 
 import 'support/cockpit_demo_test_support.dart';
@@ -14,14 +12,7 @@ void main() {
       final database = CockpitDemoDatabase.inMemory();
       addCockpitDemoDatabaseTearDown(tester, database);
 
-      await tester.pumpWidget(
-        CockpitDemoApp(
-          configuration: FlutterCockpitConfiguration(
-            sessionController: _testController(),
-          ),
-          database: database,
-        ),
-      );
+      await tester.pumpWidget(buildCockpitDemoApp(database: database));
       await tester.pumpAndSettle();
 
       final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
@@ -48,14 +39,7 @@ void main() {
       final database = CockpitDemoDatabase.inMemory();
       addCockpitDemoDatabaseTearDown(tester, database);
 
-      await tester.pumpWidget(
-        CockpitDemoApp(
-          configuration: FlutterCockpitConfiguration(
-            sessionController: _testController(),
-          ),
-          database: database,
-        ),
-      );
+      await tester.pumpWidget(buildCockpitDemoApp(database: database));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Settings'));
@@ -88,12 +72,4 @@ void main() {
     );
     expect(darkTheme.editorialChromeColor.computeLuminance(), lessThan(0.13));
   });
-}
-
-CockpitSessionController _testController() {
-  return CockpitSessionController(
-    sessionId: 'todo-visual-session',
-    taskId: 'todo-visual-task',
-    platform: 'test',
-  );
 }

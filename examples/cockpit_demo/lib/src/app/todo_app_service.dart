@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 
 import '../data/todo_repository.dart';
 import '../model/todo_filter.dart';
@@ -225,14 +224,6 @@ final class TodoAppService extends ChangeNotifier {
       _editorState = _editorState.copyWith(
         validationMessage: () => validationMessage,
       );
-      _recordWorkflowIssue(
-        actionType: 'validation_error',
-        message: validationMessage,
-        details: const <String, Object?>{
-          'field': 'title',
-          'screen': 'task_editor',
-        },
-      );
       _notifyListenersIfActive();
       return null;
     }
@@ -287,14 +278,6 @@ final class TodoAppService extends ChangeNotifier {
       _editorState = _editorState.copyWith(
         isSaving: false,
         validationMessage: () => message,
-      );
-      _recordWorkflowIssue(
-        actionType: 'save_error',
-        message: message,
-        details: <String, Object?>{
-          'screen': 'task_editor',
-          'existingTaskId': existingTaskId,
-        },
       );
       _notifyListenersIfActive();
       return null;
@@ -965,27 +948,5 @@ final class TodoAppService extends ChangeNotifier {
       return message.substring(stateErrorPrefix.length);
     }
     return message;
-  }
-
-  void _recordWorkflowIssue({
-    required String actionType,
-    required String message,
-    Map<String, Object?> details = const <String, Object?>{},
-  }) {
-    final snapshot = FlutterCockpit.binding.registry.snapshot();
-    FlutterCockpit.recordStep(
-      actionType: actionType,
-      actionArgs: <String, Object?>{'message': message, ...details},
-      observation: CockpitObservation(
-        routeName: FlutterCockpit.binding.currentRouteName.value,
-        interactiveElements: snapshot.visibleTargets
-            .map((target) => target.displayLabel)
-            .whereType<String>()
-            .take(12)
-            .toList(growable: false),
-        phase: CockpitObservationPhase.failure,
-      ),
-      snapshot: snapshot,
-    );
   }
 }

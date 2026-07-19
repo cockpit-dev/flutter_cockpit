@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter/widgets.dart' as widgets;
 
 import '../capture/cockpit_capture_kind.dart';
@@ -76,6 +77,17 @@ abstract final class FlutterCockpit {
 
   static widgets.NavigatorObserver get navigatorObserver =>
       binding.navigatorObserver;
+
+  /// Creates a navigator observer for a nested Navigator or router-managed
+  /// navigator. Each Navigator must receive its own observer instance.
+  static widgets.NavigatorObserver createNavigatorObserver() =>
+      binding.createNavigatorObserver();
+
+  /// Binds a public Flutter router provider, including providers exposed by
+  /// go_router and other Router-based packages.
+  static foundation.VoidCallback bindRouteInformationProvider(
+    widgets.RouteInformationProvider provider,
+  ) => binding.bindRouteInformationProvider(provider);
 
   static void setCurrentRouteName(String routeName) {
     binding.setCurrentRouteName(routeName);

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 MODE="${1:?mode is required}"
-PROJECT_DIR="${GITHUB_WORKSPACE:?}/examples/cockpit_demo"
+PROJECT_DIR="${GITHUB_WORKSPACE:?}/examples/cockpit_demo/cockpit"
 ANDROID_EMULATOR_ID="${ANDROID_EMULATOR_ID:-Pixel_9_Pro}"
 LAUNCH_TIMEOUT_SECONDS="${LAUNCH_TIMEOUT_SECONDS:-600}"
 DEVICE_TIMEOUT_SECONDS="${DEVICE_TIMEOUT_SECONDS:-600}"
@@ -34,6 +34,7 @@ run_native_conformance() {
       -d "$device_id" >"$NATIVE_REPORT_LOG" 2>&1 &
   local drive_pid=$!
   local clicked=0
+  local selected_app=0
 
   for _ in $(seq 1 180); do
     if ! kill -0 "$drive_pid" 2>/dev/null; then
@@ -42,7 +43,8 @@ run_native_conformance() {
     adb -s "$device_id" shell uiautomator dump /sdcard/flutter_cockpit_window.xml >/dev/null 2>&1 || true
     adb -s "$device_id" pull /sdcard/flutter_cockpit_window.xml "$hierarchy" >/dev/null 2>&1 || true
     if [ -s "$hierarchy" ]; then
-      coordinates="$(python3 - "$hierarchy" <<'PY'
+# Android 16 shows a "Choose app to share" picker before the final confirmation.
+      action_and_coordinates="$(python3 - "$hierarchy" "$selected_app" <<'PY'
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -51,6 +53,20 @@ try:
     root = ET.parse(sys.argv[1]).getroot()
 except (OSError, ET.ParseError):
     raise SystemExit(0)
+
+selected_app = sys.argv[2] == "1"
+if not selected_app and any(
+    node.get("text", "").strip().lower() == "choose app to share"
+    for node in root.iter("node")
+):
+    for node in root.iter("node"):
+        if node.get("text", "").strip().lower() != "cockpit_demo":
+            continue
+        bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.get("bounds", ""))
+        if bounds:
+            x1, y1, x2, y2 = map(int, bounds.groups())
+            print(f"app {(x1 + x2) // 2} {(y1 + y2) // 2}")
+            raise SystemExit(0)
 
 resource_ids = {
     "android:id/button1",
@@ -64,13 +80,17 @@ for node in root.iter("node"):
     bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.get("bounds", ""))
     if bounds:
         x1, y1, x2, y2 = map(int, bounds.groups())
-        print(f"{(x1 + x2) // 2} {(y1 + y2) // 2}")
+        print(f"confirm {(x1 + x2) // 2} {(y1 + y2) // 2}")
         break
 PY
 )"
-      if [ -n "$coordinates" ]; then
-        adb -s "$device_id" shell input tap $coordinates
+      if [ -n "$action_and_coordinates" ]; then
+        read -r action x y <<< "$action_and_coordinates"
+        adb -s "$device_id" shell input tap "$x" "$y"
         clicked=1
+        if [ "$action" = "app" ]; then
+          selected_app=1
+        fi
       fi
     fi
     sleep 1
@@ -107,6 +127,7 @@ case "$MODE" in
     COMMAND=(
       dart run tool/verify_rapid_dev.dart
       --platform android
+      --target main.dart
       "${COMMON_ARGS[@]}"
       --device-timeout-seconds "$DEVICE_TIMEOUT_SECONDS"
     )
@@ -115,6 +136,7 @@ case "$MODE" in
     COMMAND=(
       dart run tool/verify_platforms.dart
       --platform android
+      --target main.dart
       --exhaustive-system-control
       "${COMMON_ARGS[@]}"
       --device-timeout-seconds "$DEVICE_TIMEOUT_SECONDS"
@@ -125,6 +147,7 @@ case "$MODE" in
     COMMAND=(
       dart run tool/verify_platforms.dart
       --platform android
+      --target main.dart
       "${COMMON_ARGS[@]}"
     )
     ;;

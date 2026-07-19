@@ -5,6 +5,7 @@ packages:
   - packages/flutter_cockpit
   - packages/cockpit
   - examples/cockpit_demo
+  - examples/cockpit_demo/cockpit
 
 scripts:
   analyze:
@@ -12,6 +13,7 @@ scripts:
   test:
     run: >-
       (dart test test) &&
-      (cd packages/flutter_cockpit && flutter test) &&
-      (cd packages/cockpit && dart test) &&
-      (cd examples/cockpit_demo && flutter test)
+      (flutter test packages/flutter_cockpit/test) &&
+      (dart test packages/cockpit/test) &&
+      (cd examples/cockpit_demo && flutter test) &&
+      (cd examples/cockpit_demo/cockpit && flutter test)

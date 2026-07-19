@@ -9,6 +9,7 @@ workspace:
   - packages/flutter_cockpit
   - packages/cockpit
   - examples/cockpit_demo
+  - examples/cockpit_demo/cockpit
 
 dev_dependencies:
   cockpit:

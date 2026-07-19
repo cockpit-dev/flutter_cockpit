@@ -47,6 +47,7 @@ typedef CockpitNetworkIdleWaiter =
 typedef CockpitBackNavigationHandler = Future<bool> Function();
 typedef CockpitWaitTickHandler = Future<void> Function(Duration duration);
 typedef CockpitRecordingActivityProbe = bool Function();
+typedef CockpitRouteNameSynchronizer = void Function(String? routeName);
 typedef CockpitKeyEventHandler =
     Future<bool> Function(
       CockpitKeyEventRequest request,
@@ -70,6 +71,7 @@ final class CockpitInAppCommandContext {
     required this.keyEventHandler,
     required this.interactionPolicy,
     required this.isRecordingActive,
+    required this.routeNameSynchronizer,
     required this.platform,
     required this.transportType,
   });
@@ -89,6 +91,7 @@ final class CockpitInAppCommandContext {
   final CockpitKeyEventHandler keyEventHandler;
   final CockpitInteractionPolicy interactionPolicy;
   final CockpitRecordingActivityProbe isRecordingActive;
+  final CockpitRouteNameSynchronizer? routeNameSynchronizer;
   final String platform;
   final String transportType;
 

@@ -4,7 +4,25 @@ on:
   push:
     branches:
       - main
+    paths:
+      - '.github/workflows/runtime-loop.yml'
+      - '.github/scripts/**'
+      - 'examples/cockpit_demo/cockpit/**'
+      - 'examples/cockpit_demo/lib/**'
+      - 'examples/cockpit_demo/pubspec.yaml'
+      - 'packages/flutter_cockpit/**'
+      - 'packages/cockpit/**'
+      - 'test/**'
   pull_request:
+    paths:
+      - '.github/workflows/runtime-loop.yml'
+      - '.github/scripts/**'
+      - 'examples/cockpit_demo/cockpit/**'
+      - 'examples/cockpit_demo/lib/**'
+      - 'examples/cockpit_demo/pubspec.yaml'
+      - 'packages/flutter_cockpit/**'
+      - 'packages/cockpit/**'
+      - 'test/**'
   workflow_dispatch:
 
 permissions:
@@ -52,8 +70,9 @@ jobs:
             packages/flutter_cockpit \
             packages/cockpit \
             examples/cockpit_demo \
+            examples/cockpit_demo/cockpit \
             test
-          flutter analyze packages/flutter_cockpit_protocol packages/flutter_cockpit packages/cockpit examples/cockpit_demo test
+          flutter analyze packages/flutter_cockpit_protocol packages/flutter_cockpit packages/cockpit examples/cockpit_demo examples/cockpit_demo/cockpit test
           (cd packages/flutter_cockpit_protocol && dart pub publish --dry-run)
           (cd packages/flutter_cockpit && flutter pub publish --dry-run)
           (cd packages/cockpit && dart pub publish --dry-run)
@@ -65,11 +84,12 @@ jobs:
         run: |
           dart test test
           (cd packages/flutter_cockpit_protocol && dart test)
-          (cd packages/flutter_cockpit && flutter test)
-          (cd packages/cockpit && dart test)
+          flutter test packages/flutter_cockpit/test
+          dart test packages/cockpit/test
           flutter pub get
           git diff --exit-code pubspec.lock
           (cd examples/cockpit_demo && flutter test)
+          (cd examples/cockpit_demo/cockpit && flutter test)
 
   macos-mcp-surface:
     needs: shared-ai-surface-regressions
@@ -88,10 +108,10 @@ jobs:
         timeout-minutes: 15
         run: brew install ffmpeg
 
-      - name: Enable macOS desktop and SwiftPM
+      - name: Enable macOS desktop and CocoaPods
         run: |
           flutter config --enable-macos-desktop
-          flutter config --enable-swift-package-manager
+          flutter config --no-enable-swift-package-manager
 
       - name: Bootstrap workspace
         timeout-minutes: 10
@@ -550,7 +570,7 @@ jobs:
           echo "NATIVE_REPORT_LOG=$NATIVE_REPORT_LOG" >> "$GITHUB_ENV"
 
       - name: Run iOS app-native conformance
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 20
         run: |
           set -eo pipefail
@@ -562,12 +582,13 @@ jobs:
             "$NATIVE_REPORT_JSON" --platform ios
 
       - name: Run iOS full verifier
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 60
         run: |
           set -eo pipefail
           dart run tool/verify_platforms.dart --platform ios \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --target main.dart \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
@@ -675,10 +696,10 @@ jobs:
         timeout-minutes: 15
         run: brew install ffmpeg
 
-      - name: Enable macOS desktop and SwiftPM
+      - name: Enable macOS desktop and CocoaPods
         run: |
           flutter config --enable-macos-desktop
-          flutter config --enable-swift-package-manager
+          flutter config --no-enable-swift-package-manager
 
       - name: Bootstrap workspace
         timeout-minutes: 10
@@ -714,7 +735,7 @@ jobs:
           echo "NATIVE_REPORT_LOG=$NATIVE_REPORT_LOG" >> "$GITHUB_ENV"
 
       - name: Run macOS app-native conformance
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 15
         run: |
           set -eo pipefail
@@ -726,12 +747,13 @@ jobs:
             "$NATIVE_REPORT_JSON" --platform macos
 
       - name: Run macOS full verifier
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 30
         run: |
           set -eo pipefail
           dart run tool/verify_platforms.dart --platform macos \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --target main.dart \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
@@ -899,7 +921,7 @@ jobs:
           echo "NATIVE_REPORT_LOG=$NATIVE_REPORT_LOG" >> "$GITHUB_ENV"
 
       - name: Run web native-unavailable conformance
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 15
         run: |
           set -eo pipefail
@@ -911,12 +933,13 @@ jobs:
             "$NATIVE_REPORT_JSON" --platform web
 
       - name: Run web full verifier
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 35
         run: |
           set -eo pipefail
           xvfb-run -a dart run tool/verify_platforms.dart --platform web \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --target main.dart \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
@@ -1100,7 +1123,7 @@ jobs:
           echo "NATIVE_REPORT_LOG=$NATIVE_REPORT_LOG" >> "$GITHUB_ENV"
 
       - name: Run Linux app-native conformance
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 15
         run: |
           set -eo pipefail
@@ -1112,12 +1135,13 @@ jobs:
             "$NATIVE_REPORT_JSON" --platform linux
 
       - name: Run Linux full verifier
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 30
         run: |
           set -eo pipefail
           xvfb-run -a dart run tool/verify_platforms.dart --platform linux \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --target main.dart \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
@@ -1284,7 +1308,7 @@ jobs:
           LOG_PATH="$RUNNER_TEMP/flutter_cockpit_windows_verification.log"
           NATIVE_REPORT_JSON="$RUNNER_TEMP/flutter_cockpit_windows_native.json"
           NATIVE_REPORT_LOG="$RUNNER_TEMP/flutter_cockpit_windows_native.log"
-          PROJECT_DIR="${GITHUB_WORKSPACE//\\//}/examples/cockpit_demo"
+          PROJECT_DIR="${GITHUB_WORKSPACE//\\//}/examples/cockpit_demo/cockpit"
           OUTPUT_ROOT_POSIX="${OUTPUT_ROOT//\\//}"
           RESULT_JSON_POSIX="${RESULT_JSON//\\//}"
           LOG_PATH_POSIX="${LOG_PATH//\\//}"
@@ -1309,7 +1333,7 @@ jobs:
           echo "FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR=$SUPERVISOR_LIVE_LOG_DIR" >> "$GITHUB_ENV"
 
       - name: Run Windows app-native conformance
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 20
         run: |
           set -eo pipefail
@@ -1326,6 +1350,7 @@ jobs:
           set -eo pipefail
           cd "$PROJECT_DIR"
           dart run tool/verify_platforms.dart --platform windows \
+            --target main.dart \
             --project-dir "$PROJECT_DIR" \
             --output-root "$OUTPUT_ROOT_POSIX" \
             --output "$RESULT_JSON_POSIX" \

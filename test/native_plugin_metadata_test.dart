@@ -35,10 +35,24 @@ void main() {
     },
   );
 
-  test('example desktop generated registrants include the native runtime plugin', () {
+  test('production registrants stay Cockpit-free and shell registrants include it', () {
+    final productionRegistrants = <String>[
+      '$root/examples/cockpit_demo/macos/Flutter/GeneratedPluginRegistrant.swift',
+      '$root/examples/cockpit_demo/linux/flutter/generated_plugin_registrant.cc',
+      '$root/examples/cockpit_demo/windows/flutter/generated_plugin_registrant.cc',
+    ];
+    for (final path in productionRegistrants) {
+      final source = File(path).readAsStringSync();
+      expect(
+        source,
+        isNot(contains('flutter_cockpit')),
+        reason: '$path must remain a production registrant.',
+      );
+    }
+
     expect(
       File(
-        '$root/examples/cockpit_demo/macos/Flutter/GeneratedPluginRegistrant.swift',
+        '$root/examples/cockpit_demo/cockpit/macos/Flutter/GeneratedPluginRegistrant.swift',
       ).readAsStringSync(),
       allOf(
         contains('import flutter_cockpit'),
@@ -47,7 +61,7 @@ void main() {
     );
     expect(
       File(
-        '$root/examples/cockpit_demo/linux/flutter/generated_plugin_registrant.cc',
+        '$root/examples/cockpit_demo/cockpit/linux/flutter/generated_plugin_registrant.cc',
       ).readAsStringSync(),
       allOf(
         contains('#include <flutter_cockpit/flutter_cockpit_plugin.h>'),
@@ -56,7 +70,7 @@ void main() {
     );
     expect(
       File(
-        '$root/examples/cockpit_demo/windows/flutter/generated_plugin_registrant.cc',
+        '$root/examples/cockpit_demo/cockpit/windows/flutter/generated_plugin_registrant.cc',
       ).readAsStringSync(),
       allOf(
         contains('#include <flutter_cockpit/flutter_cockpit_plugin_c_api.h>'),
@@ -70,6 +84,12 @@ void main() {
 
     expect(File('${macosRoot.path}/Podfile').existsSync(), isFalse);
     expect(File('${macosRoot.path}/Podfile.lock').existsSync(), isFalse);
+
+    final shellMacosRoot = Directory(
+      '$root/examples/cockpit_demo/cockpit/macos',
+    );
+    expect(File('${shellMacosRoot.path}/Podfile').existsSync(), isTrue);
+    expect(File('${shellMacosRoot.path}/Podfile.lock').existsSync(), isTrue);
 
     for (final relativePath in <String>[
       'Flutter/Flutter-Debug.xcconfig',
@@ -94,6 +114,15 @@ void main() {
 
     expect(File('${iosRoot.path}/Podfile').existsSync(), isFalse);
     expect(File('${iosRoot.path}/Podfile.lock').existsSync(), isFalse);
+
+    final shellIosRoot = Directory('$root/examples/cockpit_demo/cockpit/ios');
+    expect(File('${shellIosRoot.path}/Podfile').existsSync(), isTrue);
+    expect(
+      File(
+        '${shellIosRoot.path}/Runner.xcodeproj/project.pbxproj',
+      ).existsSync(),
+      isTrue,
+    );
 
     for (final relativePath in <String>[
       'Flutter/Debug.xcconfig',
@@ -204,6 +233,8 @@ void main() {
     expect(pluginSource, contains('detachActivityPermanently'));
     expect(pluginSource, contains('finally'));
     expect(pluginSource, contains('bitmap.recycle()'));
+    expect(pluginSource, contains('SurfaceView'));
+    expect(pluginSource, contains('findFlutterSurface'));
     expect(
       serviceSource,
       contains('FlutterCockpitRecordingPathResolver.resolve'),
@@ -211,6 +242,8 @@ void main() {
     expect(serviceSource, contains('length() > 0'));
     expect(serviceSource, contains('mutableSetOf<Long>()'));
     expect(serviceSource, contains('resolveSessionTermination'));
+    expect(serviceSource, contains('MAX_VIDEO_DIMENSION'));
+    expect(serviceSource, contains('scaledVideoDimensions'));
     expect(source, contains('completeUnexpectedTermination'));
     expect(
       serviceSource.indexOf('mediaProjection = projection'),

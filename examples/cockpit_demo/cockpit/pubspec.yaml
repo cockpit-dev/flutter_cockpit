@@ -1,0 +1,47 @@
+name: cockpit_demo_dev
+description: Development shell for validating cockpit_demo with Flutter Cockpit.
+publish_to: none
+version: 1.0.0
+
+environment:
+  sdk: '>=3.8.0 <4.0.0'
+  flutter: '>=3.32.0'
+
+resolution: workspace
+
+dependencies:
+  cockpit_demo: ^1.0.0
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  args: ^2.7.0
+  cockpit: ^1.1.4
+  drift: ">=2.29.0 <2.30.0"
+  flutter_cockpit: ^1.1.4
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  path: ^1.9.0
+
+flutter:
+  config:
+    enable-swift-package-manager: false
+  uses-material-design: true
+  fonts:
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/manrope/Manrope[wght].ttf
+          weight: 400
+        - asset: assets/fonts/manrope/Manrope[wght].ttf
+          weight: 600
+        - asset: assets/fonts/manrope/Manrope[wght].ttf
+          weight: 700
+    - family: SpaceGrotesk
+      fonts:
+        - asset: assets/fonts/space_grotesk/SpaceGrotesk[wght].ttf
+          weight: 400
+        - asset: assets/fonts/space_grotesk/SpaceGrotesk[wght].ttf
+          weight: 700

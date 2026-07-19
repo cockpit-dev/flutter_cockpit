@@ -35,6 +35,8 @@ explain the next repair step.
 - session unreachable after bootstrap -> `blocked_by_environment`
 - script run completes but asserts the wrong route or state -> `failed_with_evidence`
 - bundle exists but required acceptance evidence is missing -> `needs_more_work`
+- mixed app/environment failure with a proven app defect -> the proven app failure keeps the outcome `needs_more_work`; do not downgrade it to `blocked_by_environment`
+- required check unavailable or missing -> record the missing proof explicitly; Required missing checks are never `N/A`
 
 ## Expected Agent Behavior
 

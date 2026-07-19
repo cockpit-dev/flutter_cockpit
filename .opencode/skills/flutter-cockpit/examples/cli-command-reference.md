@@ -1012,8 +1012,8 @@ dart run cockpit \
 
 ```yaml
 launch:
-  projectDir: /abs/path/to/flutter_app
-  target: cockpit/main.dart
+  projectDir: /abs/path/to/flutter_app/cockpit
+  target: main.dart
   flavor: staging
   platform: android
   deviceId: emulator-5554
@@ -1064,7 +1064,9 @@ them.
 ## Notes
 
 - Persist `app.json` and reuse it across commands.
-- `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
+- Keep Cockpit in a standalone `cockpit/` dev project and pass
+  `--project-dir cockpit --target main.dart`; production `lib/` and release
+  dependencies stay untouched.
 - Default to rapid development validation: ask the runtime for the smallest fact that reduces current uncertainty, then stop.
 - Default to `--profile minimal` or `standard`.
 - Escalate to `inspect` or `evidence` only when required.

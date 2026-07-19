@@ -6,6 +6,9 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
+import android.view.SurfaceView
+import android.view.View
+import android.view.ViewGroup
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -78,8 +81,10 @@ class FlutterCockpitPlugin : FlutterPlugin, ActivityAware {
                 return
             }
 
+        val flutterSurface = findFlutterSurface(decorView)
+        val surface = flutterSurface?.holder?.surface
         try {
-            PixelCopy.request(currentActivity.window, bitmap, { copyResult ->
+            val callback = PixelCopy.OnPixelCopyFinishedListener { copyResult ->
                 try {
                     if (copyResult != PixelCopy.SUCCESS) {
                         result.error(
@@ -87,7 +92,7 @@ class FlutterCockpitPlugin : FlutterPlugin, ActivityAware {
                             "PixelCopy failed with code $copyResult.",
                             null,
                         )
-                        return@request
+                        return@OnPixelCopyFinishedListener
                     }
 
                     val stream = ByteArrayOutputStream()
@@ -98,7 +103,7 @@ class FlutterCockpitPlugin : FlutterPlugin, ActivityAware {
                             "Failed to encode native screenshot as PNG.",
                             null,
                         )
-                        return@request
+                        return@OnPixelCopyFinishedListener
                     }
 
                     result.success(
@@ -115,7 +120,12 @@ class FlutterCockpitPlugin : FlutterPlugin, ActivityAware {
                 } finally {
                     bitmap.recycle()
                 }
-            }, Handler(Looper.getMainLooper()))
+            }
+            if (surface?.isValid == true) {
+                PixelCopy.request(surface, bitmap, callback, Handler(Looper.getMainLooper()))
+            } else {
+                PixelCopy.request(currentActivity.window, bitmap, callback, Handler(Looper.getMainLooper()))
+            }
         } catch (error: Exception) {
             bitmap.recycle()
             result.error(
@@ -124,6 +134,18 @@ class FlutterCockpitPlugin : FlutterPlugin, ActivityAware {
                 null,
             )
         }
+    }
+
+    private fun findFlutterSurface(view: View): SurfaceView? {
+        if (view is SurfaceView && view.holder.surface.isValid) {
+            return view
+        }
+        if (view is ViewGroup) {
+            for (index in 0 until view.childCount) {
+                findFlutterSurface(view.getChildAt(index))?.let { return it }
+            }
+        }
+        return null
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {

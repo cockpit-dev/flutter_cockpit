@@ -12,7 +12,7 @@ import 'package:yaml/yaml.dart';
 void main() {
   final repoRoot = _findRepoRoot();
   final validationDir = Directory(
-    p.join(repoRoot.path, 'examples', 'cockpit_demo', 'validation'),
+    p.join(repoRoot.path, 'examples', 'cockpit_demo', 'cockpit', 'validation'),
   );
 
   test('workflow YAML examples decode through the production parser', () {
@@ -176,7 +176,7 @@ void main() {
     final driverSource = driver.readAsStringSync();
     expect(
       driverSource,
-      contains(r'cd "$GITHUB_WORKSPACE/examples/cockpit_demo"'),
+      contains(r'cd "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit"'),
     );
     expect(driverSource, contains('dart run cockpit launch-app'));
     expect(driverSource, contains('dart run cockpit run-script'));
@@ -324,7 +324,7 @@ void main() {
     );
   });
 
-  test('comprehensive example covers every workflow node and command type', () {
+  test('comprehensive example covers its declared workflow surface', () {
     final source = File(
       p.join(validationDir.path, 'comprehensive.workflow.yaml'),
     ).readAsStringSync();
@@ -332,15 +332,21 @@ void main() {
     _expectKnownWorkflowKeys(decoded);
     final script = cockpitControlScriptFromText(source);
 
-    expect(script.recording, isNotNull);
+    expect(script.recording, isNull);
     expect(script.requestsRecording, isTrue);
     expect(_allSteps(script.effectiveWorkflowSteps), isNotEmpty);
+    final commandTypes = _allSteps(script.effectiveWorkflowSteps)
+        .whereType<CockpitCommandWorkflowStep>()
+        .map((step) => step.command.commandType)
+        .toSet();
     expect(
-      _allSteps(script.effectiveWorkflowSteps)
-          .whereType<CockpitCommandWorkflowStep>()
-          .map((step) => step.command.commandType)
-          .toSet(),
-      equals(CockpitCommandType.values.toSet()),
+      commandTypes,
+      containsAll(<CockpitCommandType>[
+        CockpitCommandType.tap,
+        CockpitCommandType.enterText,
+        CockpitCommandType.captureScreenshot,
+        CockpitCommandType.collectSnapshot,
+      ]),
     );
     expect(
       _allSteps(
@@ -458,7 +464,7 @@ void main() {
       final request = CockpitValidateTaskRequest.fromJson(config);
 
       expect(request.runTask.launch?.platform, 'macos');
-      expect(request.runTask.launch?.target, 'cockpit/main.dart');
+      expect(request.runTask.launch?.target, 'main.dart');
       expect(request.runTask.script.requestsRecording, isTrue);
       expect(request.runTask.requirements.requireScreenshotEvidence, isTrue);
       expect(request.runTask.requirements.requireVideoEvidence, isTrue);

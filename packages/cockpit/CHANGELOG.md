@@ -2,9 +2,19 @@
 
 ## 1.1.4
 
-- Fixed development supervisor startup from global and project-local entrypoints by preserving the tool package resolution context for the detached supervisor process.
-- Hardened iOS simulator recorded validation so simulator recording finalization gaps can still use traceable timeline evidence instead of failing completed flows without useful diagnostics.
-- Synced packaged MCP contract fallback documents with the repository contracts for AI development, workflow, and task-run bundle traceability.
+- Added standalone `cockpit/` project support across CLI, MCP, validation
+  examples, and CI without changing the production app dependency graph.
+- Added platform-aware screenshot and recording preference with automatic app
+  fallback when the preferred system path fails and fallback is allowed.
+- Fixed development supervisor startup from global and project-local
+  entrypoints by preserving the tool package resolution context for detached
+  processes.
+- Hardened iOS simulator shell and recorded validation, including truthful
+  capability probing and traceable fallback evidence.
+- Updated to stable `dart_mcp` 0.5.2 for normalized workspace root URIs and
+  synced the real MCP verifier with the standalone development shell.
+- Synced packaged MCP contract fallback documents with the repository contracts
+  for AI development, workflow, and task-run bundle traceability.
 
 ## 1.1.3
 

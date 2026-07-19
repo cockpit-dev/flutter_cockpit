@@ -2,7 +2,18 @@
 
 ## 1.1.4
 
-- Updated published package metadata and documentation for the 1.1.4 host tooling release.
+- Added automatic route tracking for plain and nested `Navigator` stacks and
+  Router-based libraries, including `go_router`, while keeping all integration
+  inside the standalone `cockpit/` development shell.
+- Added platform-aware screenshot routing with native/app fallback and truthful
+  source metadata when the preferred system capture path is unavailable.
+- Hardened native screenshot and recording lifecycles across Android, iOS,
+  macOS, Linux, and Windows, including Android surface capture and bounded video
+  dimensions.
+- Documented and verified dual CocoaPods and Swift Package Manager support for
+  iOS and macOS from the same native sources and privacy manifests.
+- Kept Cockpit packages and imports out of the production app dependency graph
+  by moving the complete development integration into a standalone shell.
 
 ## 1.1.3
 

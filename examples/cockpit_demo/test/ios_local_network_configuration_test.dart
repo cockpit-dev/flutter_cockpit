@@ -3,16 +3,17 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test(
-    'iOS Info.plist declares local network usage for physical-device remote control',
-    () {
-      final file = _resolveInfoPlist();
-      final contents = file.readAsStringSync();
+  test('production iOS Info.plist excludes Cockpit local network metadata', () {
+    final file = _resolveInfoPlist();
+    final contents = file.readAsStringSync();
 
-      expect(contents, contains('<key>NSLocalNetworkUsageDescription</key>'));
-      expect(contents, contains('flutter_cockpit'));
-    },
-  );
+    expect(
+      contents,
+      isNot(contains('<key>NSLocalNetworkUsageDescription</key>')),
+    );
+    expect(contents, isNot(contains('<key>NSAllowsLocalNetworking</key>')));
+    expect(contents, isNot(contains('flutter_cockpit')));
+  });
 }
 
 File _resolveInfoPlist() {

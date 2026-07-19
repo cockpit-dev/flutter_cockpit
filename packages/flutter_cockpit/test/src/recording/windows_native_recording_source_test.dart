@@ -37,9 +37,7 @@ void main() {
     'Windows native recorder keeps conversion, path, and lifecycle contracts',
     () {
       final source = _windowsPluginSource().readAsStringSync();
-      final header = File(
-        'packages/flutter_cockpit/windows/flutter_cockpit_plugin.h',
-      ).readAsStringSync();
+      final header = _windowsPluginHeader().readAsStringSync();
       final combined = '$source\n$header';
 
       expect(combined, contains('MB_ERR_INVALID_CHARS'));
@@ -68,6 +66,22 @@ File _windowsPluginSource() {
   }
   fail(
     'Unable to locate windows/flutter_cockpit_plugin.cpp from '
+    '${Directory.current.path}',
+  );
+}
+
+File _windowsPluginHeader() {
+  final candidates = <File>[
+    File('windows/flutter_cockpit_plugin.h'),
+    File('packages/flutter_cockpit/windows/flutter_cockpit_plugin.h'),
+  ];
+  for (final candidate in candidates) {
+    if (candidate.existsSync()) {
+      return candidate;
+    }
+  }
+  fail(
+    'Unable to locate windows/flutter_cockpit_plugin.h from '
     '${Directory.current.path}',
   );
 }

@@ -78,6 +78,8 @@ The skill must enforce this order:
 
 The stages are evidence gates, not a fixed command quota. The default path must optimize for rapid development validation: use the cheapest live loop that answers the user's question, reuse fresh valid evidence, and escalate only when the current layer cannot reduce the remaining uncertainty. The main skill must be self-contained for the core app-wiring, launch, edit, reload, observe, evidence, and delivery loop; reference files are optional deep dives, not prerequisites for basic usage. The skill must not reward running extra recording, evidence profiles, bundle validation, or raw artifact reads when they do not improve the decision.
 
+Release evidence is valid only after the judged deployment on the same target and state. Bundle production is not host delivery; host delivery requires the intended host-side consumer to read the produced bundle or report. Required missing checks are never `N/A`. In mixed app/environment failures, any proven app failure keeps the outcome `needs_more_work`.
+
 The skill must be platform-discovery-first. Platform and device ids must come from `list-targets`, MCP target discovery, or an explicit user-provided target, then platform capabilities must be read from returned metadata. Action parameter contracts must be read from returned metadata before choosing recording, shell, browser, simulator, emulator, or desktop behavior.
 
 ### `bootstrap`

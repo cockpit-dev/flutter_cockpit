@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
+import 'package:flutter_cockpit/src/runtime/cockpit_runtime_tree_visibility.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -135,6 +136,72 @@ void main() {
     },
   );
 
+  testWidgets(
+    'bindRouteInformationProvider synchronizes Router-compatible locations',
+    (tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: FlutterCockpitApp(
+            config: FlutterCockpitConfig(initialRouteName: '/bootstrap'),
+            child: SizedBox.shrink(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final provider = _TestRouteInformationProvider(
+        RouteInformation(
+          uri: Uri(scheme: '', path: '/home', query: 'tab=all'),
+        ),
+      );
+      final unbind = FlutterCockpit.bindRouteInformationProvider(provider);
+      final unbindSecond = FlutterCockpit.bindRouteInformationProvider(
+        provider,
+      );
+
+      expect(FlutterCockpit.binding.currentRouteName.value, '/home?tab=all');
+      provider.value = RouteInformation(uri: Uri(path: '/settings'));
+      expect(FlutterCockpit.binding.currentRouteName.value, '/settings');
+
+      unbindSecond();
+      provider.value = RouteInformation(uri: Uri(path: '/profile'));
+      expect(FlutterCockpit.binding.currentRouteName.value, '/profile');
+
+      unbind();
+      provider.value = RouteInformation(uri: Uri(path: '/ignored'));
+      expect(FlutterCockpit.binding.currentRouteName.value, '/profile');
+      provider.dispose();
+    },
+  );
+
+  testWidgets(
+    'FlutterCockpitRoot discovers a public Router provider without app changes',
+    (tester) async {
+      final provider = _TestRouteInformationProvider(
+        RouteInformation(uri: Uri(path: '/router-home')),
+      );
+      addTearDown(provider.dispose);
+
+      await tester.pumpWidget(
+        FlutterCockpitApp(
+          config: const FlutterCockpitConfig(initialRouteName: '/bootstrap'),
+          child: Router<Object?>(
+            routeInformationProvider: provider,
+            routeInformationParser: _TestRouteInformationParser(),
+            routerDelegate: _TestRouterDelegate(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(FlutterCockpit.binding.currentRouteName.value, '/router-home');
+      provider.value = RouteInformation(uri: Uri(path: '/router-settings'));
+      await tester.pump();
+      expect(FlutterCockpit.binding.currentRouteName.value, '/router-settings');
+    },
+  );
+
   testWidgets('FlutterCockpit.navigatorObserver normalizes route names', (
     tester,
   ) async {
@@ -163,6 +230,173 @@ void main() {
     expect(FlutterCockpit.binding.currentRouteName.value, '/details');
     expect(FlutterCockpit.binding.registry.routeName, '/details');
   });
+
+  testWidgets(
+    'discovers plain Navigator routes without requiring a production hook',
+    (tester) async {
+      await tester.pumpWidget(
+        FlutterCockpitApp(
+          config: const FlutterCockpitConfig(initialRouteName: '/inbox'),
+          child: MaterialApp(
+            onGenerateRoute: (settings) => MaterialPageRoute<void>(
+              settings: settings,
+              builder: (context) => switch (settings.name) {
+                '/editor' => const Scaffold(body: Text('Editor screen')),
+                _ => Scaffold(
+                  body: TextButton(
+                    onPressed: () => Navigator.of(context).pushNamed('/editor'),
+                    child: const Text('Open editor'),
+                  ),
+                ),
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open editor'));
+      await tester.pumpAndSettle();
+
+      final rootState = tester.state<FlutterCockpitRootState>(
+        find.byType(FlutterCockpitRoot),
+      );
+      rootState.snapshot();
+
+      expect(FlutterCockpit.binding.currentRouteName.value, '/editor');
+      expect(FlutterCockpit.binding.registry.routeName, '/editor');
+    },
+  );
+
+  testWidgets('pops a visible plain Navigator without an observer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      FlutterCockpitApp(
+        config: const FlutterCockpitConfig(initialRouteName: '/inbox'),
+        child: MaterialApp(
+          onGenerateRoute: (settings) => MaterialPageRoute<void>(
+            settings: settings,
+            builder: (context) => switch (settings.name) {
+              '/editor' => const Scaffold(body: Text('Editor screen')),
+              _ => Scaffold(
+                body: TextButton(
+                  onPressed: () => Navigator.of(context).pushNamed('/editor'),
+                  child: const Text('Open editor'),
+                ),
+              ),
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Open editor'));
+    await tester.pumpAndSettle();
+
+    final rootElement = tester.element(find.byType(FlutterCockpitRoot));
+    final handled = await cockpitMaybePopCurrentNavigator(rootElement);
+    await tester.pumpAndSettle();
+
+    expect(handled, isTrue);
+    expect(find.text('Open editor'), findsOneWidget);
+  });
+
+  testWidgets(
+    'creates independent observers for nested navigators and restores parent route',
+    (tester) async {
+      await tester.pumpWidget(
+        FlutterCockpitApp(
+          config: const FlutterCockpitConfig(initialRouteName: '/shell'),
+          child: MaterialApp(
+            navigatorObservers: <NavigatorObserver>[
+              FlutterCockpit.navigatorObserver,
+            ],
+            home: Scaffold(
+              body: Navigator(
+                observers: <NavigatorObserver>[
+                  FlutterCockpit.createNavigatorObserver(),
+                ],
+                onGenerateRoute: (settings) => MaterialPageRoute<void>(
+                  settings: const RouteSettings(name: '/shell/home'),
+                  builder: (context) => ElevatedButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        settings: const RouteSettings(name: '/shell/detail'),
+                        builder: (context) => ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Pop detail'),
+                        ),
+                      ),
+                    ),
+                    child: const Text('Push detail'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(FlutterCockpit.binding.currentRouteName.value, '/shell/home');
+
+      await tester.tap(find.text('Push detail'));
+      await tester.pumpAndSettle();
+      expect(FlutterCockpit.binding.currentRouteName.value, '/shell/detail');
+
+      await tester.tap(find.text('Pop detail'));
+      await tester.pumpAndSettle();
+      expect(FlutterCockpit.binding.currentRouteName.value, '/shell/home');
+    },
+  );
+
+  testWidgets(
+    'tracks nested navigator routes when the shell installs an observer',
+    (tester) async {
+      await tester.pumpWidget(
+        FlutterCockpitApp(
+          config: const FlutterCockpitConfig(initialRouteName: '/shell'),
+          child: MaterialApp(
+            home: Scaffold(
+              body: Navigator(
+                observers: <NavigatorObserver>[
+                  FlutterCockpit.createNavigatorObserver(),
+                ],
+                onGenerateRoute: (settings) => MaterialPageRoute<void>(
+                  settings: const RouteSettings(name: '/shell/home'),
+                  builder: (context) => ElevatedButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        settings: const RouteSettings(name: '/shell/detail'),
+                        builder: (context) => ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Pop detail'),
+                        ),
+                      ),
+                    ),
+                    child: const Text('Push detail'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(FlutterCockpit.binding.currentRouteName.value, '/shell/home');
+
+      await tester.tap(find.text('Push detail'));
+      await tester.pumpAndSettle();
+      expect(FlutterCockpit.binding.currentRouteName.value, '/shell/detail');
+
+      await tester.tap(find.text('Pop detail'));
+      await tester.pumpAndSettle();
+      expect(FlutterCockpit.binding.currentRouteName.value, '/shell/home');
+    },
+  );
 
   testWidgets(
     'FlutterCockpitApp ignores deferred route updates after the runtime is disposed',
@@ -368,5 +602,46 @@ final class _RoutePushButton extends StatelessWidget {
       onPressed: () => Navigator.of(context).pushNamed(routeName),
       child: const Text('Open details'),
     );
+  }
+}
+
+final class _TestRouteInformationParser
+    extends RouteInformationParser<Object?> {
+  @override
+  Future<Object?> parseRouteInformation(RouteInformation routeInformation) {
+    return Future<Object?>.value(routeInformation.uri.toString());
+  }
+}
+
+final class _TestRouterDelegate extends RouterDelegate<Object?>
+    with ChangeNotifier {
+  @override
+  Widget build(BuildContext context) => const Directionality(
+    textDirection: TextDirection.ltr,
+    child: Text('Router content'),
+  );
+
+  @override
+  Object? get currentConfiguration => null;
+
+  @override
+  Future<void> setNewRoutePath(Object? configuration) async {}
+
+  @override
+  Future<bool> popRoute() => Future<bool>.value(false);
+}
+
+final class _TestRouteInformationProvider extends RouteInformationProvider
+    with ChangeNotifier {
+  _TestRouteInformationProvider(this._value);
+
+  RouteInformation _value;
+
+  @override
+  RouteInformation get value => _value;
+
+  set value(RouteInformation next) {
+    _value = next;
+    notifyListeners();
   }
 }

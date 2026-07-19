@@ -1654,6 +1654,53 @@ void main() {
   });
 
   test(
+    'expected route waits can promote a discovered route before observer delivery',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      var routeVisible = false;
+      registry.discoveredTargetsProvider = () => routeVisible
+          ? const <CockpitTarget>[
+              CockpitTarget(registrationId: 'editor', routeName: '/editor'),
+            ]
+          : const <CockpitTarget>[];
+      registry.register(
+        CockpitTarget(
+          registrationId: 'open-editor',
+          text: 'New task',
+          routeName: '/inbox',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {
+            routeVisible = true;
+          },
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        routeNameSynchronizer: (routeName) {
+          registry.routeName = routeName;
+        },
+        interactionPolicy: const CockpitInteractionPolicy(
+          actionCommitTimeout: Duration(milliseconds: 40),
+          routeTransitionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'New task', route: '/inbox'),
+          parameters: const <String, Object?>{'expectedRouteName': '/editor'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(registry.routeName, '/editor');
+    },
+  );
+
+  test(
     'tap can opt into gesture activation when pointer semantics matter',
     () async {
       final registry = CockpitTargetRegistry(routeName: '/editor');

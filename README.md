@@ -28,26 +28,30 @@ This floor keeps `flutter_test`, `dart_mcp`, and the host-side AI tooling on a
 single dependency graph without `dependency_overrides`.
 
 ```yaml
-dependencies:
-  flutter_cockpit: ^1.1.4
-
 dev_dependencies:
+  flutter_cockpit: ^1.1.4
   cockpit: ^1.1.4
 ```
 
-If only `cockpit/main.dart` imports the runtime, keep `flutter_cockpit` in
-`dev_dependencies`. Put it in production `dependencies` only for an explicit
-shared-entrypoint or shipped-runtime integration.
+Keep both packages development-only. Put every Cockpit import and integration
+under `cockpit/`; production `lib/` code and production entrypoints remain
+unchanged.
+
+On iOS and macOS, `flutter_cockpit` supports both CocoaPods and Swift Package
+Manager. The plugin ships a `.podspec` and `Package.swift` for each platform;
+Flutter uses the integration selected by the host project. Existing CocoaPods
+projects do not need to enable SwiftPM, and SwiftPM projects do not require a
+Podfile.
 
 Package pages:
 
 - [`flutter_cockpit` on pub.dev](https://pub.dev/packages/flutter_cockpit)
 - [`cockpit` on pub.dev](https://pub.dev/packages/cockpit)
 
-Release order for maintainers: publish `packages/flutter_cockpit` first, then
-publish `packages/cockpit`. The host package depends on the runtime package from
-pub.dev, so `cockpit` dry-runs and releases must see the matching
-`flutter_cockpit` version already available remotely.
+Release order for maintainers: publish `packages/flutter_cockpit_protocol`,
+then `packages/flutter_cockpit`, and finally `packages/cockpit`. The runtime and
+host packages resolve their matching published dependencies from pub.dev, so
+each preceding 1.1.4 package must be available before publishing the next one.
 
 Installing the Dart packages does not automatically install the AI skill or expose a globally callable MCP launcher. Those are separate host-side setup steps.
 
@@ -298,7 +302,9 @@ When a command accepts both `--app-json` and `--base-url`, `--app-json` supplies
 Prefer `--command-file`, `--commands-file`, and `--config` once a payload stops
 being trivial. Use YAML for hand-written task/workflow configs and JSON for
 generated configs.
-`launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
+For production-safe development, keep Cockpit in a standalone `cockpit/` Flutter
+shell. Launch it explicitly with `--project-dir cockpit --target main.dart`;
+the target is resolved inside that shell rather than inside the production app.
 For code-side questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before workspace-wide commands.
 Serialize mutation, then observation. Do not parallelize `run-command` with the `read-app`, `inspect-ui`, or `read-network` step that depends on its side effects.
 When the next few mutations are already known and the flow will cross route boundaries such as list -> editor -> list, prefer one ordered `run-batch` over separate `run-command` round-trips to reduce token cost and avoid transition gaps between commands.
@@ -310,7 +316,10 @@ Locators are multi-signal. Start with `text`, `tooltip`, or `semanticId`. Use `k
 
 ## Quick Start
 
-Add cockpit bootstrap under `cockpit/main.dart` and keep the normal production entrypoint unchanged. Do not add `flutter_cockpit` imports to production `lib/` code.
+Create a standalone `cockpit/` development project with `main.dart`, and keep
+`flutter_cockpit` and `cockpit` in that shell's `dev_dependencies`. Keep the
+normal production entrypoint, production `lib/`, and production release
+dependency graph untouched. Do not add `flutter_cockpit` imports to production `lib/` code.
 
 ```dart
 import 'package:flutter/material.dart';
@@ -344,7 +353,20 @@ Widget buildCockpitDevelopmentApp() {
 ```
 
 Replace `package:your_app/app_shell.dart` with the import that already exposes your app root widget or bootstrap. `launch-app` injects the `FLUTTER_COCKPIT_REMOTE_*` dart-defines, so `resolveFromEnvironment(...)` enables the remote control surface without taking over the production bootstrap.
-Only wire `FlutterCockpit.navigatorObserver` inside a navigator created by the cockpit entrypoint, or in a shared entrypoint the host explicitly accepts. If the production app already owns `MaterialApp`, `GoRouter`, or another router, wrap the existing root with `FlutterCockpitApp` from `cockpit/main.dart` and keep route synchronization in that cockpit layer, for example by listening to the app router and calling `FlutterCockpit.setCurrentRouteName(...)`.
+Only wire `FlutterCockpit.navigatorObserver` from the standalone shell entrypoint. `FlutterCockpitApp` automatically discovers the public `RouteInformationProvider` used by Flutter Router, `RouterConfig`, `go_router`, and other Router-based libraries, so an app-owned router normally needs no additional route bridge.
+
+For nested navigators, create one observer per navigator so route state can return to the parent stack after a nested pop:
+
+```dart
+Navigator(
+  observers: <NavigatorObserver>[
+    FlutterCockpit.createNavigatorObserver(),
+  ],
+  onGenerateRoute: buildRoute,
+)
+```
+
+The same factory works with router libraries that expose navigator observers, including root and shell navigators. For dynamically created routers that cannot be discovered from the mounted tree, bind their public provider from `cockpit/` with `FlutterCockpit.bindRouteInformationProvider(...)`. Use `FlutterCockpit.setCurrentRouteName(...)` only when a router exposes neither a provider nor observers; `flutter_cockpit` does not depend on any third-party router package.
 
 Run a minimal app loop:
 

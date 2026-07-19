@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 
 import 'app/todo_app_service.dart';
 import 'data/cockpit_demo_database.dart';
@@ -22,28 +21,17 @@ import 'ui/screens/today_screen.dart';
 import 'ui/theme/orbit_todo_theme.dart';
 
 final class CockpitDemoApp extends StatefulWidget {
-  CockpitDemoApp({
-    FlutterCockpitConfiguration? configuration,
+  const CockpitDemoApp({
+    this.initialRouteName = '/inbox',
+    this.navigatorObservers = const <NavigatorObserver>[],
     this.database,
     this.syncGateway,
     super.key,
-  }) : initialRouteName =
-           configuration == null || configuration.initialRouteName == '/'
-           ? '/inbox'
-           : configuration.initialRouteName,
-       cockpitConfig = FlutterCockpitConfig.fromRuntimeConfiguration(
-         (configuration ?? const FlutterCockpitConfiguration()).copyWith(
-           initialRouteName:
-               configuration == null || configuration.initialRouteName == '/'
-               ? '/inbox'
-               : configuration.initialRouteName,
-         ),
-       );
-
-  final FlutterCockpitConfig cockpitConfig;
+  });
+  final String initialRouteName;
+  final List<NavigatorObserver> navigatorObservers;
   final CockpitDemoDatabase? database;
   final TodoSyncGatewayClient? syncGateway;
-  final String initialRouteName;
 
   @override
   State<CockpitDemoApp> createState() => _CockpitDemoAppState();
@@ -87,24 +75,19 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
     return AnimatedBuilder(
       animation: _service,
       builder: (context, _) {
-        return FlutterCockpitApp(
-          config: widget.cockpitConfig,
-          child: MaterialApp(
-            title: 'Super Cockpit',
-            navigatorKey: _navigatorKey,
-            theme: _buildTheme(Brightness.light),
-            darkTheme: _buildTheme(Brightness.dark),
-            themeMode: _themeModeFor(_service.settingsState.settings),
-            navigatorObservers: <NavigatorObserver>[
-              FlutterCockpit.navigatorObserver,
-            ],
-            onGenerateInitialRoutes: (initialRoute) {
-              return <Route<dynamic>>[
-                _buildRoute(RouteSettings(name: widget.initialRouteName)),
-              ];
-            },
-            onGenerateRoute: _buildRoute,
-          ),
+        return MaterialApp(
+          title: 'Super Cockpit',
+          navigatorKey: _navigatorKey,
+          theme: _buildTheme(Brightness.light),
+          darkTheme: _buildTheme(Brightness.dark),
+          themeMode: _themeModeFor(_service.settingsState.settings),
+          navigatorObservers: widget.navigatorObservers,
+          onGenerateInitialRoutes: (initialRoute) {
+            return <Route<dynamic>>[
+              _buildRoute(RouteSettings(name: widget.initialRouteName)),
+            ];
+          },
+          onGenerateRoute: _buildRoute,
         );
       },
     );
@@ -200,9 +183,6 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
       2 => '/completed',
       _ => '/inbox',
     };
-    if (FlutterCockpit.binding.currentRouteName.value == routeName) {
-      return;
-    }
     _navigatorState.pushReplacementNamed(routeName);
   }
 

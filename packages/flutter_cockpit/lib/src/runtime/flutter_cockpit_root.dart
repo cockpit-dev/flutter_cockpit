@@ -30,6 +30,7 @@ import 'cockpit_tap_feedback_overlay.dart';
 import 'cockpit_capabilities.dart';
 import 'cockpit_runtime_query.dart';
 import 'cockpit_remote_session_platform.dart';
+import 'cockpit_runtime_tree_visibility.dart';
 import 'cockpit_scroll_step_result.dart';
 import 'cockpit_snapshot.dart';
 import 'cockpit_snapshot_options.dart';
@@ -55,6 +56,9 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   CockpitRemoteSessionBridgeClient? _remoteSessionBridgeClient;
   Future<void>? _remoteSessionStartFuture;
   CockpitTapFeedbackController? _tapFeedbackController;
+  final Map<RouteInformationProvider, VoidCallback> _routeInformationUnbinders =
+      <RouteInformationProvider, VoidCallback>{};
+  bool _routeInformationDiscoveryScheduled = false;
   Object? _remoteSessionStartError;
   StackTrace? _remoteSessionStartErrorStackTrace;
   bool _reportedRemoteSessionStartFailure = false;
@@ -62,6 +66,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   @override
   void initState() {
     super.initState();
+    _scheduleRouteInformationDiscovery();
     _syncTapFeedbackController();
     final configuration = FlutterCockpit.binding.configuration.remoteSession;
     if (configuration != null &&
@@ -75,6 +80,35 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   void didUpdateWidget(covariant FlutterCockpitRoot oldWidget) {
     super.didUpdateWidget(oldWidget);
     _syncTapFeedbackController();
+    _scheduleRouteInformationDiscovery();
+  }
+
+  void _scheduleRouteInformationDiscovery() {
+    if (_routeInformationDiscoveryScheduled) {
+      return;
+    }
+    _routeInformationDiscoveryScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _routeInformationDiscoveryScheduled = false;
+      if (!mounted) {
+        return;
+      }
+      final providers = cockpitRouteInformationProvidersInRuntimeTree(
+        context as Element,
+      ).toSet();
+      for (final entry in _routeInformationUnbinders.entries.toList()) {
+        if (!providers.contains(entry.key)) {
+          entry.value();
+          _routeInformationUnbinders.remove(entry.key);
+        }
+      }
+      for (final provider in providers) {
+        _routeInformationUnbinders.putIfAbsent(
+          provider,
+          () => FlutterCockpit.bindRouteInformationProvider(provider),
+        );
+      }
+    });
   }
 
   CockpitSnapshot snapshot({
@@ -276,6 +310,10 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
 
   @override
   void dispose() {
+    for (final unbind in _routeInformationUnbinders.values) {
+      unbind();
+    }
+    _routeInformationUnbinders.clear();
     unawaited(_remoteSessionServer?.close());
     unawaited(_remoteSessionBridgeClient?.close());
     _tapFeedbackController?.dispose();
@@ -365,6 +403,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       registry: FlutterCockpit.binding.registry,
       captureHandler: captureScreenshot,
       snapshotProvider: snapshot,
+      routeNameSynchronizer: FlutterCockpit.binding.setDiscoveredRouteName,
       scrollStepHandler:
           ({
             required reverse,
@@ -442,7 +481,10 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
           FlutterCockpit.binding.activeRecordingSession != null,
       backNavigationHandler: () async {
         final navigator = FlutterCockpit.binding.navigatorObserver.navigator;
-        return navigator?.maybePop() ?? false;
+        if (navigator != null && await navigator.maybePop()) {
+          return true;
+        }
+        return cockpitMaybePopCurrentNavigator(context as Element);
       },
       platform: defaultTargetPlatform.name,
       transportType: 'remoteHttp',
@@ -591,6 +633,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       registry: FlutterCockpit.binding.registry,
       captureHandler: captureScreenshot,
       snapshotProvider: snapshot,
+      routeNameSynchronizer: FlutterCockpit.binding.setDiscoveredRouteName,
       scrollStepHandler:
           ({
             required reverse,

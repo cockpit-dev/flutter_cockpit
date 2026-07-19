@@ -497,7 +497,6 @@ void main() {
       final snapshot = rootKey.currentState!.snapshot(
         options: const CockpitSnapshotOptions.investigate(),
       );
-
       expect(snapshot.routeName, '/settings');
       expect(
         snapshot.visibleTargets.any(

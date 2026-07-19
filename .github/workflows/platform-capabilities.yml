@@ -4,13 +4,21 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'packages/cockpit/lib/src/system_control/**'
+      - 'packages/cockpit/lib/src/cli/**'
+      - 'packages/cockpit/bin/**'
+      - 'packages/flutter_cockpit/lib/src/remote/**'
+      - 'examples/cockpit_demo/cockpit/**'
+      - '.github/workflows/platform-capabilities.yml'
+      - 'pubspec.lock'
   pull_request:
     paths:
       - 'packages/cockpit/lib/src/system_control/**'
       - 'packages/cockpit/lib/src/cli/**'
       - 'packages/cockpit/bin/**'
       - 'packages/flutter_cockpit/lib/src/remote/**'
-      - 'examples/cockpit_demo/tool/**'
+      - 'examples/cockpit_demo/cockpit/**'
       - '.github/workflows/platform-capabilities.yml'
       - 'pubspec.lock'
   workflow_dispatch:
@@ -113,7 +121,7 @@ jobs:
             ios|macos)
               brew install ffmpeg
               flutter config --enable-macos-desktop
-              flutter config --enable-swift-package-manager
+              flutter config --no-enable-swift-package-manager
               ;;
             linux)
               apt_retry sudo apt-get update
@@ -226,7 +234,7 @@ jobs:
 
       - name: Run exhaustive capability verifier (iOS)
         if: matrix.platform == 'ios'
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 60
         env:
           OUTPUT_ROOT: ${{ runner.temp }}/caps-out
@@ -236,8 +244,9 @@ jobs:
           set +e
           set -o pipefail
           dart run tool/verify_platforms.dart --platform ios \
+            --target main.dart \
             --exhaustive-system-control \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
@@ -249,7 +258,7 @@ jobs:
 
       - name: Run exhaustive capability verifier (macOS)
         if: matrix.platform == 'macos'
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 40
         env:
           OUTPUT_ROOT: ${{ runner.temp }}/caps-out
@@ -259,8 +268,9 @@ jobs:
           set +e
           set -o pipefail
           dart run tool/verify_platforms.dart --platform macos \
+            --target main.dart \
             --exhaustive-system-control \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
@@ -272,7 +282,7 @@ jobs:
 
       - name: Run exhaustive capability verifier (Linux)
         if: matrix.platform == 'linux'
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 40
         env:
           OUTPUT_ROOT: ${{ runner.temp }}/caps-out
@@ -282,8 +292,9 @@ jobs:
           set +e
           set -o pipefail
           xvfb-run -a dart run tool/verify_platforms.dart --platform linux \
+            --target main.dart \
             --exhaustive-system-control \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
@@ -295,7 +306,7 @@ jobs:
 
       - name: Run exhaustive capability verifier (Web)
         if: matrix.platform == 'web'
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 40
         env:
           OUTPUT_ROOT: ${{ runner.temp }}/caps-out
@@ -305,8 +316,9 @@ jobs:
           set +e
           set -o pipefail
           xvfb-run -a dart run tool/verify_platforms.dart --platform web \
+            --target main.dart \
             --exhaustive-system-control \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
@@ -318,7 +330,7 @@ jobs:
 
       - name: Run exhaustive capability verifier (Windows)
         if: matrix.platform == 'windows'
-        working-directory: examples/cockpit_demo
+        working-directory: examples/cockpit_demo/cockpit
         timeout-minutes: 50
         env:
           OUTPUT_ROOT: ${{ runner.temp }}/caps-out
@@ -328,8 +340,9 @@ jobs:
         run: |
           $ErrorActionPreference = "Continue"
           dart run tool/verify_platforms.dart --platform windows `
+            --target main.dart `
             --exhaustive-system-control `
-            --project-dir "$env:GITHUB_WORKSPACE/examples/cockpit_demo" `
+            --project-dir "$env:GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" `
             --output-root "$env:OUTPUT_ROOT" `
             --output "$env:RESULT_JSON" `
             --output-format json `

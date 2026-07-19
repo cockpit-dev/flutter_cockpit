@@ -89,6 +89,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     CockpitInteractionPolicy interactionPolicy =
         const CockpitInteractionPolicy(),
     CockpitRecordingActivityProbe? isRecordingActive,
+    CockpitRouteNameSynchronizer? routeNameSynchronizer,
     String platform = 'flutter',
     String transportType = 'inApp',
   }) : _context = CockpitInAppCommandContext(
@@ -108,6 +109,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
          keyEventHandler: keyEventHandler ?? _defaultKeyEventHandler,
          interactionPolicy: interactionPolicy,
          isRecordingActive: isRecordingActive ?? _defaultRecordingActivityProbe,
+         routeNameSynchronizer: routeNameSynchronizer,
          platform: platform,
          transportType: transportType,
        ) {
@@ -220,6 +222,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   CockpitInteractionPolicy get _interactionPolicy => _context.interactionPolicy;
   CockpitRecordingActivityProbe get _isRecordingActive =>
       _context.isRecordingActive;
+  CockpitRouteNameSynchronizer? get _routeNameSynchronizer =>
+      _context.routeNameSynchronizer;
   String get _platform => _context.platform;
   String get _transportType => _context.transportType;
 
@@ -4099,8 +4103,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     required int minVisibleTargets,
     required Duration timeout,
   }) async {
-    if (_currentRouteName() == routeName &&
-        _hasEnoughVisibleTargets(minVisibleTargets)) {
+    if (_isExpectedRouteReady(
+      routeName,
+      minVisibleTargets: minVisibleTargets,
+    )) {
       return true;
     }
     if (timeout <= Duration.zero) {
@@ -4129,15 +4135,39 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           await _awaitFrameIfScheduled(schedulerBinding, widgetsBinding);
         }
       }
-      if (_currentRouteName() == routeName &&
-          _hasEnoughVisibleTargets(minVisibleTargets)) {
+      if (_isExpectedRouteReady(
+        routeName,
+        minVisibleTargets: minVisibleTargets,
+      )) {
         return true;
       }
       await _waitTickHandler(const Duration(milliseconds: 16));
     }
 
-    return _currentRouteName() == routeName &&
-        _hasEnoughVisibleTargets(minVisibleTargets);
+    return _isExpectedRouteReady(
+      routeName,
+      minVisibleTargets: minVisibleTargets,
+    );
+  }
+
+  bool _isExpectedRouteReady(
+    String routeName, {
+    required int minVisibleTargets,
+  }) {
+    final visibleTargets = _registry.visibleTargets;
+    if (_currentRouteName() == routeName &&
+        _registry.routeReadyVisibleTargets.length >= minVisibleTargets) {
+      return true;
+    }
+    final discoveredRouteTargetCount = visibleTargets
+        .where((target) => target.routeName == routeName)
+        .length;
+    if (discoveredRouteTargetCount < minVisibleTargets ||
+        discoveredRouteTargetCount == 0) {
+      return false;
+    }
+    _routeNameSynchronizer?.call(routeName);
+    return _currentRouteName() == routeName;
   }
 
   Duration _durationParameter(

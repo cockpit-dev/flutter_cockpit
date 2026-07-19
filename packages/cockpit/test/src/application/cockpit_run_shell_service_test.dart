@@ -6,6 +6,8 @@ import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_application_service_exception.dart';
 import 'package:cockpit/src/application/cockpit_run_shell_service.dart';
 import 'package:cockpit/src/infrastructure/cockpit_process_manager.dart';
+import 'package:cockpit/src/platform/cockpit_platform_driver_registry.dart';
+import 'package:cockpit/src/platform/ios/cockpit_ios_simulator_platform_driver.dart';
 import 'package:cockpit/src/targets/cockpit_target_handle.dart';
 import 'package:test/test.dart';
 
@@ -120,6 +122,15 @@ void main() {
       late String capturedExecutable;
       late List<String> capturedArguments;
       final service = CockpitRunShellService(
+        platformDriverRegistry: CockpitPlatformDriverRegistry(
+          drivers: <String, CockpitPlatformDriverFactory>{
+            'ios': ({required String deviceId}) =>
+                CockpitIosSimulatorPlatformDriver(
+                  deviceId: deviceId,
+                  processRunner: (_, _) async => ProcessResult(1, 0, '', ''),
+                ),
+          },
+        ),
         processManager: _CallbackProcessManager(
           onStart:
               ({

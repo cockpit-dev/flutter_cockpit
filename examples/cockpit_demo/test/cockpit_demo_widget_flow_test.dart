@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
 import 'package:cockpit_demo/src/data/todo_repository.dart';
@@ -11,23 +10,13 @@ import 'package:cockpit_demo/src/ui/widgets/collection_overview_card.dart';
 import 'support/cockpit_demo_test_support.dart';
 
 void main() {
-  test('keeps the production main entrypoint free of cockpit bootstrap', () {
-    final contents = resolveCockpitDemoFile('lib/main.dart').readAsStringSync();
-    expect(contents.contains('flutter_cockpit'), isFalse);
-    expect(contents.contains('FlutterCockpit'), isFalse);
-  });
-
   testWidgets('overview card keeps its content inset from the card edge', (
     tester,
   ) async {
     final database = CockpitDemoDatabase.inMemory();
     addCockpitDemoDatabaseTearDown(tester, database);
 
-    await pumpTodoApp(
-      tester,
-      controller: _testController(),
-      database: database,
-    );
+    await pumpTodoApp(tester, database: database);
 
     final overviewCard = find.byType(CollectionOverviewCard).first;
     final cardRect = tester.getRect(overviewCard);
@@ -44,11 +33,7 @@ void main() {
       final database = CockpitDemoDatabase.inMemory();
       addCockpitDemoDatabaseTearDown(tester, database);
 
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
+      await pumpTodoApp(tester, database: database);
 
       expect(find.text('New task'), findsOneWidget);
       expect(find.text('Work queue'), findsOneWidget);
@@ -64,7 +49,7 @@ void main() {
 
       final createdTasks = await database.select(database.tasks).get();
       expect(createdTasks.length, 1);
-      expect(FlutterCockpit.binding.currentRouteName.value, '/inbox');
+      expect(find.text('New task'), findsOneWidget);
       final task = createdTasks.single;
       final taskOpenFinder = taskRowByTitle(task.title);
       await scrollTodoCollectionUntilVisible(tester, taskOpenFinder);
@@ -126,111 +111,11 @@ void main() {
     },
   );
 
-  testWidgets(
-    'runtime snapshot keeps visible settings targets after navigating from inbox',
-    (tester) async {
-      final database = CockpitDemoDatabase.inMemory();
-      addCockpitDemoDatabaseTearDown(tester, database);
-
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
-
-      await tester.tap(find.byTooltip('Settings'));
-      await tester.pumpAndSettle();
-
-      final rootState = tester.state<FlutterCockpitRootState>(
-        find.byType(FlutterCockpitRoot),
-      );
-      final snapshot = rootState.snapshot(
-        options: const CockpitSnapshotOptions.investigate(),
-      );
-
-      expect(snapshot.routeName, '/settings');
-      expect(snapshot.visibleTargets, isNotEmpty);
-      expect(
-        snapshot.visibleTargets.any(
-          (target) =>
-              target.text == 'Save settings' ||
-              target.tooltip == 'Save settings' ||
-              target.text == 'Simulate relay outage',
-        ),
-        isTrue,
-      );
-    },
-  );
-
-  testWidgets(
-    'runtime snapshot keeps inbox targets visible after returning from task detail',
-    (tester) async {
-      final database = CockpitDemoDatabase.inMemory();
-      addCockpitDemoDatabaseTearDown(tester, database);
-
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
-
-      await createTaskThroughUi(
-        tester,
-        title: 'Snapshot return guard',
-        notes: 'Ensure cockpit can still rediscover inbox after detail closes.',
-      );
-      await tester.pumpAndSettle();
-
-      await scrollTodoCollectionUntilVisible(
-        tester,
-        taskRowByTitle('Snapshot return guard'),
-      );
-      await tester.tap(taskRowByTitle('Snapshot return guard'));
-      await settleSingleTapGesture(tester);
-      expect(find.text('Task detail'), findsOneWidget);
-
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-
-      final rootState = tester.state<FlutterCockpitRootState>(
-        find.byType(FlutterCockpitRoot),
-      );
-      final snapshot = rootState.snapshot(
-        options: const CockpitSnapshotOptions.investigate(),
-      );
-
-      expect(snapshot.routeName, '/inbox');
-      expect(snapshot.visibleTargets, isNotEmpty);
-      expect(
-        snapshot.visibleTargets.any(
-          (target) =>
-              target.keyValue == 'open-task-editor-action' &&
-              target.text == 'New task' &&
-              target.supportedCommands.contains(CockpitCommandType.tap),
-        ),
-        isTrue,
-      );
-      expect(
-        snapshot.visibleTargets.any(
-          (target) =>
-              target.text == 'New task' ||
-              target.text == 'Search title or notes' ||
-              target.text == 'Snapshot return guard',
-        ),
-        isTrue,
-      );
-    },
-  );
-
   testWidgets('task editor can clear notes before saving', (tester) async {
     final database = CockpitDemoDatabase.inMemory();
     addCockpitDemoDatabaseTearDown(tester, database);
 
-    await pumpTodoApp(
-      tester,
-      controller: _testController(),
-      database: database,
-    );
+    await pumpTodoApp(tester, database: database);
 
     await tester.tap(find.text('New task'));
     await tester.pumpAndSettle();
@@ -268,11 +153,7 @@ void main() {
       final database = CockpitDemoDatabase.inMemory();
       addCockpitDemoDatabaseTearDown(tester, database);
 
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
+      await pumpTodoApp(tester, database: database);
 
       await tester.tap(find.text('New task'));
       await tester.pumpAndSettle();
@@ -350,11 +231,7 @@ void main() {
         priority: TodoPriority.high,
       );
 
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
+      await pumpTodoApp(tester, database: database);
 
       await tester.longPress(taskRowByTitle(first.title));
       await tester.pumpAndSettle();
@@ -410,11 +287,7 @@ void main() {
     );
     await repository.setTaskCompleted(taskId: completed.id, isCompleted: true);
 
-    await pumpTodoApp(
-      tester,
-      controller: _testController(),
-      database: database,
-    );
+    await pumpTodoApp(tester, database: database);
 
     expect(find.textContaining('Queue brief:'), findsOneWidget);
   });
@@ -428,11 +301,7 @@ void main() {
     final first = await repository.createTask(title: 'Schedule first');
     await repository.createTask(title: 'Schedule second');
 
-    await pumpTodoApp(
-      tester,
-      controller: _testController(),
-      database: database,
-    );
+    await pumpTodoApp(tester, database: database);
 
     await tester.longPress(taskRowByTitle(first.title));
     await tester.pumpAndSettle();
@@ -461,11 +330,7 @@ void main() {
     final first = await repository.createTask(title: 'Tag first');
     await repository.createTask(title: 'Tag second');
 
-    await pumpTodoApp(
-      tester,
-      controller: _testController(),
-      database: database,
-    );
+    await pumpTodoApp(tester, database: database);
 
     await tester.longPress(taskRowByTitle(first.title));
     await tester.pumpAndSettle();
@@ -514,11 +379,7 @@ void main() {
       );
       await repository.createTask(title: 'Duplicate second');
 
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
+      await pumpTodoApp(tester, database: database);
 
       await tester.longPress(taskRowByTitle(first.title));
       await tester.pumpAndSettle();
@@ -569,11 +430,7 @@ void main() {
         tagIds: <String>[backendTag.id],
       );
 
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
+      await pumpTodoApp(tester, database: database);
 
       await scrollTodoCollectionUntilVisible(
         tester,
@@ -624,11 +481,7 @@ void main() {
       final second = await repository.createTask(title: 'Delete second');
       await repository.createTask(title: 'Keep me');
 
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
+      await pumpTodoApp(tester, database: database);
 
       await tester.longPress(taskRowByTitle(first.title));
       await tester.pumpAndSettle();
@@ -677,11 +530,7 @@ void main() {
     final database = CockpitDemoDatabase.inMemory();
     addCockpitDemoDatabaseTearDown(tester, database);
 
-    await pumpTodoApp(
-      tester,
-      controller: _testController(),
-      database: database,
-    );
+    await pumpTodoApp(tester, database: database);
 
     expect(find.text('New task'), findsOneWidget);
     expect(find.text('Work queue'), findsOneWidget);
@@ -710,24 +559,12 @@ void main() {
         dueAt: DateTime.utc(2026, 3, 22, 17),
       );
 
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
+      await pumpTodoApp(tester, database: database);
 
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
       expect(find.textContaining('Review runtime diagnostics'), findsOneWidget);
     },
-  );
-}
-
-CockpitSessionController _testController() {
-  return CockpitSessionController(
-    sessionId: 'todo-widget-session',
-    taskId: 'todo-widget-task',
-    platform: 'test',
   );
 }

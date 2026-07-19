@@ -357,7 +357,13 @@ final class _McpSurfaceVerifier {
       );
       final targetLaunchResult =
           await _callTool(server, 'launch_target', <String, Object?>{
-            'projectDir': p.join(_repoRoot, 'examples', 'cockpit_demo'),
+            'projectDir': p.join(
+              _repoRoot,
+              'examples',
+              'cockpit_demo',
+              'cockpit',
+            ),
+            'target': 'main.dart',
             'platform': 'macos',
             'deviceId': 'macos',
             'sessionPort': await _freePort(),
@@ -451,7 +457,13 @@ final class _McpSurfaceVerifier {
       final launchPort = await _freePort();
       final launchResult =
           await _callTool(server, 'launch_app', <String, Object?>{
-            'projectDir': p.join(_repoRoot, 'examples', 'cockpit_demo'),
+            'projectDir': p.join(
+              _repoRoot,
+              'examples',
+              'cockpit_demo',
+              'cockpit',
+            ),
+            'target': 'main.dart',
             'platform': 'macos',
             'deviceId': 'macos',
             'sessionPort': launchPort,

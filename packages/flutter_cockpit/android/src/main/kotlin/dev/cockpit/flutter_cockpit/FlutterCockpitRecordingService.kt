@@ -185,8 +185,13 @@ internal class FlutterCockpitRecordingService : Service() {
             mediaProjection = projection
 
             val metrics = resources.displayMetrics
-            val width = metrics.widthPixels.coerceAtLeast(1)
-            val height = metrics.heightPixels.coerceAtLeast(1)
+            val dimensions =
+                scaledVideoDimensions(
+                    metrics.widthPixels,
+                    metrics.heightPixels,
+                )
+            val width = dimensions.first
+            val height = dimensions.second
             val density = metrics.densityDpi.coerceAtLeast(1)
             val recorder = MediaRecorder()
             mediaRecorder = recorder
@@ -422,6 +427,21 @@ internal class FlutterCockpitRecordingService : Service() {
     private fun hasRunningSession(): Boolean =
         activeSessionToken != null || isFinalizing
 
+    private fun scaledVideoDimensions(width: Int, height: Int): Pair<Int, Int> {
+        val sourceWidth = width.coerceAtLeast(2)
+        val sourceHeight = height.coerceAtLeast(2)
+        val largest = maxOf(sourceWidth, sourceHeight)
+        if (largest <= MAX_VIDEO_DIMENSION) {
+            return Pair(evenDimension(sourceWidth), evenDimension(sourceHeight))
+        }
+        val scaledWidth = sourceWidth * MAX_VIDEO_DIMENSION / largest
+        val scaledHeight = sourceHeight * MAX_VIDEO_DIMENSION / largest
+        return Pair(evenDimension(scaledWidth), evenDimension(scaledHeight))
+    }
+
+    private fun evenDimension(value: Int): Int =
+        (value.coerceAtLeast(2) / 2) * 2
+
     companion object {
         private const val ACTION_START = "dev.cockpit.flutter_cockpit.action.START_RECORDING"
         private const val EXTRA_RESULT_CODE = "resultCode"
@@ -431,6 +451,7 @@ internal class FlutterCockpitRecordingService : Service() {
         private const val INVALID_SESSION_TOKEN = -1L
         private const val NOTIFICATION_CHANNEL_ID = "flutter_cockpit_recording"
         private const val NOTIFICATION_ID = 1042
+        private const val MAX_VIDEO_DIMENSION = 1920
 
         @Volatile private var activeService: FlutterCockpitRecordingService? = null
         private var pendingStartToken: Long? = null

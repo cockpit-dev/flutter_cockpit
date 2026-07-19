@@ -2,11 +2,11 @@
 set +e
 
 adb devices
-cd "$GITHUB_WORKSPACE/examples/cockpit_demo" || exit 1
+cd "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" || exit 1
 
 dart run cockpit launch-app \
-  --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
-  --target cockpit/main.dart \
+  --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo/cockpit" \
+  --target main.dart \
   --platform android \
   --device-id emulator-5554 \
   --session-port 58491 \
