@@ -29,6 +29,10 @@ typedef CockpitDemoRunCommandFunction =
     Future<CockpitExecuteRemoteCommandResult> Function(
       CockpitRunCommandRequest request,
     );
+typedef CockpitDemoCaptureScreenshotFunction =
+    Future<CockpitCaptureScreenshotResult> Function(
+      CockpitCaptureScreenshotRequest request,
+    );
 typedef CockpitDemoRunBatchFunction =
     Future<CockpitRunBatchResult> Function(CockpitRunBatchRequest request);
 typedef CockpitDemoInspectUiFunction =
@@ -73,6 +77,37 @@ typedef CockpitDemoSystemControlRunActionFunction =
     );
 typedef CockpitDemoVerificationProgressSink =
     void Function(CockpitDemoVerificationProgressEvent event);
+
+Future<CockpitCaptureScreenshotResult> _captureScreenshotWithRunCommand(
+  CockpitCaptureScreenshotRequest request,
+  CockpitDemoRunCommandFunction runCommand,
+) {
+  final trimmedName = request.name.trim();
+  return runCommand(
+    CockpitRunCommandRequest(
+      appId: request.appId,
+      app: request.app,
+      appHandlePath: request.appHandlePath,
+      baseUri: request.baseUri,
+      androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
+      command: CockpitCommand(
+        commandId: 'capture-screenshot',
+        commandType: CockpitCommandType.captureScreenshot,
+        screenshotRequest: CockpitScreenshotRequest(
+          reason: request.reason,
+          name: trimmedName.isEmpty ? 'screenshot' : trimmedName,
+          includeSnapshot: request.includeSnapshot,
+          attachToStep: request.attachToStep,
+          profile: request.captureProfile,
+          allowFallback: request.allowFallback,
+        ),
+      ),
+      resultProfile: request.resultProfile,
+      defaultCommandTimeout: request.defaultCommandTimeout,
+    ),
+  );
+}
 
 const List<String> cockpitDemoDefaultVerificationPlatforms = <String>[
   'macos',
@@ -499,6 +534,7 @@ final class CockpitDemoPlatformVerifier {
     CockpitDemoLaunchAppFunction? launchApp,
     CockpitDemoReadAppFunction? readApp,
     CockpitDemoRunCommandFunction? runCommand,
+    CockpitDemoCaptureScreenshotFunction? captureScreenshot,
     CockpitDemoRunBatchFunction? runBatch,
     CockpitDemoInspectUiFunction? inspectUi,
     CockpitDemoInspectSurfaceFunction? inspectSurface,
@@ -530,6 +566,12 @@ final class CockpitDemoPlatformVerifier {
        _launchApp = launchApp ?? CockpitLaunchAppService().launch,
        _readApp = readApp ?? CockpitReadAppService().read,
        _runCommand = runCommand ?? CockpitRunCommandService().run,
+       _captureScreenshot =
+           captureScreenshot ??
+           (runCommand == null
+               ? CockpitCaptureScreenshotService().capture
+               : (request) =>
+                     _captureScreenshotWithRunCommand(request, runCommand)),
        _runBatch = runBatch ?? CockpitRunBatchService().run,
        _inspectUi = inspectUi ?? CockpitInspectUiService().inspect,
        _inspectSurface =
@@ -561,6 +603,7 @@ final class CockpitDemoPlatformVerifier {
   final CockpitDemoLaunchAppFunction _launchApp;
   final CockpitDemoReadAppFunction _readApp;
   final CockpitDemoRunCommandFunction _runCommand;
+  final CockpitDemoCaptureScreenshotFunction _captureScreenshot;
   final CockpitDemoRunBatchFunction _runBatch;
   final CockpitDemoInspectUiFunction _inspectUi;
   final CockpitDemoInspectSurfaceFunction _inspectSurface;
@@ -1298,20 +1341,28 @@ final class CockpitDemoPlatformVerifier {
       verifiedCommands.add('read-logs');
 
       verifiedCommands.add('inspect-surface');
-      final captureResult = await _runRequiredCommand(
-        app: launchedApp,
-        command: CockpitCommand(
-          commandId: 'verify-capture-screenshot',
-          commandType: CockpitCommandType.captureScreenshot,
-          screenshotRequest: const CockpitScreenshotRequest(
-            reason: CockpitScreenshotReason.acceptance,
-            name: 'platform_verifier',
-            includeSnapshot: true,
-            attachToStep: true,
-          ),
+      final captureResult = await _captureScreenshot(
+        CockpitCaptureScreenshotRequest(
+          app: launchedApp,
+          appHandlePath: resolvedAppJsonPath,
+          baseUri: appBaseUri,
+          name: 'platform_verifier',
+          reason: CockpitScreenshotReason.acceptance,
+          includeSnapshot: true,
+          attachToStep: true,
+          resultProfile: const CockpitInteractiveResultProfile.evidence(),
         ),
-        resultProfile: const CockpitInteractiveResultProfile.evidence(),
       );
+      if (!captureResult.command.success) {
+        throw CockpitApplicationServiceException(
+          code: 'exampleCommandFailed',
+          message: 'The required screenshot verification command failed.',
+          details: _failedCommandDetails(
+            platform: platform,
+            result: captureResult,
+          ),
+        );
+      }
       final screenshotArtifact = captureResult.artifacts.firstWhere(
         (artifact) => artifact.role == 'screenshot',
         orElse: () => throw CockpitApplicationServiceException(

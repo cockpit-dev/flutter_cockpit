@@ -514,17 +514,15 @@ final class FlutterCockpitBinding {
       }
       animation.removeStatusListener(listener);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_isDisposed ||
-              !identical(_routeTransitionListeners[route], listener)) {
-            return;
-          }
-          _routeTransitionListeners.remove(route);
-          _isRouteTransitioning = _routeTransitionListeners.isNotEmpty;
-          if (!_isRouteTransitioning && _hasPendingNavigatorRoute) {
-            _publishPendingNavigatorRoute();
-          }
-        });
+        if (_isDisposed ||
+            !identical(_routeTransitionListeners[route], listener)) {
+          return;
+        }
+        _routeTransitionListeners.remove(route);
+        _isRouteTransitioning = _routeTransitionListeners.isNotEmpty;
+        if (!_isRouteTransitioning && _hasPendingNavigatorRoute) {
+          _publishPendingNavigatorRoute();
+        }
       });
     };
     _routeTransitionListeners[route] = listener;

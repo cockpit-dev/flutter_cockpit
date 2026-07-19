@@ -93,7 +93,7 @@ void main() {
     );
   });
 
-  test('iOS host declares the Flutter scene configuration', () {
+  test('iOS host uses the Flutter 3.32 compatible application lifecycle', () {
     final iosRunnerDir =
         Directory.current.path.endsWith('examples/cockpit_demo/cockpit')
         ? p.join(Directory.current.path, 'ios', 'Runner')
@@ -106,13 +106,25 @@ void main() {
             'Runner',
           );
     final infoPlist = File(p.join(iosRunnerDir, 'Info.plist'));
+    final appDelegate = File(p.join(iosRunnerDir, 'AppDelegate.swift'));
 
     expect(infoPlist.existsSync(), isTrue);
-    final contents = infoPlist.readAsStringSync();
+    expect(appDelegate.existsSync(), isTrue);
+    final plistContents = infoPlist.readAsStringSync();
+    final delegateContents = appDelegate.readAsStringSync();
 
-    expect(contents, contains('UIApplicationSceneManifest'));
-    expect(contents, contains('UISceneDelegateClassName'));
-    expect(contents, contains('FlutterSceneDelegate'));
+    expect(plistContents, isNot(contains('UIApplicationSceneManifest')));
+    expect(plistContents, isNot(contains('FlutterSceneDelegate')));
+    expect(
+      delegateContents,
+      contains('@objc class AppDelegate: FlutterAppDelegate {'),
+    );
+    expect(
+      delegateContents,
+      contains('GeneratedPluginRegistrant.register(with: self)'),
+    );
+    expect(delegateContents, isNot(contains('FlutterImplicitEngineDelegate')));
+    expect(delegateContents, isNot(contains('FlutterImplicitEngineBridge')));
   });
 
   test('host device probing uses the platform Flutter executable', () async {
@@ -205,6 +217,7 @@ void main() {
       final recordingFile = await _createRecordingArtifact();
       final launchedRequests = <CockpitLaunchAppRequest>[];
       final commandTypes = <CockpitCommandType>[];
+      final captureRequests = <CockpitCaptureScreenshotRequest>[];
       final batchRequests = <CockpitRunBatchRequest>[];
       final batchedCommandTypes = <CockpitCommandType>[];
       final bootCommands = <String>[];
@@ -474,6 +487,23 @@ void main() {
                 ),
           );
         },
+        captureScreenshot: (request) async {
+          captureRequests.add(request);
+          return _successfulCommandResult(
+            CockpitCommand(
+              commandId: 'capture-screenshot',
+              commandType: CockpitCommandType.captureScreenshot,
+              screenshotRequest: CockpitScreenshotRequest(
+                reason: request.reason,
+                name: request.name,
+                includeSnapshot: request.includeSnapshot,
+                attachToStep: request.attachToStep,
+                profile: request.captureProfile,
+                allowFallback: request.allowFallback,
+              ),
+            ),
+          );
+        },
         inspectSurface: (request) async {
           return CockpitInspectSurfaceResult(
             target: CockpitTargetHandle.fromAppHandle(request.app!),
@@ -711,11 +741,23 @@ void main() {
             CockpitCommandType.assertText,
             CockpitCommandType.tap,
             CockpitCommandType.scrollUntilVisible,
-            CockpitCommandType.captureScreenshot,
           ]),
         ),
       );
-      expect(commandTypes.length, 36);
+      expect(commandTypes.length, 30);
+      expect(captureRequests, hasLength(6));
+      expect(captureRequests.map((request) => request.app?.platform), <String?>[
+        'macos',
+        'ios',
+        'android',
+        'linux',
+        'windows',
+        'web',
+      ]);
+      expect(
+        captureRequests.map((request) => request.name),
+        everyElement('platform_verifier'),
+      );
       final expectedBatchPattern = <CockpitCommandType>[
         CockpitCommandType.tap,
         CockpitCommandType.waitFor,

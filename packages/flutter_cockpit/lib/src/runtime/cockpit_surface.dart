@@ -218,7 +218,12 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       explicitTargets: _registry.registeredTargets,
     );
     _syncRouteFromDiscoveredTargets(discovered);
-    if (discovered.isNotEmpty || _registry.routeName == null) {
+    if (discovered.isNotEmpty ||
+        _registry.routeName == null ||
+        _registry.registeredTargets.any(
+          (target) =>
+              target.isVisible && target.routeName == _registry.routeName,
+        )) {
       return discovered;
     }
 

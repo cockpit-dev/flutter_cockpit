@@ -176,9 +176,10 @@ void main() {
       await tester.tap(find.text('Open details'));
       await tester.pumpAndSettle();
 
-      expect(rootKey.currentState!.snapshot().routeName, '/details');
+      final routeSnapshot = rootKey.currentState!.snapshot();
+      expect(routeSnapshot.routeName, '/details');
       expect(
-        rootKey.currentState!.snapshot().visibleTargets.any(
+        routeSnapshot.visibleTargets.any(
           (target) => target.text == 'Details title',
         ),
         isTrue,

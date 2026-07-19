@@ -148,6 +148,29 @@ void main() {
     );
   });
 
+  test('example iOS runners remain compatible with Flutter 3.32', () {
+    for (final runnerRoot in <String>[
+      '$root/examples/cockpit_demo/ios/Runner',
+      '$root/examples/cockpit_demo/cockpit/ios/Runner',
+    ]) {
+      final delegate = File('$runnerRoot/AppDelegate.swift').readAsStringSync();
+      final infoPlist = File('$runnerRoot/Info.plist').readAsStringSync();
+
+      expect(
+        delegate,
+        contains('@objc class AppDelegate: FlutterAppDelegate {'),
+      );
+      expect(
+        delegate,
+        contains('GeneratedPluginRegistrant.register(with: self)'),
+      );
+      expect(delegate, isNot(contains('FlutterImplicitEngineDelegate')));
+      expect(delegate, isNot(contains('FlutterImplicitEngineBridge')));
+      expect(infoPlist, isNot(contains('UIApplicationSceneManifest')));
+      expect(infoPlist, isNot(contains('FlutterSceneDelegate')));
+    }
+  });
+
   test('native plugin sources use flutter_cockpit channel names', () {
     final androidPlugin = File(
       '$root/packages/flutter_cockpit/android/src/main/kotlin/dev/cockpit/flutter_cockpit/FlutterCockpitPlugin.kt',
