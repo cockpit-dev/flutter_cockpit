@@ -83,34 +83,55 @@ struct RecordingWorkerState {
   std::atomic<bool> stop_requested{false};
 };
 
-std::wstring Utf8ToWide(const std::string& value) {
+bool Utf8ToWide(const std::string& value, std::wstring* output) {
+  if (output == nullptr) {
+    return false;
+  }
+  output->clear();
   if (value.empty()) {
-    return std::wstring();
+    return true;
   }
-  const int length =
-      MultiByteToWideChar(CP_UTF8, 0, value.c_str(), -1, nullptr, 0);
+  const int source_length = static_cast<int>(value.size());
+  const int length = MultiByteToWideChar(
+      CP_UTF8, MB_ERR_INVALID_CHARS, value.data(), source_length, nullptr, 0);
   if (length <= 0) {
-    return std::wstring();
+    return false;
   }
-  std::wstring output(static_cast<size_t>(length - 1), L'\0');
-  MultiByteToWideChar(CP_UTF8, 0, value.c_str(), -1, output.data(), length);
-  return output;
+  output->resize(static_cast<size_t>(length));
+  const int written = MultiByteToWideChar(
+      CP_UTF8, MB_ERR_INVALID_CHARS, value.data(), source_length,
+      output->data(), length);
+  if (written != length) {
+    output->clear();
+    return false;
+  }
+  return true;
 }
 
-std::string WideToUtf8(const std::wstring& value) {
+bool WideToUtf8(const std::wstring& value, std::string* output) {
+  if (output == nullptr) {
+    return false;
+  }
+  output->clear();
   if (value.empty()) {
-    return std::string();
+    return true;
   }
-  const int length =
-      WideCharToMultiByte(CP_UTF8, 0, value.c_str(), -1, nullptr, 0, nullptr,
-                          nullptr);
+  const int source_length = static_cast<int>(value.size());
+  const int length = WideCharToMultiByte(
+      CP_UTF8, WC_ERR_INVALID_CHARS, value.data(), source_length, nullptr, 0,
+      nullptr, nullptr);
   if (length <= 0) {
-    return std::string();
+    return false;
   }
-  std::string output(static_cast<size_t>(length - 1), '\0');
-  WideCharToMultiByte(CP_UTF8, 0, value.c_str(), -1, output.data(), length,
-                      nullptr, nullptr);
-  return output;
+  output->resize(static_cast<size_t>(length));
+  const int written = WideCharToMultiByte(
+      CP_UTF8, WC_ERR_INVALID_CHARS, value.data(), source_length,
+      output->data(), length, nullptr, nullptr);
+  if (written != length) {
+    output->clear();
+    return false;
+  }
+  return true;
 }
 
 std::string HrToString(HRESULT hr) {
@@ -152,13 +173,76 @@ int EvenDimension(int value) {
   return (clamped % 2 == 0) ? clamped : clamped + 1;
 }
 
-std::filesystem::path BuildTemporaryArtifactPath(const std::string& relative) {
-  std::filesystem::path root =
-      std::filesystem::temp_directory_path() / "flutter_cockpit_recordings";
-  std::filesystem::path relative_path(Utf8ToWide(relative));
-  root /= relative_path;
-  std::filesystem::create_directories(root.parent_path());
-  return root;
+std::optional<std::filesystem::path> BuildTemporaryArtifactPath(
+    const std::string& relative,
+    std::string* failure_reason) {
+  if (relative.empty() || relative.front() == '/' ||
+      relative.find('\\') != std::string::npos) {
+    if (failure_reason != nullptr) {
+      *failure_reason = "recordingInvalidPath";
+    }
+    return std::nullopt;
+  }
+
+  std::wstring relative_wide;
+  if (!Utf8ToWide(relative, &relative_wide)) {
+    if (failure_reason != nullptr) {
+      *failure_reason = "recordingInvalidPath";
+    }
+    return std::nullopt;
+  }
+
+  try {
+    const auto root = std::filesystem::temp_directory_path() /
+                      L"flutter_cockpit_recordings";
+    std::error_code error;
+    std::filesystem::create_directories(root, error);
+    if (error) {
+      if (failure_reason != nullptr) {
+        *failure_reason = "recordingInvalidPath";
+      }
+      return std::nullopt;
+    }
+    const auto canonical_root = std::filesystem::weakly_canonical(root, error);
+    const auto candidate = canonical_root /
+                           std::filesystem::path(relative_wide).lexically_normal();
+    const auto canonical_parent =
+        std::filesystem::weakly_canonical(candidate.parent_path(), error);
+    if (error) {
+      if (failure_reason != nullptr) {
+        *failure_reason = "recordingInvalidPath";
+      }
+      return std::nullopt;
+    }
+    const auto relative_parent =
+        std::filesystem::relative(canonical_parent, canonical_root, error);
+    const auto relative_parent_string = relative_parent.string();
+    if (error || relative_parent == L".." ||
+        relative_parent_string.rfind("..", 0) == 0) {
+      if (failure_reason != nullptr) {
+        *failure_reason = "recordingInvalidPath";
+      }
+      return std::nullopt;
+    }
+    std::filesystem::create_directories(canonical_parent, error);
+    if (error) {
+      if (failure_reason != nullptr) {
+        *failure_reason = "recordingInvalidPath";
+      }
+      return std::nullopt;
+    }
+    return canonical_parent / candidate.filename();
+  } catch (const std::filesystem::filesystem_error&) {
+    if (failure_reason != nullptr) {
+      *failure_reason = "recordingInvalidPath";
+    }
+    return std::nullopt;
+  } catch (const std::exception&) {
+    if (failure_reason != nullptr) {
+      *failure_reason = "recordingInvalidPath";
+    }
+    return std::nullopt;
+  }
 }
 
 bool WaitForNonEmptyFile(const std::filesystem::path& path,
@@ -728,7 +812,8 @@ FlutterCockpitPlugin::FlutterCockpitPlugin(
 }
 
 FlutterCockpitPlugin::~FlutterCockpitPlugin() {
-  if (recording_active_ && active_recorder_ != nullptr) {
+  if (recording_state_ != RecordingState::Idle && active_recorder_ != nullptr) {
+    recording_state_ = RecordingState::Stopping;
     active_recorder_->Stop();
   }
   if (gdiplus_token_ != 0) {
@@ -808,7 +893,8 @@ void FlutterCockpitPlugin::CaptureAcceptanceScreenshot(
 void FlutterCockpitPlugin::QueryRecordingCapabilities(
     std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
   EncodableMap payload;
-  payload[EncodableValue("supportsNativeRecording")] = EncodableValue(true);
+  payload[EncodableValue("supportsNativeRecording")] =
+      EncodableValue(ActiveWindowHandle() != nullptr);
   payload[EncodableValue("preferredAcceptanceRecordingKind")] =
       EncodableValue("nativeScreen");
   payload[EncodableValue("supportedLayers")] =
@@ -827,14 +913,24 @@ void FlutterCockpitPlugin::QueryRecordingCapabilities(
 void FlutterCockpitPlugin::StartRecording(
     const flutter::MethodCall<EncodableValue>& method_call,
     std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
-  if (recording_active_) {
+  if (recording_state_ == RecordingState::Starting ||
+      recording_state_ == RecordingState::Recording) {
     result->Error("recordingAlreadyActive",
                   "A recording session is already active.");
     return;
   }
+  if (recording_state_ == RecordingState::Stopping) {
+    result->Error("recordingAlreadyStopping",
+                  "The previous recording session is still finalizing.");
+    return;
+  }
+
+  recording_state_ = RecordingState::Starting;
+  session_token_ += 1;
 
   HWND hwnd = ActiveWindowHandle();
   if (hwnd == nullptr) {
+    recording_state_ = RecordingState::Idle;
     result->Error("recordingNoWindow",
                   "Native recording requires an active Flutter HWND.");
     return;
@@ -843,21 +939,34 @@ void FlutterCockpitPlugin::StartRecording(
   const std::string relative_path =
       GetStringArgument(method_call.arguments(), "relativePath")
           .value_or("recordings/flutter_cockpit.mp4");
-  const auto output_path = BuildTemporaryArtifactPath(relative_path);
+  std::string path_failure;
+  const auto output_path =
+      BuildTemporaryArtifactPath(relative_path, &path_failure);
+  if (!output_path.has_value()) {
+    recording_state_ = RecordingState::Idle;
+    result->Error("recordingInvalidPath", path_failure);
+    return;
+  }
   std::error_code error;
-  std::filesystem::remove(output_path, error);
+  std::filesystem::remove(*output_path, error);
+  if (error) {
+    recording_state_ = RecordingState::Idle;
+    result->Error("recordingInvalidPath", "Unable to prepare the recording output path.");
+    return;
+  }
 
   auto recorder =
-      std::make_unique<FlutterCockpitWindowRecorder>(hwnd, output_path);
+      std::make_unique<FlutterCockpitWindowRecorder>(hwnd, *output_path);
   std::string failure_reason;
   if (!recorder->Start(&failure_reason)) {
+    recording_state_ = RecordingState::Idle;
     result->Error("recordingStartFailed", failure_reason);
     return;
   }
 
   active_recorder_ = std::move(recorder);
   recording_started_at_ = std::chrono::steady_clock::now();
-  recording_active_ = true;
+  recording_state_ = RecordingState::Recording;
 
   EncodableMap payload;
   payload[EncodableValue("state")] = EncodableValue("recording");
@@ -866,7 +975,13 @@ void FlutterCockpitPlugin::StartRecording(
 
 void FlutterCockpitPlugin::StopRecording(
     std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
-  if (!recording_active_ || active_recorder_ == nullptr) {
+  if (recording_state_ == RecordingState::Stopping) {
+    result->Error("recordingAlreadyStopping",
+                  "The previous recording session is still finalizing.");
+    return;
+  }
+  if (recording_state_ != RecordingState::Recording ||
+      active_recorder_ == nullptr) {
     EncodableMap payload;
     payload[EncodableValue("state")] = EncodableValue("failed");
     payload[EncodableValue("failureReason")] =
@@ -880,10 +995,24 @@ void FlutterCockpitPlugin::StopRecording(
           std::chrono::steady_clock::now() - recording_started_at_)
           .count());
 
+  recording_state_ = RecordingState::Stopping;
+  const uint64_t token = session_token_;
   RecordingRunResult stop_result = active_recorder_->Stop();
-  const auto source_file_path = WideToUtf8(active_recorder_->output_path().wstring());
+  std::string source_file_path;
+  if (!WideToUtf8(active_recorder_->output_path().wstring(), &source_file_path)) {
+    active_recorder_.reset();
+    recording_state_ = RecordingState::Idle;
+    result->Error("recordingPathConversionFailed",
+                  "Unable to convert the recording output path to UTF-8.");
+    return;
+  }
   active_recorder_.reset();
-  recording_active_ = false;
+  recording_state_ = RecordingState::Idle;
+
+  if (token != session_token_) {
+    result->Error("recordingStaleSession", "The recording session was superseded.");
+    return;
+  }
 
   EncodableMap payload;
   if (!stop_result.success) {

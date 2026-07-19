@@ -226,6 +226,48 @@ void main() {
     );
   });
 
+  test('macOS recording source bounds frame work and finalization', () {
+    final manager = File(
+      '$root/packages/flutter_cockpit/macos/flutter_cockpit/Sources/flutter_cockpit/FlutterCockpitRecordingManager.swift',
+    ).readAsStringSync();
+    final plugin = File(
+      '$root/packages/flutter_cockpit/macos/flutter_cockpit/Sources/flutter_cockpit/FlutterCockpitPlugin.swift',
+    ).readAsStringSync();
+
+    expect(manager, contains('enum RecordingState'));
+    expect(manager, contains('case starting'));
+    expect(manager, contains('case recording'));
+    expect(manager, contains('case stopping'));
+    expect(manager, contains('sessionToken'));
+    expect(manager, contains('recordingAlreadyStopping'));
+    expect(manager, contains('recordingInvalidPath'));
+    expect(manager, contains('resolvingSymlinksInPath'));
+    expect(manager, contains('framePending'));
+    expect(manager, contains('reserveFrame'));
+    expect(manager, contains('waitForRecordingFile'));
+    expect(plugin, contains('queryRecordingCapabilities'));
+  });
+
+  test('Linux recording source finalizes asynchronously with safe paths', () {
+    final source = File(
+      '$root/packages/flutter_cockpit/linux/flutter_cockpit_plugin.cc',
+    ).readAsStringSync();
+    final cmake = File(
+      '$root/packages/flutter_cockpit/linux/CMakeLists.txt',
+    ).readAsStringSync();
+
+    expect(source, contains('enum class RecordingState'));
+    expect(source, contains('Starting'));
+    expect(source, contains('Recording'));
+    expect(source, contains('Stopping'));
+    expect(source, contains('weakly_canonical'));
+    expect(source, contains('recordingInvalidPath'));
+    expect(source, contains('HasRecordingPipelineSupport'));
+    expect(source, contains('g_main_context_invoke'));
+    expect(source, contains('std::thread'));
+    expect(cmake, contains('Threads::Threads'));
+  });
+
   test('native package metadata uses flutter_cockpit names', () {
     final podspec = File(
       '$root/packages/flutter_cockpit/ios/flutter_cockpit.podspec',

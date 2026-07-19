@@ -23,6 +23,7 @@ target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
 target_compile_features(${PLUGIN_NAME} PUBLIC cxx_std_17)
 
 find_package(PkgConfig REQUIRED)
+find_package(Threads REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
 pkg_check_modules(GSTREAMER REQUIRED IMPORTED_TARGET gstreamer-1.0)
 pkg_check_modules(GSTREAMER_APP REQUIRED IMPORTED_TARGET gstreamer-app-1.0)
@@ -36,6 +37,7 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE
   PkgConfig::GTK
   PkgConfig::GSTREAMER
   PkgConfig::GSTREAMER_APP
+  Threads::Threads
 )
 
 set(flutter_cockpit_bundled_libraries

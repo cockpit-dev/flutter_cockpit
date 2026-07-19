@@ -32,6 +32,28 @@ void main() {
     expect(source, contains('DetachRecordingThread();'));
     expect(source, isNot(contains('std::async')));
   });
+
+  test(
+    'Windows native recorder keeps conversion, path, and lifecycle contracts',
+    () {
+      final source = _windowsPluginSource().readAsStringSync();
+      final header = File(
+        'packages/flutter_cockpit/windows/flutter_cockpit_plugin.h',
+      ).readAsStringSync();
+      final combined = '$source\n$header';
+
+      expect(combined, contains('MB_ERR_INVALID_CHARS'));
+      expect(combined, contains('WC_ERR_INVALID_CHARS'));
+      expect(combined, contains('const int source_length'));
+      expect(combined, contains('recordingInvalidPath'));
+      expect(combined, contains('weakly_canonical'));
+      expect(combined, contains('enum class RecordingState'));
+      expect(combined, contains('Starting'));
+      expect(combined, contains('Recording'));
+      expect(combined, contains('Stopping'));
+      expect(combined, contains('session_token_'));
+    },
+  );
 }
 
 File _windowsPluginSource() {

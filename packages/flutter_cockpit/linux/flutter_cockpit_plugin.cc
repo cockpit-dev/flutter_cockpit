@@ -29,6 +29,13 @@ struct _FlutterCockpitPlugin {
   GWeakRef view_ref;
   CockpitLinuxRecorder* active_recorder;
   gint64 recording_started_at_us;
+  enum class RecordingState {
+    Idle,
+    Starting,
+    Recording,
+    Stopping,
+  } recording_state;
+  guint64 session_token;
 };
 
 G_DEFINE_TYPE(FlutterCockpitPlugin,
@@ -88,12 +95,113 @@ void EnsureGStreamerInitialized() {
   });
 }
 
-std::filesystem::path BuildTemporaryArtifactPath(const std::string& relative) {
+bool HasRecordingPipelineSupport() {
+  EnsureGStreamerInitialized();
+  const char* required_factories[] = {
+      "appsrc",
+      "videoconvert",
+      "mp4mux",
+      "filesink",
+  };
+  for (const char* factory : required_factories) {
+    GstElementFactory* element_factory = gst_element_factory_find(factory);
+    if (element_factory == nullptr) {
+      if (std::strcmp(factory, "mp4mux") == 0) {
+        element_factory = gst_element_factory_find("qtmux");
+      }
+    }
+    if (element_factory == nullptr) {
+      return false;
+    }
+    gst_object_unref(element_factory);
+  }
+
+  const char* encoders[] = {"x264enc", "openh264enc", "avenc_h264", "avenc_mpeg4"};
+  for (const char* encoder : encoders) {
+    GstElementFactory* element_factory = gst_element_factory_find(encoder);
+    if (element_factory != nullptr) {
+      gst_object_unref(element_factory);
+      if (std::strcmp(encoder, "avenc_mpeg4") != 0) {
+        GstElementFactory* parser = gst_element_factory_find("h264parse");
+        if (parser == nullptr) {
+          continue;
+        }
+        gst_object_unref(parser);
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+std::optional<std::filesystem::path> BuildTemporaryArtifactPath(
+    const std::string& relative,
+    std::string* failure_reason) {
+  if (relative.empty() || relative.front() == '/' ||
+      relative.find('\\') != std::string::npos) {
+    if (failure_reason != nullptr) {
+      *failure_reason = "recordingInvalidPath";
+    }
+    return std::nullopt;
+  }
+
   auto root = std::filesystem::temp_directory_path() /
               "flutter_cockpit_recordings";
-  auto path = root / std::filesystem::path(relative);
-  std::filesystem::create_directories(path.parent_path());
-  return path;
+  try {
+    std::error_code error;
+    std::filesystem::create_directories(root, error);
+    if (error) {
+      if (failure_reason != nullptr) {
+        *failure_reason = "recordingInvalidPath";
+      }
+      return std::nullopt;
+    }
+    const auto canonical_root = std::filesystem::weakly_canonical(root, error);
+    if (error) {
+      if (failure_reason != nullptr) {
+        *failure_reason = "recordingInvalidPath";
+      }
+      return std::nullopt;
+    }
+    const auto candidate = canonical_root /
+                           std::filesystem::path(relative).lexically_normal();
+    const auto canonical_parent =
+        std::filesystem::weakly_canonical(candidate.parent_path(), error);
+    if (error) {
+      if (failure_reason != nullptr) {
+        *failure_reason = "recordingInvalidPath";
+      }
+      return std::nullopt;
+    }
+    const auto relative_parent =
+        std::filesystem::relative(canonical_parent, canonical_root, error);
+    const auto relative_parent_string = relative_parent.string();
+    if (error || relative_parent == ".." ||
+        relative_parent_string.rfind("..", 0) == 0) {
+      if (failure_reason != nullptr) {
+        *failure_reason = "recordingInvalidPath";
+      }
+      return std::nullopt;
+    }
+    std::filesystem::create_directories(canonical_parent, error);
+    if (error) {
+      if (failure_reason != nullptr) {
+        *failure_reason = "recordingInvalidPath";
+      }
+      return std::nullopt;
+    }
+    return canonical_parent / candidate.filename();
+  } catch (const std::filesystem::filesystem_error&) {
+    if (failure_reason != nullptr) {
+      *failure_reason = "recordingInvalidPath";
+    }
+    return std::nullopt;
+  } catch (const std::exception&) {
+    if (failure_reason != nullptr) {
+      *failure_reason = "recordingInvalidPath";
+    }
+    return std::nullopt;
+  }
 }
 
 bool WaitForNonEmptyFile(const std::filesystem::path& path,
@@ -701,9 +809,14 @@ void HandleRecordingMethodCall(FlutterCockpitPlugin* self,
                                FlMethodCall* method_call) {
   const gchar* method = fl_method_call_get_name(method_call);
   if (strcmp(method, "queryRecordingCapabilities") == 0) {
+    auto view = GetActiveView(self);
+    const bool supports_native =
+        view != nullptr &&
+        gtk_widget_get_window(GTK_WIDGET(view.get())) != nullptr &&
+        HasRecordingPipelineSupport();
     g_autoptr(FlValue) payload = fl_value_new_map();
     fl_value_set_string_take(payload, "supportsNativeRecording",
-                             fl_value_new_bool(true));
+                             fl_value_new_bool(supports_native));
     fl_value_set_string_take(payload, "preferredAcceptanceRecordingKind",
                              fl_value_new_string("nativeScreen"));
     g_autoptr(FlValue) supported_layers = fl_value_new_list();
@@ -727,14 +840,28 @@ void HandleRecordingMethodCall(FlutterCockpitPlugin* self,
   }
 
   if (strcmp(method, "startRecording") == 0) {
-    if (self->active_recorder != nullptr) {
+    if (self->recording_state ==
+            FlutterCockpitPlugin::RecordingState::Starting ||
+        self->recording_state ==
+            FlutterCockpitPlugin::RecordingState::Recording) {
       Respond(method_call, ErrorResponse("recordingAlreadyActive",
                                          "A recording session is already active."));
       return;
     }
+    if (self->recording_state ==
+        FlutterCockpitPlugin::RecordingState::Stopping) {
+      Respond(method_call, ErrorResponse(
+          "recordingAlreadyStopping",
+          "The previous recording session is still finalizing."));
+      return;
+    }
+
+    self->recording_state = FlutterCockpitPlugin::RecordingState::Starting;
+    self->session_token += 1;
 
     auto view = GetActiveView(self);
     if (!view) {
+      self->recording_state = FlutterCockpitPlugin::RecordingState::Idle;
       Respond(method_call, ErrorResponse("recordingNoWindow",
                                          "Native recording requires an active FlView."));
       return;
@@ -742,10 +869,19 @@ void HandleRecordingMethodCall(FlutterCockpitPlugin* self,
 
     const auto relative_path = GetStringArgument(method_call, "relativePath")
                                    .value_or("recordings/flutter_cockpit.mp4");
-    auto recorder = std::make_unique<CockpitLinuxRecorder>(
-        view.get(), BuildTemporaryArtifactPath(relative_path));
+    std::string path_failure;
+    const auto output_path =
+        BuildTemporaryArtifactPath(relative_path, &path_failure);
+    if (!output_path.has_value()) {
+      self->recording_state = FlutterCockpitPlugin::RecordingState::Idle;
+      Respond(method_call,
+              ErrorResponse("recordingInvalidPath", path_failure));
+      return;
+    }
+    auto recorder = std::make_unique<CockpitLinuxRecorder>(view.get(), *output_path);
     std::string failure_reason;
     if (!recorder->Start(&failure_reason)) {
+      self->recording_state = FlutterCockpitPlugin::RecordingState::Idle;
       Respond(method_call,
               ErrorResponse("recordingStartFailed", failure_reason));
       return;
@@ -753,6 +889,7 @@ void HandleRecordingMethodCall(FlutterCockpitPlugin* self,
 
     self->active_recorder = recorder.release();
     self->recording_started_at_us = g_get_monotonic_time();
+    self->recording_state = FlutterCockpitPlugin::RecordingState::Recording;
 
     g_autoptr(FlValue) payload = fl_value_new_map();
     fl_value_set_string_take(payload, "state",
@@ -762,7 +899,16 @@ void HandleRecordingMethodCall(FlutterCockpitPlugin* self,
   }
 
   if (strcmp(method, "stopRecording") == 0) {
-    if (self->active_recorder == nullptr) {
+    if (self->recording_state ==
+        FlutterCockpitPlugin::RecordingState::Stopping) {
+      Respond(method_call, ErrorResponse(
+          "recordingAlreadyStopping",
+          "The previous recording session is still finalizing."));
+      return;
+    }
+    if (self->recording_state !=
+            FlutterCockpitPlugin::RecordingState::Recording ||
+        self->active_recorder == nullptr) {
       g_autoptr(FlValue) payload = fl_value_new_map();
       fl_value_set_string_take(payload, "state",
                                fl_value_new_string("failed"));
@@ -772,35 +918,74 @@ void HandleRecordingMethodCall(FlutterCockpitPlugin* self,
       return;
     }
 
-    std::unique_ptr<CockpitLinuxRecorder> recorder(self->active_recorder);
+    auto* recorder = self->active_recorder;
     self->active_recorder = nullptr;
+    self->recording_state = FlutterCockpitPlugin::RecordingState::Stopping;
+    const guint64 token = self->session_token;
 
     const gint64 duration_ms =
         (g_get_monotonic_time() - self->recording_started_at_us) / 1000;
-    auto stop_result = recorder->Stop();
-    g_autoptr(FlValue) payload = fl_value_new_map();
-    if (!stop_result.success) {
-      fl_value_set_string_take(payload, "state",
-                               fl_value_new_string("failed"));
-      fl_value_set_string_take(
-          payload, "failureReason",
-          fl_value_new_string(stop_result.failure_reason.c_str()));
-      Respond(method_call, SuccessResponse(payload));
-      return;
-    }
-
-    fl_value_set_string_take(payload, "state",
-                             fl_value_new_string("completed"));
-    fl_value_set_string_take(payload, "recordingKind",
-                             fl_value_new_string("nativeScreen"));
-    fl_value_set_string_take(payload, "effectiveLayer",
-                             fl_value_new_string("app-window"));
-    fl_value_set_string_take(payload, "durationMs",
-                             fl_value_new_int(duration_ms));
-    fl_value_set_string_take(
-        payload, "sourceFilePath",
-        fl_value_new_string(recorder->output_path().c_str()));
-    Respond(method_call, SuccessResponse(payload));
+    struct LinuxStopOperation {
+      FlutterCockpitPlugin* plugin;
+      FlMethodCall* method_call;
+      CockpitLinuxRecorder* recorder;
+      guint64 token;
+      gint64 duration_ms;
+      RecordingStopResult stop_result;
+    };
+    auto* operation = new LinuxStopOperation{
+        FLUTTER_COCKPIT_PLUGIN(g_object_ref(self)),
+        static_cast<FlMethodCall*>(g_object_ref(method_call)),
+        recorder,
+        token,
+        duration_ms,
+        {},
+    };
+    std::thread([operation]() {
+      operation->stop_result = operation->recorder->Stop();
+      g_main_context_invoke(
+          nullptr,
+          [](gpointer user_data) -> gboolean {
+            auto* operation = static_cast<LinuxStopOperation*>(user_data);
+            auto* plugin = operation->plugin;
+            if (plugin->recording_state ==
+                    FlutterCockpitPlugin::RecordingState::Stopping &&
+                plugin->session_token == operation->token) {
+              g_autoptr(FlValue) payload = fl_value_new_map();
+              if (!operation->stop_result.success) {
+                fl_value_set_string_take(payload, "state",
+                                         fl_value_new_string("failed"));
+                fl_value_set_string_take(
+                    payload, "failureReason",
+                    fl_value_new_string(
+                        operation->stop_result.failure_reason.c_str()));
+              } else {
+                fl_value_set_string_take(payload, "state",
+                                         fl_value_new_string("completed"));
+                fl_value_set_string_take(payload, "recordingKind",
+                                         fl_value_new_string("nativeScreen"));
+                fl_value_set_string_take(payload, "effectiveLayer",
+                                         fl_value_new_string("app-window"));
+                fl_value_set_string_take(payload, "durationMs",
+                                         fl_value_new_int(operation->duration_ms));
+                fl_value_set_string_take(
+                    payload, "sourceFilePath",
+                    fl_value_new_string(
+                        operation->recorder->output_path().c_str()));
+              }
+              Respond(operation->method_call, SuccessResponse(payload));
+              plugin->recording_state =
+                  FlutterCockpitPlugin::RecordingState::Idle;
+              plugin->recording_started_at_us = 0;
+            }
+            delete operation->recorder;
+            g_object_unref(operation->method_call);
+            g_object_unref(operation->plugin);
+            delete operation;
+            return G_SOURCE_REMOVE;
+          },
+          operation);
+    }).detach();
     return;
   }
 
@@ -840,6 +1025,8 @@ static void flutter_cockpit_plugin_init(FlutterCockpitPlugin* self) {
   g_weak_ref_init(&self->view_ref, nullptr);
   self->active_recorder = nullptr;
   self->recording_started_at_us = 0;
+  self->recording_state = FlutterCockpitPlugin::RecordingState::Idle;
+  self->session_token = 0;
 }
 
 void flutter_cockpit_plugin_register_with_registrar(FlPluginRegistrar* registrar) {

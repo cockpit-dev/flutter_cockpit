@@ -5,6 +5,7 @@
 #include <flutter/plugin_registrar_windows.h>
 
 #include <chrono>
+#include <cstdint>
 #include <future>
 #include <memory>
 #include <string>
@@ -33,6 +34,13 @@ class FlutterCockpitPlugin : public flutter::Plugin {
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
 
  private:
+  enum class RecordingState {
+    Idle,
+    Starting,
+    Recording,
+    Stopping,
+  };
+
   HWND ActiveWindowHandle() const;
 
   void QueryNativeCaptureAvailability(
@@ -54,7 +62,8 @@ class FlutterCockpitPlugin : public flutter::Plugin {
   flutter::PluginRegistrarWindows* registrar_;
   std::unique_ptr<FlutterCockpitWindowRecorder> active_recorder_;
   std::chrono::steady_clock::time_point recording_started_at_;
-  bool recording_active_ = false;
+  RecordingState recording_state_ = RecordingState::Idle;
+  uint64_t session_token_ = 0;
   ULONG_PTR gdiplus_token_ = 0;
 };
 

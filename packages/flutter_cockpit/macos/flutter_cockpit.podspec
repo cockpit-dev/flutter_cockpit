@@ -14,7 +14,7 @@ In-app runtime primitives for AI-driven Flutter development workflows.
     'flutter_cockpit_privacy' => ['flutter_cockpit/Sources/flutter_cockpit/PrivacyInfo.xcprivacy']
   }
   s.dependency 'FlutterMacOS'
-  s.platform = :osx, '10.14'
+  s.platform = :osx, '10.15'
   s.swift_version = '5.0'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

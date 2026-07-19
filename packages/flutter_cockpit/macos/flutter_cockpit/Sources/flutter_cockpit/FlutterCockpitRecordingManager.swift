@@ -10,6 +10,15 @@ final class FlutterCockpitRecordingManager {
   }
 
   private let windowProvider: () -> NSWindow?
+  private enum RecordingState {
+    case idle
+    case starting
+    case recording
+    case stopping
+  }
+
+  private var state: RecordingState = .idle
+  private var sessionToken: UInt64 = 0
   private var activeRecorder: FlutterCockpitWindowRecorder?
   private var startedAt: Date?
 
@@ -28,7 +37,8 @@ final class FlutterCockpitRecordingManager {
 
   func startRecording(arguments: [String: Any], result: @escaping FlutterResult) {
     DispatchQueue.main.async {
-      if self.activeRecorder != nil {
+      switch self.state {
+      case .starting, .recording:
         result(
           FlutterError(
             code: "recordingAlreadyActive",
@@ -37,9 +47,25 @@ final class FlutterCockpitRecordingManager {
           )
         )
         return
+      case .stopping:
+        result(
+          FlutterError(
+            code: "recordingAlreadyStopping",
+            message: "The previous recording session is still finalizing.",
+            details: nil
+          )
+        )
+        return
+      case .idle:
+        break
       }
 
+      self.state = .starting
+      self.sessionToken &+= 1
+      let token = self.sessionToken
+
       guard let window = self.windowProvider() else {
+        self.state = .idle
         result(
           FlutterError(
             code: "recordingNoWindow",
@@ -51,9 +77,9 @@ final class FlutterCockpitRecordingManager {
       }
 
       let relativePath = arguments["relativePath"] as? String ?? "recordings/flutter_cockpit.mp4"
-      let outputURL = self.temporaryRecordingURL(relativePath: relativePath)
 
       do {
+        let outputURL = try self.temporaryRecordingURL(relativePath: relativePath)
         try FileManager.default.createDirectory(
           at: outputURL.deletingLastPathComponent(),
           withIntermediateDirectories: true
@@ -67,16 +93,32 @@ final class FlutterCockpitRecordingManager {
           outputURL: outputURL
         )
         try recorder.start()
+        guard token == self.sessionToken else {
+          recorder.stop { _ in }
+          self.state = .idle
+          result(
+            FlutterError(
+              code: "recordingStartCancelled",
+              message: "The recording session was superseded before it started.",
+              details: nil
+            )
+          )
+          return
+        }
         self.activeRecorder = recorder
         self.startedAt = Date()
+        self.state = .recording
         result([
           "state": "recording",
         ])
       } catch {
         self.clearSession()
+        let errorCode = (error as? FlutterCockpitRecordingError)?.message == "recordingInvalidPath"
+          ? "recordingInvalidPath"
+          : "recordingStartFailed"
         result(
           FlutterError(
-            code: "recordingStartFailed",
+            code: errorCode,
             message: error.localizedDescription,
             details: nil
           )
@@ -87,7 +129,17 @@ final class FlutterCockpitRecordingManager {
 
   func stopRecording(result: @escaping FlutterResult) {
     DispatchQueue.main.async {
-      guard let recorder = self.activeRecorder else {
+      guard self.state == .recording, let recorder = self.activeRecorder else {
+        if self.state == .stopping {
+          result(
+            FlutterError(
+              code: "recordingAlreadyStopping",
+              message: "The previous recording session is still finalizing.",
+              details: nil
+            )
+          )
+          return
+        }
         result([
           "state": "failed",
           "failureReason": "recordingNotActive",
@@ -96,10 +148,15 @@ final class FlutterCockpitRecordingManager {
       }
 
       let durationMs = self.startedAt.map { Int(Date().timeIntervalSince($0) * 1000) } ?? 0
-      self.clearSession()
+      self.state = .stopping
+      let token = self.sessionToken
 
       recorder.stop { stopResult in
         DispatchQueue.main.async {
+          guard token == self.sessionToken else {
+            return
+          }
+          self.clearSession()
           switch stopResult {
           case let .completed(outputURL):
             result([
@@ -120,15 +177,36 @@ final class FlutterCockpitRecordingManager {
     }
   }
 
-  private func temporaryRecordingURL(relativePath: String) -> URL {
+  private func temporaryRecordingURL(relativePath: String) throws -> URL {
+    let relative = relativePath.trimmingCharacters(in: .whitespacesAndNewlines)
+    let components = relative.split(separator: "/", omittingEmptySubsequences: true)
+    guard !relative.isEmpty,
+      !relative.hasPrefix("/"),
+      !relative.contains(":") && !relative.contains("\\"),
+      !components.contains(where: { $0 == ".." || $0 == "." })
+    else {
+      throw FlutterCockpitRecordingError("recordingInvalidPath")
+    }
+
     let temporaryRoot = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
       .appendingPathComponent("flutter_cockpit_recordings", isDirectory: true)
-    return temporaryRoot.appendingPathComponent(relativePath)
+      .standardizedFileURL
+      .resolvingSymlinksInPath()
+    let outputURL = temporaryRoot.appendingPathComponent(relative).standardizedFileURL
+    let rootComponents = temporaryRoot.pathComponents
+    let outputComponents = outputURL.deletingLastPathComponent().pathComponents
+    guard outputComponents.count >= rootComponents.count,
+      Array(outputComponents.prefix(rootComponents.count)) == rootComponents
+    else {
+      throw FlutterCockpitRecordingError("recordingInvalidPath")
+    }
+    return outputURL
   }
 
   private func clearSession() {
     activeRecorder = nil
     startedAt = nil
+    state = .idle
   }
 }
 
@@ -189,6 +267,8 @@ private final class FlutterCockpitWindowRecorder {
   private var nextFrameIndex: Int64 = 0
   private var isStopping = false
   private var capturedFrameCount = 0
+  private let frameLock = NSLock()
+  private var framePending = false
 
   private let encodeQueue = DispatchQueue(
     label: "dev.cockpit.flutter_cockpit.macos-recording"
@@ -256,18 +336,39 @@ private final class FlutterCockpitWindowRecorder {
   }
 
   private func captureAndEnqueueFrame() {
-    guard !isStopping else {
+    guard !isStopping, reserveFrame() else {
       return
     }
 
     guard let cgImage = snapshotWindowImage() else {
+      releaseFrame()
       return
     }
 
     let presentationTime = nextPresentationTime()
     encodeQueue.async { [weak self] in
-      _ = self?.append(cgImage: cgImage, at: presentationTime)
+      guard let self else {
+        return
+      }
+      defer { self.releaseFrame() }
+      _ = self.append(cgImage: cgImage, at: presentationTime)
     }
+  }
+
+  private func reserveFrame() -> Bool {
+    frameLock.lock()
+    defer { frameLock.unlock() }
+    guard !framePending else {
+      return false
+    }
+    framePending = true
+    return true
+  }
+
+  private func releaseFrame() {
+    frameLock.lock()
+    framePending = false
+    frameLock.unlock()
   }
 
   private func snapshotWindowImage() -> CGImage? {
