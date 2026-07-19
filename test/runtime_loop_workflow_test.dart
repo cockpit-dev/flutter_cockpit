@@ -273,6 +273,7 @@ void main() {
     final installer = androidSdkInstallerScriptFile.readAsStringSync();
     expect(installer, contains('sdkmanager_retry()'));
     expect(installer, contains('sdkmanager_retry "emulator"'));
+    expect(installer, contains('sdkmanager_retry "cmake;3.22.1"'));
     expect(
       installer,
       contains(
@@ -328,6 +329,46 @@ void main() {
             '${entry.key} must preinstall SDK packages before the emulator action.',
       );
     }
+  });
+
+  test('runtime loop verifies the public native plugin on every platform', () {
+    final workflow = workflowFile.readAsStringSync();
+    final androidScript = androidVerifierScriptFile.readAsStringSync();
+    final nativeTest = File(
+      '$root/examples/cockpit_demo/integration_test/native_plugin_conformance_test.dart',
+    ).readAsStringSync();
+    final nativeDriver = File(
+      '$root/examples/cockpit_demo/integration_test/driver.dart',
+    ).readAsStringSync();
+
+    expect(
+      workflow,
+      contains('integration_test/native_plugin_conformance_test.dart'),
+    );
+    expect(workflow, contains('integration_test/driver.dart'));
+    expect(workflow, contains('validate-native-conformance-report.py'));
+    for (final platform in <String>[
+      'ios',
+      'macos',
+      'web',
+      'linux',
+      'windows',
+    ]) {
+      expect(workflow, contains('--platform $platform'));
+      expect(workflow, contains('flutter_cockpit_${platform}_native.json'));
+    }
+    expect(androidScript, contains('flutter drive'));
+    expect(androidScript, contains('uiautomator dump'));
+    expect(androidScript, contains('android:id/button1'));
+    expect(androidScript, contains('android_media_projection_hierarchy.xml'));
+    expect(nativeTest, contains('CockpitNativeCapture'));
+    expect(nativeTest, contains('CockpitNativeRecording'));
+    expect(nativeTest, contains('duplicateStartRejected'));
+    expect(nativeTest, contains('postFinalizeStopRejected'));
+    expect(nativeTest, contains('recordingUnavailable'));
+    expect(nativeTest, contains('nativeCaptureUnavailable'));
+    expect(nativeDriver, contains('responseDataCallback'));
+    expect(nativeDriver, contains('COCKPIT_NATIVE_REPORT_PATH'));
   });
 
   test('runtime loop command assertions track full verifier output', () {

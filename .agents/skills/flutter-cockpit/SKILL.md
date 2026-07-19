@@ -17,12 +17,11 @@ These stages are decision gates, not a fixed command script or command quota. Sa
 
 ## When To Use
 
-- Live UI, route, interaction, network, log, screenshot, recording, or acceptance proof.
-- Flutter app, browser, desktop window, simulator, emulator, device, or host control.
+- Live Flutter or host-control proof across app, browser, simulator, device, or desktop targets.
 
 ## First-Time App Wiring
 
-Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoint intact. Do not add `flutter_cockpit` imports to production `lib/` code. In `cockpit/`, wrap with `FlutterCockpitApp` or `FlutterCockpit.runApp`, register `FlutterCockpit.navigatorObserver` only in the cockpit-owned navigator, and enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`. For app-owned routers, call `FlutterCockpit.setCurrentRouteName(...)`.
+Add `flutter_cockpit`; add `cockpit/main.dart`; keep the production entrypoint intact. Keep imports out of production `lib/`. In `cockpit/`, use `FlutterCockpitApp` or `FlutterCockpit.runApp`, register `FlutterCockpit.navigatorObserver` only on its navigator, and enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`. App-owned routers call `FlutterCockpit.setCurrentRouteName(...)`.
 
 ## Stage Protocol
 
@@ -33,6 +32,8 @@ Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoi
 5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, or `read-network`. If focus blocks controls, run `dismissKeyboard`. For visible UI claims, run `capture-screenshot --name <proof-name>`. For animation, transition, gesture, or repro, use `start-recording` / `stop-recording`.
 6. **judge**: compare baseline, observed state, and outcome. Do not open screenshots, videos, or raw artifacts unless the content is the unresolved question, the artifact looks wrong, or user asks.
 7. **deliver**: for acceptance work, run `validate-task` and report the smallest useful evidence. `stop-app` is cleanup or recovery only, not a normal loop step.
+
+Release proof must come after the judged deployment on the same target and state. Bundle production is not host delivery. Required missing checks are never `N/A`. A proven app failure keeps the outcome `needs_more_work`.
 
 ## Fast Command Pack
 
@@ -194,8 +195,6 @@ Use the same `--output-root`; `sessionId` is a job, `taskId` names it, and `runI
 ## Common Mistakes
 
 - Running random commands instead of walking the seven stages.
-- Relaunching or stopping after every edit.
 - Treating command success, bundle completion, or artifact existence as product proof.
-- Using external screenshot or recording tools first.
 - Opening large artifacts before summaries identify the missing fact.
 - Claiming completion without baseline, post-action state, errors, and evidence.

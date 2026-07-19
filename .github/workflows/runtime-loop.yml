@@ -316,9 +316,13 @@ jobs:
           OUTPUT_ROOT="$RUNNER_TEMP/flutter_cockpit_android_out"
           RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_android_verification.json"
           LOG_PATH="$RUNNER_TEMP/flutter_cockpit_android_verification.log"
+          NATIVE_REPORT_JSON="$RUNNER_TEMP/flutter_cockpit_android_native.json"
+          NATIVE_REPORT_LOG="$RUNNER_TEMP/flutter_cockpit_android_native.log"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_JSON=$NATIVE_REPORT_JSON" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_LOG=$NATIVE_REPORT_LOG" >> "$GITHUB_ENV"
 
       - name: Run Android full verifier
         uses: reactivecircus/android-emulator-runner@v2
@@ -417,6 +421,8 @@ jobs:
             ${{ env.OUTPUT_ROOT }}
             ${{ env.RESULT_JSON }}
             ${{ env.LOG_PATH }}
+            ${{ env.NATIVE_REPORT_JSON }}
+            ${{ env.NATIVE_REPORT_LOG }}
 
   ios-runtime-loop:
     needs: shared-ai-surface-regressions
@@ -535,9 +541,25 @@ jobs:
           OUTPUT_ROOT="$RUNNER_TEMP/flutter_cockpit_ios_out"
           RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_ios_verification.json"
           LOG_PATH="$RUNNER_TEMP/flutter_cockpit_ios_verification.log"
+          NATIVE_REPORT_JSON="$RUNNER_TEMP/flutter_cockpit_ios_native.json"
+          NATIVE_REPORT_LOG="$RUNNER_TEMP/flutter_cockpit_ios_native.log"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_JSON=$NATIVE_REPORT_JSON" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_LOG=$NATIVE_REPORT_LOG" >> "$GITHUB_ENV"
+
+      - name: Run iOS app-native conformance
+        working-directory: examples/cockpit_demo
+        timeout-minutes: 20
+        run: |
+          set -eo pipefail
+          COCKPIT_NATIVE_REPORT_PATH="$NATIVE_REPORT_JSON" flutter drive \
+            --driver integration_test/driver.dart \
+            --target integration_test/native_plugin_conformance_test.dart \
+            -d "$IOS_DEVICE_ID" 2>&1 | tee "$NATIVE_REPORT_LOG"
+          python3 "$GITHUB_WORKSPACE/.github/scripts/validate-native-conformance-report.py" \
+            "$NATIVE_REPORT_JSON" --platform ios
 
       - name: Run iOS full verifier
         working-directory: examples/cockpit_demo
@@ -633,6 +655,8 @@ jobs:
             ${{ env.OUTPUT_ROOT }}
             ${{ env.RESULT_JSON }}
             ${{ env.LOG_PATH }}
+            ${{ env.NATIVE_REPORT_JSON }}
+            ${{ env.NATIVE_REPORT_LOG }}
 
   macos-runtime-loop:
     needs: shared-ai-surface-regressions
@@ -681,9 +705,25 @@ jobs:
           OUTPUT_ROOT="$RUNNER_TEMP/flutter_cockpit_macos_out"
           RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_macos_verification.json"
           LOG_PATH="$RUNNER_TEMP/flutter_cockpit_macos_verification.log"
+          NATIVE_REPORT_JSON="$RUNNER_TEMP/flutter_cockpit_macos_native.json"
+          NATIVE_REPORT_LOG="$RUNNER_TEMP/flutter_cockpit_macos_native.log"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_JSON=$NATIVE_REPORT_JSON" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_LOG=$NATIVE_REPORT_LOG" >> "$GITHUB_ENV"
+
+      - name: Run macOS app-native conformance
+        working-directory: examples/cockpit_demo
+        timeout-minutes: 15
+        run: |
+          set -eo pipefail
+          COCKPIT_NATIVE_REPORT_PATH="$NATIVE_REPORT_JSON" flutter drive \
+            --driver integration_test/driver.dart \
+            --target integration_test/native_plugin_conformance_test.dart \
+            -d macos 2>&1 | tee "$NATIVE_REPORT_LOG"
+          python3 "$GITHUB_WORKSPACE/.github/scripts/validate-native-conformance-report.py" \
+            "$NATIVE_REPORT_JSON" --platform macos
 
       - name: Run macOS full verifier
         working-directory: examples/cockpit_demo
@@ -805,6 +845,8 @@ jobs:
             ${{ env.OUTPUT_ROOT }}
             ${{ env.RESULT_JSON }}
             ${{ env.LOG_PATH }}
+            ${{ env.NATIVE_REPORT_JSON }}
+            ${{ env.NATIVE_REPORT_LOG }}
 
   web-runtime-loop:
     needs: shared-ai-surface-regressions
@@ -848,9 +890,25 @@ jobs:
           OUTPUT_ROOT="$RUNNER_TEMP/flutter_cockpit_web_out"
           RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_web_verification.json"
           LOG_PATH="$RUNNER_TEMP/flutter_cockpit_web_verification.log"
+          NATIVE_REPORT_JSON="$RUNNER_TEMP/flutter_cockpit_web_native.json"
+          NATIVE_REPORT_LOG="$RUNNER_TEMP/flutter_cockpit_web_native.log"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_JSON=$NATIVE_REPORT_JSON" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_LOG=$NATIVE_REPORT_LOG" >> "$GITHUB_ENV"
+
+      - name: Run web native-unavailable conformance
+        working-directory: examples/cockpit_demo
+        timeout-minutes: 15
+        run: |
+          set -eo pipefail
+          xvfb-run -a env COCKPIT_NATIVE_REPORT_PATH="$NATIVE_REPORT_JSON" flutter drive \
+            --driver integration_test/driver.dart \
+            --target integration_test/native_plugin_conformance_test.dart \
+            -d chrome 2>&1 | tee "$NATIVE_REPORT_LOG"
+          python3 "$GITHUB_WORKSPACE/.github/scripts/validate-native-conformance-report.py" \
+            "$NATIVE_REPORT_JSON" --platform web
 
       - name: Run web full verifier
         working-directory: examples/cockpit_demo
@@ -967,6 +1025,8 @@ jobs:
             ${{ env.OUTPUT_ROOT }}
             ${{ env.RESULT_JSON }}
             ${{ env.LOG_PATH }}
+            ${{ env.NATIVE_REPORT_JSON }}
+            ${{ env.NATIVE_REPORT_LOG }}
 
   linux-runtime-loop:
     needs: shared-ai-surface-regressions
@@ -1031,9 +1091,25 @@ jobs:
           OUTPUT_ROOT="$RUNNER_TEMP/flutter_cockpit_linux_out"
           RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_linux_verification.json"
           LOG_PATH="$RUNNER_TEMP/flutter_cockpit_linux_verification.log"
+          NATIVE_REPORT_JSON="$RUNNER_TEMP/flutter_cockpit_linux_native.json"
+          NATIVE_REPORT_LOG="$RUNNER_TEMP/flutter_cockpit_linux_native.log"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_JSON=$NATIVE_REPORT_JSON" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_LOG=$NATIVE_REPORT_LOG" >> "$GITHUB_ENV"
+
+      - name: Run Linux app-native conformance
+        working-directory: examples/cockpit_demo
+        timeout-minutes: 15
+        run: |
+          set -eo pipefail
+          xvfb-run -a env COCKPIT_NATIVE_REPORT_PATH="$NATIVE_REPORT_JSON" flutter drive \
+            --driver integration_test/driver.dart \
+            --target integration_test/native_plugin_conformance_test.dart \
+            -d linux 2>&1 | tee "$NATIVE_REPORT_LOG"
+          python3 "$GITHUB_WORKSPACE/.github/scripts/validate-native-conformance-report.py" \
+            "$NATIVE_REPORT_JSON" --platform linux
 
       - name: Run Linux full verifier
         working-directory: examples/cockpit_demo
@@ -1155,6 +1231,8 @@ jobs:
             ${{ env.OUTPUT_ROOT }}
             ${{ env.RESULT_JSON }}
             ${{ env.LOG_PATH }}
+            ${{ env.NATIVE_REPORT_JSON }}
+            ${{ env.NATIVE_REPORT_LOG }}
 
   windows-runtime-loop:
     needs: shared-ai-surface-regressions
@@ -1204,23 +1282,43 @@ jobs:
           OUTPUT_ROOT="$RUNNER_TEMP/flutter_cockpit_windows_out"
           RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_windows_verification.json"
           LOG_PATH="$RUNNER_TEMP/flutter_cockpit_windows_verification.log"
+          NATIVE_REPORT_JSON="$RUNNER_TEMP/flutter_cockpit_windows_native.json"
+          NATIVE_REPORT_LOG="$RUNNER_TEMP/flutter_cockpit_windows_native.log"
           PROJECT_DIR="${GITHUB_WORKSPACE//\\//}/examples/cockpit_demo"
           OUTPUT_ROOT_POSIX="${OUTPUT_ROOT//\\//}"
           RESULT_JSON_POSIX="${RESULT_JSON//\\//}"
           LOG_PATH_POSIX="${LOG_PATH//\\//}"
+          NATIVE_REPORT_JSON_POSIX="${NATIVE_REPORT_JSON//\\//}"
+          NATIVE_REPORT_LOG_POSIX="${NATIVE_REPORT_LOG//\\//}"
           SUPERVISOR_LOG_DIR="$OUTPUT_ROOT_POSIX/windows-supervisor-logs"
           SUPERVISOR_LIVE_LOG_DIR="$OUTPUT_ROOT_POSIX/windows-supervisor-live"
           mkdir -p "$SUPERVISOR_LIVE_LOG_DIR"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_JSON=$NATIVE_REPORT_JSON" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_LOG=$NATIVE_REPORT_LOG" >> "$GITHUB_ENV"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           echo "OUTPUT_ROOT_POSIX=$OUTPUT_ROOT_POSIX" >> "$GITHUB_ENV"
           echo "RESULT_JSON_POSIX=$RESULT_JSON_POSIX" >> "$GITHUB_ENV"
           echo "LOG_PATH_POSIX=$LOG_PATH_POSIX" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_JSON_POSIX=$NATIVE_REPORT_JSON_POSIX" >> "$GITHUB_ENV"
+          echo "NATIVE_REPORT_LOG_POSIX=$NATIVE_REPORT_LOG_POSIX" >> "$GITHUB_ENV"
           echo "SUPERVISOR_LOG_DIR=$SUPERVISOR_LOG_DIR" >> "$GITHUB_ENV"
           echo "SUPERVISOR_LIVE_LOG_DIR=$SUPERVISOR_LIVE_LOG_DIR" >> "$GITHUB_ENV"
           echo "FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR=$SUPERVISOR_LIVE_LOG_DIR" >> "$GITHUB_ENV"
+
+      - name: Run Windows app-native conformance
+        working-directory: examples/cockpit_demo
+        timeout-minutes: 20
+        run: |
+          set -eo pipefail
+          COCKPIT_NATIVE_REPORT_PATH="$NATIVE_REPORT_JSON_POSIX" flutter drive \
+            --driver integration_test/driver.dart \
+            --target integration_test/native_plugin_conformance_test.dart \
+            -d windows 2>&1 | tee "$NATIVE_REPORT_LOG_POSIX"
+          python "$GITHUB_WORKSPACE/.github/scripts/validate-native-conformance-report.py" \
+            "$NATIVE_REPORT_JSON_POSIX" --platform windows
 
       - name: Run Windows full verifier
         timeout-minutes: 45
@@ -1426,4 +1524,6 @@ jobs:
             ${{ env.OUTPUT_ROOT }}
             ${{ env.RESULT_JSON }}
             ${{ env.LOG_PATH }}
+            ${{ env.NATIVE_REPORT_JSON }}
+            ${{ env.NATIVE_REPORT_LOG }}
             ${{ env.SUPERVISOR_LOG_DIR }}

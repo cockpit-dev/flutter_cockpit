@@ -3155,7 +3155,7 @@ final class _ChromeCdpBrowser {
     final socket = await WebSocket.connect(wsUrl);
     final tab = _ChromeCdpTab(socket);
     await tab.enable();
-    await tab.waitForExpression('document.readyState === "complete"');
+    await tab.navigate(uri);
     return tab;
   }
 
@@ -3230,6 +3230,44 @@ final class _ChromeCdpTab {
   Future<void> enable() async {
     await send('Runtime.enable');
     await send('Page.enable');
+  }
+
+  Future<void> navigate(Uri uri) async {
+    final targetUrl = uri.toString();
+    final response = await send('Page.navigate', <String, Object?>{
+      'url': targetUrl,
+    });
+    final result = response['result'];
+    if (result is Map && result['errorText'] is String) {
+      throw StateError('Chrome navigation failed: ${result['errorText']}');
+    }
+
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    String? lastUrl;
+    Object? lastError;
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final value = await evaluate('location.href');
+        final currentUrl = value?.toString();
+        lastUrl = currentUrl;
+        if (currentUrl != null &&
+            currentUrl != 'about:blank' &&
+            _normalizeBrowserUrl(currentUrl) ==
+                _normalizeBrowserUrl(targetUrl)) {
+          await waitForExpression(
+            'document.readyState === "complete" && document.body !== null',
+          );
+          return;
+        }
+      } on Object catch (error) {
+        lastError = error;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+    }
+    throw TimeoutException(
+      'Timed out waiting for Chrome navigation: target=$targetUrl, '
+      'lastUrl=$lastUrl, lastError=$lastError',
+    );
   }
 
   Future<Map<String, Object?>> send(
@@ -3437,6 +3475,12 @@ final class _ChromeCdpTab {
     }
     _pending.clear();
   }
+}
+
+String _normalizeBrowserUrl(String value) {
+  final uri = Uri.parse(value).normalizePath();
+  final path = uri.path == '/' ? '' : uri.path.replaceFirst(RegExp(r'/$'), '');
+  return uri.replace(path: path, fragment: '').toString();
 }
 
 Future<Map<String, Object?>> _httpGetJson(

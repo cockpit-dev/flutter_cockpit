@@ -61,6 +61,7 @@ sdkmanager_retry() {
 }
 
 sdkmanager_retry "build-tools;$ANDROID_BUILD_TOOLS_VERSION"
+sdkmanager_retry "cmake;3.22.1"
 sdkmanager_retry "platform-tools"
 sdkmanager_retry "platforms;android-$ANDROID_EMULATOR_API_LEVEL"
 if [ "$ANDROID_COMPILE_API_LEVEL" != "$ANDROID_EMULATOR_API_LEVEL" ]; then

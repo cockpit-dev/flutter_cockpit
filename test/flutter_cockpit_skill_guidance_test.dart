@@ -593,4 +593,49 @@ void main() {
     expect(protocol, contains('docs/contracts/task-run-bundle.md'));
     expect(protocol, contains('Load only'));
   });
+
+  test('flutter-cockpit release evidence rules close delivery loopholes', () {
+    const requiredRules = <String>[
+      'after the judged deployment on the same target and state',
+      'Bundle production is not host delivery',
+      'Required missing checks are never `N/A`',
+      'proven app failure keeps the outcome `needs_more_work`',
+    ];
+    final canonical = <String, String>{
+      for (final path in <String>[
+        'SKILL.md',
+        'pressure-scenarios.md',
+        'examples/acceptance-delivery.md',
+        'examples/failure-with-evidence.md',
+      ])
+        path: readRepoFile('skills/flutter-cockpit/$path'),
+    };
+    final packaged = <String, String>{
+      for (final path in canonical.keys)
+        path: readRepoFile('.agents/skills/flutter-cockpit/$path'),
+    };
+    final contract = readRepoFile(
+      'docs/contracts/flutter-cockpit-skill-contract.md',
+    );
+
+    for (final entry in canonical.entries) {
+      expect(packaged[entry.key], entry.value, reason: entry.key);
+    }
+    for (final rule in requiredRules) {
+      expect(canonical['SKILL.md'], contains(rule));
+      expect(contract, contains(rule));
+    }
+    expect(
+      canonical['pressure-scenarios.md'],
+      contains('Required missing checks are never `N/A`'),
+    );
+    expect(
+      canonical['examples/acceptance-delivery.md'],
+      contains('Bundle production is not host delivery'),
+    );
+    expect(
+      canonical['examples/failure-with-evidence.md'],
+      contains('proven app failure keeps the outcome `needs_more_work`'),
+    );
+  });
 }
