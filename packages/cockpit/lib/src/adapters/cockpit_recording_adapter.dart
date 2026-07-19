@@ -13,7 +13,7 @@ final class CockpitRecordingProvenance {
 }
 
 abstract interface class CockpitRecordingProvenanceProvider {
-  CockpitRecordingProvenance get recordingProvenance;
+  CockpitRecordingProvenance? get recordingProvenance;
 }
 
 abstract interface class CockpitRecordingAdapter {

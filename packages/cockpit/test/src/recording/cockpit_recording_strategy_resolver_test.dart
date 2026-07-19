@@ -126,6 +126,48 @@ void main() {
     },
   );
 
+  test('leaves remote recording provenance unclassified', () {
+    final remoteAdapter = CockpitRemoteRecordingAdapter(
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+    );
+    expect(remoteAdapter, isNot(isA<CockpitRecordingProvenanceProvider>()));
+
+    final resolver = CockpitRecordingStrategyResolver(
+      remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+    );
+    final resolution = resolver.resolveDetailed(
+      platform: 'ios',
+      recording: nativeRequest,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      iosDeviceId: '00008110-0009341C2EF3801E',
+    );
+
+    final provider = resolution!.adapter! as CockpitRecordingProvenanceProvider;
+    expect(provider.recordingProvenance, isNull);
+  });
+
+  test('leaves a custom adapter without provenance unclassified', () {
+    final resolver = CockpitRecordingStrategyResolver(
+      remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+    );
+    final resolution = resolver.resolveDetailed(
+      platform: 'ios',
+      recording: autoRequest,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      iosDeviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+    );
+
+    final provider = resolution!.adapter! as CockpitRecordingProvenanceProvider;
+    expect(provider.recordingProvenance, isNull);
+  });
+
   test('uses host-screen recording for macOS full mode', () {
     final resolver = CockpitRecordingStrategyResolver(
       remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
@@ -362,13 +404,13 @@ void main() {
 
       final provenance =
           resolution!.adapter! as CockpitRecordingProvenanceProvider;
-      expect(provenance.recordingProvenance.implementation, 'ios-app-native');
+      expect(provenance.recordingProvenance!.implementation, 'ios-app-native');
       expect(
-        provenance.recordingProvenance.sourcePlane,
+        provenance.recordingProvenance!.sourcePlane,
         CockpitRecordingSourcePlane.app,
       );
       await resolution.adapter!.startRecording(autoRequest);
-      expect(provenance.recordingProvenance.implementation, 'ios-app-native');
+      expect(provenance.recordingProvenance!.implementation, 'ios-app-native');
     },
   );
 
@@ -393,20 +435,46 @@ void main() {
       final provenance =
           resolution!.adapter! as CockpitRecordingProvenanceProvider;
 
-      expect(provenance.recordingProvenance.implementation, 'macosHost');
+      expect(provenance.recordingProvenance!.implementation, 'macosHost');
       expect(
-        provenance.recordingProvenance.sourcePlane,
+        provenance.recordingProvenance!.sourcePlane,
         CockpitRecordingSourcePlane.host,
       );
       await resolution.adapter!.startRecording(autoRequest);
-      expect(provenance.recordingProvenance.implementation, 'ios-app-native');
+      expect(provenance.recordingProvenance!.implementation, 'ios-app-native');
       expect(
-        provenance.recordingProvenance.sourcePlane,
+        provenance.recordingProvenance!.sourcePlane,
         CockpitRecordingSourcePlane.app,
       );
       final result = await resolution.adapter!.stopRecording();
       expect(result.fallbackUsed, isTrue);
       expect(result.fallbackReason, contains('screen permission missing'));
+    },
+  );
+
+  test(
+    'clears provenance when runtime fallback uses an unknown adapter',
+    () async {
+      final resolver = CockpitRecordingStrategyResolver(
+        remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+        macosAdapterFactory: (appId) => _ThrowingHostRecordingAdapter(
+          StateError('screen permission missing'),
+        ),
+      );
+      final resolution = resolver.resolveDetailed(
+        platform: 'macos',
+        recording: autoRequest,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        platformAppId: 'dev.cockpit.demo',
+      );
+      final provider =
+          resolution!.adapter! as CockpitRecordingProvenanceProvider;
+
+      expect(provider.recordingProvenance, isNotNull);
+      await resolution.adapter!.startRecording(autoRequest);
+      expect(provider.recordingProvenance, isNull);
     },
   );
 

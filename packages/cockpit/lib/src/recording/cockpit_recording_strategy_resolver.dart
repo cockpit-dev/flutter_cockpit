@@ -805,12 +805,14 @@ final class _PolicyAwareRecordingAdapter
   CockpitRecordingProvenance? _activeProvenance;
 
   @override
-  CockpitRecordingProvenance get recordingProvenance {
-    return _activeProvenance ??
-        _provenanceFor(
-          adapter: _delegate,
-          implementation: _delegateImplementation,
-        );
+  CockpitRecordingProvenance? get recordingProvenance {
+    if (_activeDelegate != null) {
+      return _activeProvenance;
+    }
+    return _provenanceFor(
+      adapter: _delegate,
+      implementation: _delegateImplementation,
+    );
   }
 
   @override
@@ -888,7 +890,7 @@ final class _PolicyAwareRecordingAdapter
     );
   }
 
-  CockpitRecordingProvenance _provenanceFor({
+  CockpitRecordingProvenance? _provenanceFor({
     required CockpitRecordingAdapter adapter,
     required String implementation,
   }) {
@@ -902,10 +904,7 @@ final class _PolicyAwareRecordingAdapter
         sourcePlane: CockpitRecordingSourcePlane.host,
       );
     }
-    return const CockpitRecordingProvenance(
-      implementation: 'unknown',
-      sourcePlane: CockpitRecordingSourcePlane.app,
-    );
+    return null;
   }
 }
 
