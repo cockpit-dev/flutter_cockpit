@@ -243,9 +243,13 @@ internal class FlutterCockpitRecordingCoordinator(
                 projectionData = data,
                 relativePath = startRequest.relativePath,
                 sessionToken = token,
-            ) { payload ->
-                completeStart(token, payload)
-            }
+                onStarted = { payload ->
+                    completeStart(token, payload)
+                },
+                onTerminated = { payload ->
+                    completeUnexpectedTermination(token, payload)
+                },
+            )
         } catch (error: Exception) {
             completeStartFailure(
                 token = token,
@@ -333,6 +337,38 @@ internal class FlutterCockpitRecordingCoordinator(
         state = RecordingState.Idle
         FlutterCockpitRecordingService.cancelPendingStart(token)
         result?.error(code, message, null)
+    }
+
+    private fun completeUnexpectedTermination(token: Long, payload: Map<String, Any?>) {
+        if (token != currentSessionToken) {
+            return
+        }
+        when (state) {
+            RecordingState.Starting -> {
+                val result = pendingStartResult
+                pendingStartResult = null
+                pendingStartRequest = null
+                currentSessionToken = null
+                state = RecordingState.Idle
+                result?.success(payload)
+            }
+            RecordingState.Recording -> {
+                currentSessionToken = null
+                state = RecordingState.Idle
+            }
+            RecordingState.Stopping -> {
+                val result = pendingStopResult
+                pendingStopResult = null
+                currentSessionToken = null
+                state = RecordingState.Idle
+                result?.error(
+                    "recordingDetached",
+                    "Recording ended before finalization completed.",
+                    null,
+                )
+            }
+            RecordingState.Idle -> Unit
+        }
     }
 
     private fun completeStop(token: Long, payload: Map<String, Any?>) {

@@ -185,6 +185,8 @@ void main() {
     );
     expect(serviceSource, contains('length() > 0'));
     expect(serviceSource, contains('mutableSetOf<Long>()'));
+    expect(serviceSource, contains('resolveSessionTermination'));
+    expect(source, contains('completeUnexpectedTermination'));
     expect(
       serviceSource.indexOf('mediaProjection = projection'),
       lessThan(serviceSource.indexOf('projection.registerCallback')),

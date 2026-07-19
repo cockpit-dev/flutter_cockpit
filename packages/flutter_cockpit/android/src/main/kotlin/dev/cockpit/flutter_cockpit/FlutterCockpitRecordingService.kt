@@ -92,11 +92,18 @@ internal class FlutterCockpitRecordingService : Service() {
 
     override fun onDestroy() {
         val token = activeSessionToken
+        val wasRecording = isRecording
         activeService = null
         isFinalizing = false
         cleanupProjection()
         if (token != null) {
-            resolvePendingStart(token, failedPayload("recordingDetached"))
+            val payload = failedPayload("recordingDetached")
+            val resolvedStart = resolvePendingStart(token, payload)
+            if (!resolvedStart && wasRecording) {
+                resolveSessionTermination(token, payload)
+            } else if (!resolvedStart) {
+                clearSessionTermination(token)
+            }
         }
         super.onDestroy()
     }
@@ -197,8 +204,10 @@ internal class FlutterCockpitRecordingService : Service() {
                     override fun onStop() {
                         if (isRecording && !isStopping) {
                             isStopping = true
+                            isFinalizing = true
                             stopRecordingInternal(
                                 failureReason = "projectionStopped",
+                                notifyCoordinator = true,
                                 onComplete = null,
                             )
                         }
@@ -245,8 +254,10 @@ internal class FlutterCockpitRecordingService : Service() {
 
     private fun stopRecordingInternal(
         failureReason: String?,
+        notifyCoordinator: Boolean = false,
         onComplete: ((Map<String, Any?>) -> Unit)?,
     ) {
+        val sessionToken = activeSessionToken
         val durationMs =
             if (startedAtElapsedMs == 0L) {
                 0
@@ -294,8 +305,14 @@ internal class FlutterCockpitRecordingService : Service() {
             }
 
         try {
+            if (notifyCoordinator && sessionToken != null) {
+                resolveSessionTermination(sessionToken, payload)
+            }
             onComplete?.invoke(payload)
         } finally {
+            if (!notifyCoordinator && sessionToken != null) {
+                clearSessionTermination(sessionToken)
+            }
             stopForegroundCompat()
             stopSelf()
         }
@@ -418,6 +435,8 @@ internal class FlutterCockpitRecordingService : Service() {
         @Volatile private var activeService: FlutterCockpitRecordingService? = null
         private var pendingStartToken: Long? = null
         private var pendingStartCallback: ((Map<String, Any?>) -> Unit)? = null
+        private val sessionTerminationCallbacks =
+            mutableMapOf<Long, (Map<String, Any?>) -> Unit>()
         private val cancelledSessionTokens = mutableSetOf<Long>()
 
         fun requestStart(
@@ -427,6 +446,7 @@ internal class FlutterCockpitRecordingService : Service() {
             relativePath: String,
             sessionToken: Long,
             onStarted: (Map<String, Any?>) -> Unit,
+            onTerminated: (Map<String, Any?>) -> Unit,
         ) {
             synchronized(this) {
                 if (pendingStartCallback != null) {
@@ -435,6 +455,7 @@ internal class FlutterCockpitRecordingService : Service() {
                 }
                 pendingStartToken = sessionToken
                 pendingStartCallback = onStarted
+                sessionTerminationCallbacks[sessionToken] = onTerminated
             }
 
             val intent =
@@ -469,6 +490,7 @@ internal class FlutterCockpitRecordingService : Service() {
                 if (pendingStartToken == sessionToken) {
                     pendingStartToken = null
                     pendingStartCallback = null
+                    sessionTerminationCallbacks.remove(sessionToken)
                     cancelledSessionTokens.add(sessionToken)
                 }
             }
@@ -477,7 +499,9 @@ internal class FlutterCockpitRecordingService : Service() {
 
         fun hasActiveSession(): Boolean =
             synchronized(this) {
-                pendingStartToken != null || activeService?.hasRunningSession() == true
+                pendingStartToken != null ||
+                    sessionTerminationCallbacks.isNotEmpty() ||
+                    activeService?.hasRunningSession() == true
             }
 
         private fun hasPendingStart(): Boolean =
@@ -490,17 +514,41 @@ internal class FlutterCockpitRecordingService : Service() {
                 cancelledSessionTokens.remove(sessionToken)
             }
 
-        private fun resolvePendingStart(sessionToken: Long, payload: Map<String, Any?>) {
+        private fun resolvePendingStart(
+            sessionToken: Long,
+            payload: Map<String, Any?>,
+        ): Boolean {
             val callback =
                 synchronized(this) {
                     if (pendingStartToken != sessionToken) {
                         null
                     } else {
                         pendingStartToken = null
+                        if (payload["state"] != "recording") {
+                            sessionTerminationCallbacks.remove(sessionToken)
+                        }
                         pendingStartCallback.also { pendingStartCallback = null }
                     }
                 }
             callback?.invoke(payload)
+            return callback != null
+        }
+
+        private fun resolveSessionTermination(
+            sessionToken: Long,
+            payload: Map<String, Any?>,
+        ) {
+            val callback =
+                synchronized(this) {
+                    sessionTerminationCallbacks.remove(sessionToken)
+                }
+            callback?.invoke(payload)
+        }
+
+        private fun clearSessionTermination(sessionToken: Long) {
+            synchronized(this) {
+                sessionTerminationCallbacks.remove(sessionToken)
+            }
         }
 
         private fun failedPayload(failureReason: String): Map<String, Any?> =
