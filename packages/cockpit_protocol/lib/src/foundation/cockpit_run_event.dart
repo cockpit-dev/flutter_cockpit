@@ -75,6 +75,12 @@ final class CockpitRunEvent {
       );
     }
     _validateState(this);
+    if (failure != null &&
+        failure!.artifacts.any((artifact) => artifact.runId != runId)) {
+      throw const FormatException(
+        'Event failure artifact belongs to another run.',
+      );
+    }
     final artifactIds = <String>{};
     for (final artifact in this.artifacts) {
       if (artifact.runId != runId) {
@@ -301,15 +307,20 @@ final class CockpitRunEvent {
     int afterSequence = 0,
     bool contiguous = true,
   }) {
-    String? runId;
-    String? workspaceId;
+    ({String projectId, String workspaceId, String runId, String caseId})?
+    identity;
     var previous = afterSequence;
     final eventIds = <String>{};
     for (final event in events) {
-      runId ??= event.runId;
-      workspaceId ??= event.workspaceId;
-      if (event.runId != runId || event.workspaceId != workspaceId) {
-        throw const FormatException('Event sequence crosses run ownership.');
+      final eventIdentity = (
+        projectId: event.projectId,
+        workspaceId: event.workspaceId,
+        runId: event.runId,
+        caseId: event.caseId,
+      );
+      identity ??= eventIdentity;
+      if (eventIdentity != identity) {
+        throw const FormatException('Event sequence crosses run identity.');
       }
       if (event.sequence <= previous ||
           (contiguous && event.sequence != previous + 1)) {

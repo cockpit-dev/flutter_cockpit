@@ -81,7 +81,7 @@ const String cockpitFoundationV2SchemaJson = r'''
     },
     "AbsolutePath": {
       "type": "string",
-      "pattern": "^(?:/|[A-Za-z]:[\\\\/]|(?:\\\\\\\\|//)[^\\\\/]+[\\\\/][^\\\\/]+)",
+      "pattern": "^(?!.*(?:^|[\\\\/])(?:\\.|\\.\\.)(?:[\\\\/]|$))(?!.*\\u0000)(?:/|[A-Za-z]:[\\\\/]|(?:\\\\\\\\|//)[^\\\\/]+[\\\\/][^\\\\/]+)",
       "minLength": 1,
       "maxLength": 4096
     },
@@ -466,7 +466,12 @@ const String cockpitFoundationV2SchemaJson = r'''
         "createdAt",
         "downloadUrl"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "dependentRequired": {
+        "stepExecutionId": [
+          "attemptId"
+        ]
+      }
     },
     "RootResource": {
       "type": "object",

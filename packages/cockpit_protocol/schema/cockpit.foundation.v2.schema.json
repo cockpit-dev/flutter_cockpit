@@ -78,7 +78,7 @@
     },
     "AbsolutePath": {
       "type": "string",
-      "pattern": "^(?:/|[A-Za-z]:[\\\\/]|(?:\\\\\\\\|//)[^\\\\/]+[\\\\/][^\\\\/]+)",
+      "pattern": "^(?!.*(?:^|[\\\\/])(?:\\.|\\.\\.)(?:[\\\\/]|$))(?!.*\\u0000)(?:/|[A-Za-z]:[\\\\/]|(?:\\\\\\\\|//)[^\\\\/]+[\\\\/][^\\\\/]+)",
       "minLength": 1,
       "maxLength": 4096
     },
@@ -463,7 +463,12 @@
         "createdAt",
         "downloadUrl"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "dependentRequired": {
+        "stepExecutionId": [
+          "attemptId"
+        ]
+      }
     },
     "RootResource": {
       "type": "object",

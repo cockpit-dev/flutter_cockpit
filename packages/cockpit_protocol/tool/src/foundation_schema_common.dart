@@ -1,3 +1,4 @@
+import 'package:cockpit_protocol/src/foundation/cockpit_foundation_constraints.dart';
 import 'foundation_schema_helpers.dart';
 
 Map<String, Object?> foundationCommonDefinitions() => <String, Object?>{
@@ -16,7 +17,7 @@ Map<String, Object?> foundationCommonDefinitions() => <String, Object?>{
     maxLength: 64,
   ),
   'AbsolutePath': stringSchema(
-    pattern: r'^(?:/|[A-Za-z]:[\\/]|(?:\\\\|//)[^\\/]+[\\/][^\\/]+)',
+    pattern: cockpitFoundationAbsolutePathPattern,
     maxLength: 4096,
   ),
   'RelativePath': stringSchema(
@@ -121,7 +122,10 @@ Map<String, Object?> foundationCommonDefinitions() => <String, Object?>{
   }),
   'PageRequest': objectSchema(
     <String, Object?>{
-      'limit': integerSchema(minimum: 1, maximum: 100),
+      'limit': integerSchema(
+        minimum: 1,
+        maximum: cockpitFoundationPageSizeMaximum,
+      ),
       'cursor': schemaRef('Cursor'),
     },
     optional: const <String>{'limit', 'cursor'},

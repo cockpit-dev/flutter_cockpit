@@ -1,6 +1,8 @@
+import 'dart:collection';
 import 'dart:convert';
 
 import 'cockpit_decode_policy.dart';
+import 'cockpit_foundation_constraints.dart';
 
 final class CockpitFoundationValueReader {
   const CockpitFoundationValueReader._();
@@ -12,6 +14,9 @@ final class CockpitFoundationValueReader {
   static final RegExp _sha256Pattern = RegExp(r'^[a-f0-9]{64}$');
   static final RegExp _mediaTypePattern = RegExp(
     r'^[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+-]+$',
+  );
+  static final RegExp _absolutePathPattern = RegExp(
+    cockpitFoundationAbsolutePathPattern,
   );
 
   static Map<String, Object?> object(Object? value, String path) {
@@ -122,13 +127,7 @@ final class CockpitFoundationValueReader {
 
   static String absolutePath(Object? value, String path) {
     final result = string(value, path, maximum: 4096);
-    final isPosix = result.startsWith('/');
-    final isDrive = RegExp(r'^[A-Za-z]:[\\/]').hasMatch(result);
-    final isUnc = RegExp(r'^(?:\\\\|//)[^\\/]+[\\/][^\\/]+').hasMatch(result);
-    final segments = result.split(RegExp(r'[\\/]'));
-    if ((!isPosix && !isDrive && !isUnc) ||
-        result.contains('\u0000') ||
-        segments.any((segment) => segment == '.' || segment == '..')) {
+    if (!_absolutePathPattern.hasMatch(result)) {
       throw FormatException('Expected a canonical absolute path at $path.');
     }
     return result;
@@ -191,7 +190,7 @@ final class CockpitFoundationValueReader {
   static DateTime dateTime(Object? value, String path) {
     final source = string(value, path, maximum: 64);
     final parsed = DateTime.tryParse(source);
-    if (parsed == null || !parsed.isUtc) {
+    if (!source.endsWith('Z') || parsed == null || !parsed.isUtc) {
       throw FormatException('Expected an ISO-8601 UTC timestamp at $path.');
     }
     return parsed.toUtc();
@@ -226,34 +225,90 @@ final class CockpitFoundationValueReader {
   }
 
   static Object? jsonValue(Object? value, String path) {
-    if (value == null || value is String || value is bool || value is int) {
-      return value;
-    }
-    if (value is num && value.isFinite) {
-      return value.toDouble();
-    }
-    if (value is List<Object?>) {
-      return List<Object?>.unmodifiable(<Object?>[
-        for (var index = 0; index < value.length; index += 1)
-          jsonValue(value[index], '$path[$index]'),
-      ]);
-    }
-    if (value is Map<Object?, Object?>) {
-      final map = object(value, path);
-      return Map<String, Object?>.unmodifiable(<String, Object?>{
-        for (final entry in map.entries)
-          entry.key: jsonValue(entry.value, '$path.${entry.key}'),
-      });
-    }
-    throw FormatException('Expected a finite JSON value at $path.');
+    return _freezeJsonValue(value, path, 0, _JsonFreezeState());
   }
 
   static Map<String, Object?> jsonObject(Object? value, String path) {
-    return Map<String, Object?>.unmodifiable(
-      object(jsonValue(value, path), path),
-    );
+    final frozen = jsonValue(value, path);
+    if (frozen is! Map<String, Object?>) {
+      throw FormatException('Expected an object at $path.');
+    }
+    return frozen;
   }
 
   static String canonicalJson(Object? value) =>
       jsonEncode(jsonValue(value, r'$'));
+}
+
+Object? _freezeJsonValue(
+  Object? value,
+  String path,
+  int depth,
+  _JsonFreezeState state,
+) {
+  if (depth > cockpitFoundationJsonMaximumDepth) {
+    throw FormatException('JSON nesting exceeds the limit at $path.');
+  }
+  state.countNode(path);
+
+  if (value == null || value is String || value is bool || value is int) {
+    return value;
+  }
+  if (value is num) {
+    if (!value.isFinite) {
+      throw FormatException('Expected a finite JSON number at $path.');
+    }
+    return value.toDouble();
+  }
+  if (value is List<Object?>) {
+    state.enterContainer(value, path);
+    try {
+      return List<Object?>.unmodifiable(<Object?>[
+        for (var index = 0; index < value.length; index += 1)
+          _freezeJsonValue(value[index], '$path[$index]', depth + 1, state),
+      ]);
+    } finally {
+      state.leaveContainer(value);
+    }
+  }
+  if (value is Map<Object?, Object?>) {
+    state.enterContainer(value, path);
+    try {
+      final map = CockpitFoundationValueReader.object(value, path);
+      return Map<String, Object?>.unmodifiable(<String, Object?>{
+        for (final entry in map.entries)
+          entry.key: _freezeJsonValue(
+            entry.value,
+            '$path.${entry.key}',
+            depth + 1,
+            state,
+          ),
+      });
+    } finally {
+      state.leaveContainer(value);
+    }
+  }
+  throw FormatException('Expected a JSON value at $path.');
+}
+
+final class _JsonFreezeState {
+  final Set<Object> _activeContainers = HashSet<Object>.identity();
+  var _nodeCount = 0;
+
+  void countNode(String path) {
+    _nodeCount += 1;
+    if (_nodeCount > cockpitFoundationJsonMaximumNodes) {
+      throw FormatException('JSON node count exceeds the limit at $path.');
+    }
+  }
+
+  void enterContainer(Object container, String path) {
+    if (!_activeContainers.add(container)) {
+      throw FormatException('JSON container cycle detected at $path.');
+    }
+  }
+
+  void leaveContainer(Object container) {
+    _activeContainers.remove(container);
+  }
 }

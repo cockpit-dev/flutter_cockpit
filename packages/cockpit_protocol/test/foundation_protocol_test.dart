@@ -1,4 +1,5 @@
 import 'package:cockpit_protocol/cockpit_protocol.dart';
+import 'package:cockpit_protocol/src/foundation/cockpit_foundation_value_reader.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -242,7 +243,7 @@ void main() {
         final invocation = CockpitOperationInvocation(
           kind: 'case.run',
           workspaceId: submission.workspaceId,
-          idempotencyKey: CockpitIdempotencyKey('operation:runA:1'),
+          idempotencyKey: submission.idempotencyKey,
           input: submission.toJson(),
         );
         _expectRoundTrip(invocation, CockpitOperationInvocation.fromJson);
@@ -361,6 +362,55 @@ void main() {
       },
     );
 
+    test('JSON values freeze within structural resource bounds', () {
+      final shared = <Object?>[1, 'two'];
+      final frozen = CockpitFoundationValueReader.jsonObject(<String, Object?>{
+        'first': shared,
+        'second': shared,
+      }, r'$.payload');
+      expect(frozen['first'], <Object?>[1, 'two']);
+      expect(frozen['second'], <Object?>[1, 'two']);
+      expect(
+        () => (frozen['first']! as List<Object?>).add(3),
+        throwsUnsupportedError,
+      );
+
+      final cyclic = <String, Object?>{};
+      cyclic['self'] = cyclic;
+      expect(
+        () => CockpitFoundationValueReader.canonicalJson(cyclic),
+        throwsA(_formatExceptionAt(r'$.self')),
+      );
+
+      Object? tooDeep;
+      for (var depth = 0; depth <= 64; depth += 1) {
+        tooDeep = <Object?>[tooDeep];
+      }
+      expect(
+        () => CockpitFoundationValueReader.jsonValue(tooDeep, r'$'),
+        throwsA(_formatExceptionAt(r'$[')),
+      );
+      expect(
+        () => CockpitFoundationValueReader.jsonValue(
+          List<Object?>.filled(65536, null),
+          r'$',
+        ),
+        throwsA(_formatExceptionAt(r'$[65535]')),
+      );
+      expect(
+        () => CockpitFoundationValueReader.jsonObject(<String, Object?>{
+          'value': double.nan,
+        }, r'$.payload'),
+        throwsA(_formatExceptionAt(r'$.payload.value')),
+      );
+      expect(
+        () => CockpitFoundationValueReader.jsonObject(<String, Object?>{
+          'value': DateTime.utc(2026),
+        }, r'$.payload'),
+        throwsA(_formatExceptionAt(r'$.payload.value')),
+      );
+    });
+
     test(
       'negotiation, admission, recovery, and state invariants fail closed',
       () {
@@ -442,11 +492,21 @@ void main() {
         );
         expect(decodedFutureDescriptor.safetyEffects.single.isKnown, isFalse);
 
+        final validSubmission = _runSubmission();
         final validInvocation = CockpitOperationInvocation(
           kind: 'case.run',
           workspaceId: 'workspaceA',
-          idempotencyKey: CockpitIdempotencyKey('operation:1'),
-          input: _runSubmission().toJson(),
+          idempotencyKey: validSubmission.idempotencyKey,
+          input: validSubmission.toJson(),
+        );
+        expect(
+          () => CockpitOperationContract<CockpitRunSubmission>(
+            descriptor: _runDescriptor(),
+            requestSchemaRef: r'#/$defs/DocumentValidationRequest',
+            inputDecoder: CockpitRunSubmission.fromJson,
+            admissionProjector: _runAdmissionProjection,
+          ),
+          throwsFormatException,
         );
         final catalog = CockpitOperationCatalog(
           <CockpitOperationContract<Object?>>[_runContract()],
@@ -493,30 +553,6 @@ void main() {
           ),
         );
 
-        final invalidInputError = isA<CockpitApiException>()
-            .having(
-              (exception) => exception.error.code,
-              'code',
-              CockpitErrorCode.invalidRequest,
-            )
-            .having(
-              (exception) => exception.error.category,
-              'category',
-              CockpitErrorCategory.invalidInput,
-            )
-            .having(
-              (exception) => exception.error.responsibleLayer,
-              'responsibleLayer',
-              CockpitResponsibleLayer.supervisor,
-            )
-            .having(
-              (exception) => exception.error.redactedDetails,
-              'redactedDetails',
-              <String, Object?>{
-                'kind': 'case.run',
-                'requestSchemaRef': r'#/$defs/RunSubmission',
-              },
-            );
         final missingRequiredInput = <String, Object?>{...validInvocation.input}
           ..remove('workspaceId');
         expect(
@@ -529,7 +565,7 @@ void main() {
             ),
             negotiatedFeatureIds: const <String>[],
           ),
-          throwsA(invalidInputError),
+          throwsA(_invalidAdmissionError()),
         );
         expect(
           () => catalog.admit(
@@ -544,7 +580,66 @@ void main() {
             ),
             negotiatedFeatureIds: const <String>[],
           ),
-          throwsA(invalidInputError),
+          throwsA(_invalidAdmissionError()),
+        );
+        expect(
+          () => catalog.admit(
+            CockpitOperationInvocation(
+              kind: validInvocation.kind,
+              workspaceId: validInvocation.workspaceId,
+              idempotencyKey: validInvocation.idempotencyKey,
+              input: <String, Object?>{
+                ...validInvocation.input,
+                'workspaceId': 'workspaceB',
+              },
+            ),
+            negotiatedFeatureIds: const <String>[],
+          ),
+          throwsA(_invalidAdmissionError(field: 'workspaceId')),
+        );
+        expect(
+          () => catalog.admit(
+            CockpitOperationInvocation(
+              kind: validInvocation.kind,
+              workspaceId: validInvocation.workspaceId,
+              idempotencyKey: validInvocation.idempotencyKey,
+              input: <String, Object?>{
+                ...validInvocation.input,
+                'idempotencyKey': 'run:other:1',
+              },
+            ),
+            negotiatedFeatureIds: const <String>[],
+          ),
+          throwsA(_invalidAdmissionError(field: 'idempotencyKey')),
+        );
+        final innerFeature = CockpitFoundationFeature.cleanRetry.id;
+        expect(
+          () => catalog.admit(
+            CockpitOperationInvocation(
+              kind: validInvocation.kind,
+              workspaceId: validInvocation.workspaceId,
+              idempotencyKey: validInvocation.idempotencyKey,
+              input: _runSubmission(
+                requiredFeatures: <String>[innerFeature],
+              ).toJson(),
+            ),
+            negotiatedFeatureIds: const <String>[],
+          ),
+          throwsA(
+            isA<CockpitApiException>()
+                .having(
+                  (exception) => exception.error.code,
+                  'code',
+                  CockpitErrorCode.upgradeRequired,
+                )
+                .having(
+                  (exception) => exception.error.redactedDetails,
+                  'redactedDetails',
+                  <String, Object?>{
+                    'missingFeatures': <String>[innerFeature],
+                  },
+                ),
+          ),
         );
 
         final retryableDriverError = CockpitApiError(
@@ -679,6 +774,88 @@ void main() {
           ),
           throwsFormatException,
         );
+        final primaryArtifact = CockpitArtifactReference(
+          artifactId: 'primaryArtifact',
+          runId: 'runA',
+        );
+        final warningArtifact = CockpitArtifactReference(
+          artifactId: 'warningArtifact',
+          runId: 'runA',
+        );
+        final failureArtifacts = CockpitFailure(
+          primary: _errorWithArtifacts(<CockpitArtifactReference>[
+            primaryArtifact,
+          ]),
+          warnings: <CockpitApiWarning>[
+            CockpitApiWarning(
+              stage: CockpitWarningStage.evidence,
+              error: _errorWithArtifacts(<CockpitArtifactReference>[
+                warningArtifact,
+              ]),
+            ),
+          ],
+        );
+        expect(
+          failureArtifacts.artifacts.map((artifact) => artifact.artifactId),
+          <String>['primaryArtifact', 'warningArtifact'],
+        );
+        expect(
+          () => failureArtifacts.artifacts.add(primaryArtifact),
+          throwsUnsupportedError,
+        );
+        expect(
+          () => CockpitRunResource(
+            projectId: 'projectA',
+            workspaceId: 'workspaceA',
+            runId: 'runA',
+            caseId: 'caseA',
+            sourceSha256: _hash('a'),
+            lifecycle: CockpitRunLifecycle.completed,
+            outcome: CockpitRunOutcome.failed,
+            stability: CockpitRunStability.stable,
+            submittedAt: DateTime.utc(2026, 7, 20),
+            finishedAt: DateTime.utc(2026, 7, 20, 0, 0, 1),
+            failure: CockpitFailure(
+              primary: _errorWithArtifacts(<CockpitArtifactReference>[
+                CockpitArtifactReference(
+                  artifactId: 'foreignPrimary',
+                  runId: 'runB',
+                ),
+              ]),
+            ),
+          ),
+          throwsFormatException,
+        );
+        expect(
+          () => CockpitRunEvent(
+            eventId: 'eventA',
+            sequence: 1,
+            timestamp: DateTime.utc(2026, 7, 20),
+            kind: 'run.completed',
+            projectId: 'projectA',
+            workspaceId: 'workspaceA',
+            runId: 'runA',
+            caseId: 'caseA',
+            lifecycle: CockpitRunLifecycle.completed,
+            outcome: CockpitRunOutcome.failed,
+            stability: CockpitRunStability.stable,
+            failure: CockpitFailure(
+              primary: _errorWithArtifacts(const <CockpitArtifactReference>[]),
+              warnings: <CockpitApiWarning>[
+                CockpitApiWarning(
+                  stage: CockpitWarningStage.cleanup,
+                  error: _errorWithArtifacts(<CockpitArtifactReference>[
+                    CockpitArtifactReference(
+                      artifactId: 'foreignWarning',
+                      runId: 'runB',
+                    ),
+                  ]),
+                ),
+              ],
+            ),
+          ),
+          throwsFormatException,
+        );
         expect(
           () => CockpitServerInfo(
             instanceId: 'supervisorA',
@@ -713,6 +890,20 @@ void main() {
           _event(sequence: 1, eventId: 'eventA'),
           _event(sequence: 3, eventId: 'eventB'),
         ], contiguous: false);
+        for (final changedIdentity in <CockpitRunEvent>[
+          _event(sequence: 2, eventId: 'eventB', projectId: 'projectB'),
+          _event(sequence: 2, eventId: 'eventB', workspaceId: 'workspaceB'),
+          _event(sequence: 2, eventId: 'eventB', runId: 'runB'),
+          _event(sequence: 2, eventId: 'eventB', caseId: 'caseB'),
+        ]) {
+          expect(
+            () => CockpitRunEvent.validateSequence(<CockpitRunEvent>[
+              _event(sequence: 1, eventId: 'eventA'),
+              changedIdentity,
+            ]),
+            throwsFormatException,
+          );
+        }
       },
     );
   });
@@ -740,19 +931,64 @@ CockpitOperationDescriptor _runDescriptor() => CockpitOperationDescriptor(
 
 CockpitOperationContract<CockpitRunSubmission> _runContract([
   CockpitOperationDescriptor? descriptor,
-]) => CockpitOperationContract<CockpitRunSubmission>(
-  descriptor: descriptor ?? _runDescriptor(),
-  inputDecoder: CockpitRunSubmission.fromJson,
+]) {
+  final operationDescriptor = descriptor ?? _runDescriptor();
+  return CockpitOperationContract<CockpitRunSubmission>(
+    descriptor: operationDescriptor,
+    requestSchemaRef: operationDescriptor.requestSchemaRef,
+    inputDecoder: CockpitRunSubmission.fromJson,
+    admissionProjector: _runAdmissionProjection,
+  );
+}
+
+CockpitOperationAdmissionProjection _runAdmissionProjection(
+  CockpitRunSubmission submission,
+) => CockpitOperationAdmissionProjection(
+  rootId: null,
+  workspaceId: submission.workspaceId,
+  idempotencyKey: submission.idempotencyKey,
+  requiredFeatures: submission.requiredFeatures,
 );
 
-CockpitRunSubmission _runSubmission() => CockpitRunSubmission(
+CockpitRunSubmission _runSubmission({
+  Iterable<String> requiredFeatures = const <String>[],
+}) => CockpitRunSubmission(
   workspaceId: 'workspaceA',
   source: CockpitInlineCaseSource(
     testCase: _testCase(),
     sourceSha256: _hash('a'),
   ),
   idempotencyKey: CockpitIdempotencyKey('run:login:1'),
+  requiredFeatures: requiredFeatures,
 );
+
+Matcher _invalidAdmissionError({String? field}) {
+  return isA<CockpitApiException>()
+      .having(
+        (exception) => exception.error.code,
+        'code',
+        CockpitErrorCode.invalidRequest,
+      )
+      .having(
+        (exception) => exception.error.category,
+        'category',
+        CockpitErrorCategory.invalidInput,
+      )
+      .having(
+        (exception) => exception.error.responsibleLayer,
+        'responsibleLayer',
+        CockpitResponsibleLayer.supervisor,
+      )
+      .having(
+        (exception) => exception.error.redactedDetails,
+        'redactedDetails',
+        <String, Object?>{
+          'kind': 'case.run',
+          'requestSchemaRef': r'#/$defs/RunSubmission',
+          'field': ?field,
+        },
+      );
+}
 
 CockpitTestCase _testCase() => CockpitTestCase(
   id: 'loginCase',
@@ -771,17 +1007,40 @@ CockpitTestCase _testCase() => CockpitTestCase(
   ],
 );
 
-CockpitRunEvent _event({required int sequence, required String eventId}) =>
-    CockpitRunEvent(
-      eventId: eventId,
-      sequence: sequence,
-      timestamp: DateTime.utc(2026, 7, 20),
-      kind: 'run.progress',
-      projectId: 'projectA',
-      workspaceId: 'workspaceA',
-      runId: 'runA',
-      caseId: 'caseA',
-    );
+CockpitRunEvent _event({
+  required int sequence,
+  required String eventId,
+  String projectId = 'projectA',
+  String workspaceId = 'workspaceA',
+  String runId = 'runA',
+  String caseId = 'caseA',
+}) => CockpitRunEvent(
+  eventId: eventId,
+  sequence: sequence,
+  timestamp: DateTime.utc(2026, 7, 20),
+  kind: 'run.progress',
+  projectId: projectId,
+  workspaceId: workspaceId,
+  runId: runId,
+  caseId: caseId,
+);
+
+CockpitApiError _errorWithArtifacts(
+  Iterable<CockpitArtifactReference> artifacts,
+) => CockpitApiError(
+  code: CockpitErrorCode.applicationFailed,
+  category: CockpitErrorCategory.application,
+  message: 'Application failed.',
+  retryable: false,
+  responsibleLayer: CockpitResponsibleLayer.application,
+  artifacts: artifacts,
+);
+
+Matcher _formatExceptionAt(String path) => isA<FormatException>().having(
+  (error) => error.message.toString(),
+  'message',
+  contains(path),
+);
 
 void _expectRoundTrip<T>(T value, T Function(Object? value) decoder) {
   final json = (value as dynamic).toJson() as Map<String, Object?>;

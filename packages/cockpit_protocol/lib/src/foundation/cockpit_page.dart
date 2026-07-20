@@ -1,9 +1,10 @@
 import 'cockpit_decode_policy.dart';
+import 'cockpit_foundation_constraints.dart';
 import 'cockpit_foundation_value_reader.dart';
 
 final class CockpitPageRequest {
   CockpitPageRequest({this.limit = 50, this.cursor}) {
-    if (limit < 1 || limit > 100) {
+    if (limit < 1 || limit > cockpitFoundationPageSizeMaximum) {
       throw const FormatException('Page limit must be between 1 and 100.');
     }
     if (cursor != null) {
@@ -32,7 +33,7 @@ final class CockpitPageRequest {
               json['limit'],
               '$path.limit',
               min: 1,
-              max: 100,
+              max: cockpitFoundationPageSizeMaximum,
             ),
       cursor: json['cursor'] == null
           ? null
@@ -47,6 +48,9 @@ final class CockpitPageRequest {
 final class CockpitPage<T> {
   CockpitPage({required Iterable<T> items, this.nextCursor, this.totalCount})
     : items = List<T>.unmodifiable(items) {
+    if (this.items.length > cockpitFoundationPageSizeMaximum) {
+      throw const FormatException('Page cannot contain more than 100 items.');
+    }
     if (nextCursor != null) {
       CockpitFoundationValueReader.opaqueToken(nextCursor, r'$.nextCursor');
     }

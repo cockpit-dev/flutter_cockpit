@@ -247,6 +247,107 @@ void main() {
     },
   );
 
+  test('Dart validators and schema share public wire constraints', () {
+    for (final invalidPath in <String>[
+      '/tmp/../outside',
+      r'C:\tmp\..\outside',
+      '/tmp/\u0000outside',
+    ]) {
+      _expectDefinition(
+        foundationSchema,
+        'AbsolutePath',
+        invalidPath,
+        isValid: false,
+      );
+      expect(
+        () => CockpitRootRegistration(path: invalidPath),
+        throwsFormatException,
+      );
+    }
+    for (final validWindowsPath in <String>[
+      r'C:\tmp\root',
+      r'\\server\share\root',
+    ]) {
+      _expectDefinition(
+        foundationSchema,
+        'AbsolutePath',
+        validWindowsPath,
+        isValid: true,
+      );
+      expect(
+        () => CockpitRootRegistration(path: validWindowsPath),
+        returnsNormally,
+      );
+    }
+
+    final now = DateTime.utc(2026, 7, 20);
+    final root = CockpitRootResource(
+      rootId: 'rootA',
+      canonicalPath: '/tmp/root',
+      filesystemIdentity: 'dev:1:inode:2',
+      state: CockpitRootState.active,
+      registeredAt: now,
+      updatedAt: now,
+    );
+    _expectDefinition(foundationSchema, 'RootPage', <String, Object?>{
+      'items': List<Object?>.generate(101, (_) => root.toJson()),
+    }, isValid: false);
+    expect(
+      () => CockpitPage<CockpitRootResource>(
+        items: List<CockpitRootResource>.filled(101, root),
+      ),
+      throwsFormatException,
+    );
+
+    const nonCanonicalUtc = '2026-07-20T00:00:00+00:00';
+    _expectDefinition(
+      foundationSchema,
+      'UtcTimestamp',
+      nonCanonicalUtc,
+      isValid: false,
+    );
+    final serverJson = CockpitServerInfo(
+      instanceId: 'supervisorA',
+      apiVersion: CockpitApiVersion(major: 2, minor: 0),
+      engineVersion: '2.0.0',
+      startedAt: now,
+    ).toJson()..['startedAt'] = nonCanonicalUtc;
+    expect(() => CockpitServerInfo.fromJson(serverJson), throwsFormatException);
+
+    final artifact = CockpitArtifactResource(
+      artifactId: 'artifactA',
+      workspaceId: 'workspaceA',
+      runId: 'runA',
+      kind: 'evidence.screenshot',
+      relativePath: 'artifacts/final.png',
+      mediaType: 'image/png',
+      sizeBytes: 1,
+      sha256: _hash('a'),
+      createdAt: now,
+      downloadUrl: '/api/v2/runs/runA/artifacts/artifactA',
+    );
+    _expectDefinition(foundationSchema, 'ArtifactResource', <String, Object?>{
+      ...artifact.toJson(),
+      'stepExecutionId': 'main/final',
+    }, isValid: false);
+    expect(
+      () => CockpitArtifactResource(
+        artifactId: artifact.artifactId,
+        workspaceId: artifact.workspaceId,
+        runId: artifact.runId,
+        stepExecutionId: 'main/final',
+        kind: artifact.kind,
+        relativePath: artifact.relativePath,
+        mediaType: artifact.mediaType,
+        sizeBytes: artifact.sizeBytes,
+        sha256: artifact.sha256,
+        createdAt: artifact.createdAt,
+        downloadUrl: artifact.downloadUrl,
+      ),
+      throwsFormatException,
+    );
+  });
+
   test('OpenAPI publishes the exact authenticated Workstream 1 surface', () {
     final paths = openApiJson['paths']! as Map<String, Object?>;
     final expectedMethods = <String, Set<String>>{

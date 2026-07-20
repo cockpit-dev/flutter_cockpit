@@ -1,3 +1,5 @@
+import 'package:cockpit_protocol/src/foundation/cockpit_foundation_constraints.dart';
+
 Map<String, Object?> schemaRef(String name) => <String, Object?>{
   r'$ref': '#/\$defs/$name',
 };
@@ -69,7 +71,10 @@ Map<String, Object?> oneOfSchema(Iterable<Map<String, Object?>> schemas) =>
 
 Map<String, Object?> pageSchema(String itemDefinition) => objectSchema(
   <String, Object?>{
-    'items': arraySchema(schemaRef(itemDefinition), maxItems: 100),
+    'items': arraySchema(
+      schemaRef(itemDefinition),
+      maxItems: cockpitFoundationPageSizeMaximum,
+    ),
     'nextCursor': schemaRef('Cursor'),
     'totalCount': integerSchema(minimum: 0),
   },

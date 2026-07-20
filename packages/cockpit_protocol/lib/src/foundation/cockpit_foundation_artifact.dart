@@ -84,6 +84,9 @@ final class CockpitArtifactResource {
         r'$.stepExecutionId',
         maximum: 512,
       );
+      if (attemptId == null) {
+        throw const FormatException('Step artifact requires an attemptId.');
+      }
     }
   }
 

@@ -210,10 +210,17 @@ final class CockpitFailure {
   CockpitFailure({
     required this.primary,
     Iterable<CockpitApiWarning> warnings = const <CockpitApiWarning>[],
-  }) : warnings = List<CockpitApiWarning>.unmodifiable(warnings);
+  }) : warnings = List<CockpitApiWarning>.unmodifiable(warnings) {
+    artifacts =
+        List<CockpitArtifactReference>.unmodifiable(<CockpitArtifactReference>[
+          ...primary.artifacts,
+          for (final warning in this.warnings) ...warning.error.artifacts,
+        ]);
+  }
 
   final CockpitApiError primary;
   final List<CockpitApiWarning> warnings;
+  late final List<CockpitArtifactReference> artifacts;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'primary': primary.toJson(),

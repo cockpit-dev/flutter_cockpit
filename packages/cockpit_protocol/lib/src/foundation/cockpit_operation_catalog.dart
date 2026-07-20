@@ -35,18 +35,11 @@ final class CockpitOperationCatalog {
       );
     }
     final descriptor = contract.descriptor;
+    late final CockpitOperationAdmissionProjection projection;
     try {
-      contract.validateInput(invocation.input);
+      projection = contract.decodeAdmission(invocation.input);
     } on FormatException {
-      throw _admissionError(
-        code: CockpitErrorCode.invalidRequest,
-        category: CockpitErrorCategory.invalidInput,
-        message: 'Operation input does not match its request schema.',
-        details: <String, Object?>{
-          'kind': descriptor.kind,
-          'requestSchemaRef': descriptor.requestSchemaRef,
-        },
-      );
+      throw _inputAdmissionError(descriptor);
     }
     final scopeValid = switch (descriptor.scope) {
       CockpitOperationScope.supervisor =>
@@ -63,6 +56,24 @@ final class CockpitOperationCatalog {
         message: 'Operation scope identifiers are inconsistent.',
       );
     }
+    _requireProjectionMatch(
+      descriptor: descriptor,
+      field: 'rootId',
+      projected: projection.rootId,
+      envelope: invocation.rootId,
+    );
+    _requireProjectionMatch(
+      descriptor: descriptor,
+      field: 'workspaceId',
+      projected: projection.workspaceId,
+      envelope: invocation.workspaceId,
+    );
+    _requireProjectionMatch(
+      descriptor: descriptor,
+      field: 'idempotencyKey',
+      projected: projection.idempotencyKey,
+      envelope: invocation.idempotencyKey,
+    );
     final hasKey = invocation.idempotencyKey != null;
     if ((descriptor.idempotency == CockpitIdempotencyBehavior.required &&
             !hasKey) ||
@@ -78,6 +89,7 @@ final class CockpitOperationCatalog {
     final missing = <String>{
       ...descriptor.requiredFeatures,
       ...invocation.requiredFeatures,
+      ...projection.requiredFeatures,
     }.where((feature) => !features.contains(feature)).toList(growable: false);
     if (missing.isNotEmpty ||
         descriptor.safetyEffects.any((effect) => !effect.isKnown)) {
@@ -99,6 +111,33 @@ final class CockpitOperationCatalog {
     }
     return descriptor;
   }
+}
+
+void _requireProjectionMatch({
+  required CockpitOperationDescriptor descriptor,
+  required String field,
+  required Object? projected,
+  required Object? envelope,
+}) {
+  if (projected != null && projected != envelope) {
+    throw _inputAdmissionError(descriptor, field: field);
+  }
+}
+
+CockpitApiException _inputAdmissionError(
+  CockpitOperationDescriptor descriptor, {
+  String? field,
+}) {
+  return _admissionError(
+    code: CockpitErrorCode.invalidRequest,
+    category: CockpitErrorCategory.invalidInput,
+    message: 'Operation input does not match its request contract.',
+    details: <String, Object?>{
+      'kind': descriptor.kind,
+      'requestSchemaRef': descriptor.requestSchemaRef,
+      'field': ?field,
+    },
+  );
 }
 
 CockpitApiException _admissionError({

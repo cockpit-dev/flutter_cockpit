@@ -20,6 +20,11 @@ Map<String, Object?> foundationResourceDefinitions() => <String, Object?>{
       'downloadUrl': schemaRef('ApiPath'),
     },
     optional: const <String>{'attemptId', 'stepExecutionId'},
+    extra: <String, Object?>{
+      'dependentRequired': <String, Object?>{
+        'stepExecutionId': <String>['attemptId'],
+      },
+    },
   ),
   'RootResource': objectSchema(
     <String, Object?>{

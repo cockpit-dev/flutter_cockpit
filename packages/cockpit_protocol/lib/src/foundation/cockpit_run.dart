@@ -67,6 +67,12 @@ final class CockpitRunResource {
       throw const FormatException('Active attempt is not in attemptIds.');
     }
     _validateRunState(this);
+    if (failure != null &&
+        failure!.artifacts.any((artifact) => artifact.runId != runId)) {
+      throw const FormatException(
+        'Run failure artifact belongs to another run.',
+      );
+    }
   }
 
   final String projectId;
