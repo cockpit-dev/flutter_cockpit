@@ -1,0 +1,453 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:cockpit_protocol/cockpit_protocol.dart';
+import 'package:json_schema/json_schema.dart';
+import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
+
+import '../tool/src/foundation_openapi.dart';
+import '../tool/src/foundation_schema.dart';
+
+void main() {
+  final packageRoot = _packageRoot();
+  final foundationSchemaFile = File(
+    p.join(packageRoot.path, 'schema', 'cockpit.foundation.v2.schema.json'),
+  );
+  final openApiFile = File(
+    p.join(packageRoot.path, 'openapi', 'cockpit.v2.openapi.json'),
+  );
+  final testSchemaFile = File(
+    p.join(packageRoot.path, 'schema', 'cockpit.test.v2.schema.json'),
+  );
+  final foundationSchemaText = foundationSchemaFile.readAsStringSync();
+  final openApiText = openApiFile.readAsStringSync();
+  final foundationSchemaJson =
+      jsonDecode(foundationSchemaText) as Map<String, Object?>;
+  final openApiJson = jsonDecode(openApiText) as Map<String, Object?>;
+  final testSchemaJson =
+      jsonDecode(testSchemaFile.readAsStringSync()) as Map<String, Object?>;
+  final foundationSchema = JsonSchema.create(
+    foundationSchemaJson,
+    refProvider: RefProvider.sync((ref) {
+      if (ref.contains('cockpit.test.v2.schema.json')) {
+        return Map<String, dynamic>.from(testSchemaJson);
+      }
+      return null;
+    }),
+  );
+
+  test(
+    'published contracts are deterministic and byte-identical to embeds',
+    () {
+      const encoder = JsonEncoder.withIndent('  ');
+      expect(
+        foundationSchemaText,
+        '${encoder.convert(buildFoundationSchema())}\n',
+      );
+      expect(openApiText, '${encoder.convert(buildFoundationOpenApi())}\n');
+      expect(cockpitFoundationV2SchemaJson, foundationSchemaText);
+      expect(cockpitV2OpenApiJson, openApiText);
+      expect(
+        foundationSchemaJson[r'$schema'],
+        'https://json-schema.org/draft/2020-12/schema',
+      );
+      expect(foundationSchema.schemaVersion, SchemaVersion.draft2020_12);
+      expect(openApiJson['openapi'], '3.1.0');
+      expect(
+        openApiJson['jsonSchemaDialect'],
+        foundationSchemaJson[r'$schema'],
+      );
+    },
+  );
+
+  test('every internal OpenAPI reference resolves as a JSON Pointer', () {
+    final references = _allMaps(openApiJson)
+        .map((map) => map[r'$ref'])
+        .whereType<String>()
+        .where((reference) => reference.startsWith('#/'))
+        .toSet();
+
+    expect(references, isNotEmpty);
+    for (final reference in references) {
+      expect(
+        () => _resolveInternalReference(openApiJson, reference),
+        returnsNormally,
+        reason: reference,
+      );
+    }
+  });
+
+  test(
+    'Dart resources and schema definitions agree on execution invariants',
+    () {
+      final now = DateTime.utc(2026, 7, 20);
+      final testCase = CockpitTestCase(
+        id: 'caseA',
+        target: CockpitTestTargetRequirements(
+          platform: 'android',
+          targetKind: 'flutterApp',
+          plane: CockpitTestPlane.semantic,
+        ),
+        steps: <CockpitTestStepTemplate>[
+          CockpitTestStepTemplate(
+            stepId: 'goBack',
+            operation: CockpitTestActionOperationTemplate(
+              CockpitTestActionTemplate(kind: CockpitTestActionKind.back),
+            ),
+          ),
+        ],
+      );
+      final error = CockpitApiError(
+        code: CockpitErrorCode.assertionFailed,
+        category: CockpitErrorCategory.assertion,
+        message: 'Expected text was absent.',
+        retryable: false,
+        responsibleLayer: CockpitResponsibleLayer.worker,
+      );
+      final fixtures = <(String, Map<String, Object?>)>[
+        (
+          'ServerInfo',
+          CockpitServerInfo(
+            instanceId: 'supervisorA',
+            apiVersion: CockpitApiVersion(major: 2, minor: 0),
+            engineVersion: '2.0.0',
+            startedAt: now,
+          ).toJson(),
+        ),
+        (
+          'RootResource',
+          CockpitRootResource(
+            rootId: 'rootA',
+            canonicalPath: '/tmp/root',
+            filesystemIdentity: 'dev:1:inode:2',
+            state: CockpitRootState.active,
+            registeredAt: now,
+            updatedAt: now,
+          ).toJson(),
+        ),
+        (
+          'OperationDescriptor',
+          CockpitOperationDescriptor(
+            kind: 'case.run',
+            title: 'Run case',
+            description: 'Run one standalone case.',
+            scope: CockpitOperationScope.workspace,
+            mutationClass: CockpitMutationClass.mutating,
+            idempotency: CockpitIdempotencyBehavior.required,
+            executionMode: CockpitOperationExecutionMode.job,
+            requestSchemaRef: r'#/$defs/RunSubmission',
+            responseSchemaRef: r'#/$defs/RunAccepted',
+          ).toJson(),
+        ),
+        (
+          'RunSubmission',
+          CockpitRunSubmission(
+            workspaceId: 'workspaceA',
+            source: CockpitInlineCaseSource(
+              testCase: testCase,
+              sourceSha256: _hash('a'),
+            ),
+            idempotencyKey: CockpitIdempotencyKey('run:caseA:1'),
+          ).toJson(),
+        ),
+        (
+          'RunResource',
+          CockpitRunResource(
+            projectId: 'projectA',
+            workspaceId: 'workspaceA',
+            runId: 'runA',
+            caseId: testCase.id,
+            sourceSha256: _hash('a'),
+            lifecycle: CockpitRunLifecycle.completed,
+            outcome: CockpitRunOutcome.failed,
+            stability: CockpitRunStability.stable,
+            submittedAt: now,
+            startedAt: now,
+            finishedAt: now,
+            attemptIds: const <String>['attemptA'],
+            failure: CockpitFailure(primary: error),
+          ).toJson(),
+        ),
+        (
+          'RunEvent',
+          CockpitRunEvent(
+            eventId: 'eventA',
+            sequence: 1,
+            timestamp: now,
+            kind: 'run.completed',
+            projectId: 'projectA',
+            workspaceId: 'workspaceA',
+            runId: 'runA',
+            caseId: testCase.id,
+            lifecycle: CockpitRunLifecycle.completed,
+            outcome: CockpitRunOutcome.failed,
+            stability: CockpitRunStability.stable,
+            failure: CockpitFailure(primary: error),
+          ).toJson(),
+        ),
+        (
+          'LeaseResource',
+          CockpitLeaseResource(
+            leaseId: 'leaseA',
+            workspaceId: 'workspaceA',
+            resourceKind: CockpitLeaseResourceKind.device,
+            resourceId: 'emulator-5554',
+            holderId: 'workerA',
+            state: CockpitLeaseState.active,
+            requestedAt: now,
+            acquiredAt: now,
+            expiresAt: now.add(const Duration(seconds: 30)),
+          ).toJson(),
+        ),
+      ];
+      for (final fixture in fixtures) {
+        _expectDefinition(
+          foundationSchema,
+          fixture.$1,
+          fixture.$2,
+          isValid: true,
+        );
+      }
+
+      final invalid = <(String, Map<String, Object?>)>[
+        (
+          'ServerInfo',
+          <String, Object?>{...fixtures.first.$2, 'unknown': true},
+        ),
+        (
+          'RootResource',
+          <String, Object?>{...fixtures[1].$2, 'state': 'retired'}
+            ..remove('retiredAt'),
+        ),
+        (
+          'RunSubmission',
+          <String, Object?>{
+            ...fixtures[3].$2,
+            'suiteIds': <String>['suiteA'],
+          },
+        ),
+        (
+          'RunResource',
+          <String, Object?>{
+            ...fixtures[4].$2,
+            'outcome': 'passed',
+            'attemptIds': <String>[],
+          }..remove('failure'),
+        ),
+      ];
+      for (final fixture in invalid) {
+        _expectDefinition(
+          foundationSchema,
+          fixture.$1,
+          fixture.$2,
+          isValid: false,
+        );
+      }
+    },
+  );
+
+  test('OpenAPI publishes the exact authenticated Workstream 1 surface', () {
+    final paths = openApiJson['paths']! as Map<String, Object?>;
+    final expectedMethods = <String, Set<String>>{
+      '/api/v2/server': <String>{'get'},
+      '/api/v2/capabilities': <String>{'get'},
+      '/api/v2/roots': <String>{'get', 'post'},
+      '/api/v2/roots/{rootId}': <String>{'delete'},
+      '/api/v2/operations': <String>{'get', 'post'},
+      '/api/v2/workspaces': <String>{'get'},
+      '/api/v2/workspaces/register': <String>{'post'},
+      '/api/v2/workspaces/{workspaceId}/rebind': <String>{'post'},
+      '/api/v2/workspaces/{workspaceId}': <String>{'delete'},
+      '/api/v2/workspaces/{workspaceId}/documents': <String>{'get'},
+      '/api/v2/workspaces/{workspaceId}/documents/validate': <String>{'post'},
+      '/api/v2/workspaces/{workspaceId}/cases': <String>{'get'},
+      '/api/v2/workspaces/{workspaceId}/operations': <String>{'get', 'post'},
+      '/api/v2/workspaces/{workspaceId}/runs': <String>{'post'},
+      '/api/v2/runs/{runId}': <String>{'get'},
+      '/api/v2/runs/{runId}/cancel': <String>{'post'},
+      '/api/v2/runs/{runId}/events': <String>{'get'},
+      '/api/v2/runs/{runId}/cases': <String>{'get'},
+      '/api/v2/runs/{runId}/artifacts/{artifactId}': <String>{'get'},
+    };
+    expect(paths.keys.toSet(), expectedMethods.keys.toSet());
+
+    final operationIds = <String>{};
+    for (final entry in paths.entries) {
+      final pathItem = entry.value! as Map<String, Object?>;
+      final operations = pathItem.entries.where(
+        (item) => const <String>{'get', 'post', 'delete'}.contains(item.key),
+      );
+      expect(
+        operations.map((operation) => operation.key).toSet(),
+        expectedMethods[entry.key],
+        reason: entry.key,
+      );
+      for (final operationEntry in operations) {
+        final operation = operationEntry.value! as Map<String, Object?>;
+        expect(
+          operationIds.add(operation['operationId']! as String),
+          isTrue,
+          reason: 'duplicate operationId at ${entry.key}',
+        );
+        final responses = operation['responses']! as Map<String, Object?>;
+        expect(responses, contains('401'), reason: entry.key);
+        if (entry.key != '/api/v2/server') {
+          expect(responses, contains('426'), reason: entry.key);
+          final parameters = operation['parameters']! as List<Object?>;
+          final refs = parameters
+              .whereType<Map<String, Object?>>()
+              .map((parameter) => parameter[r'$ref'])
+              .whereType<String>()
+              .toSet();
+          expect(refs, contains('#/components/parameters/ApiVersion'));
+          expect(refs, contains('#/components/parameters/RequiredFeatures'));
+        }
+      }
+    }
+
+    final components = openApiJson['components']! as Map<String, Object?>;
+    final securitySchemes =
+        components['securitySchemes']! as Map<String, Object?>;
+    expect(
+      (securitySchemes['bearerAuth']! as Map<String, Object?>)['scheme'],
+      'bearer',
+    );
+    expect(openApiJson['security'], <Object?>[
+      <String, Object?>{'bearerAuth': <Object?>[]},
+    ]);
+    expect(openApiJson['x-cockpit-request-limit-bytes'], 1048576);
+    expect(openApiJson['x-cockpit-cors'], 'deny');
+    expect(
+      (openApiJson['x-cockpit-deferred-capabilities']! as List<Object?>)
+          .toSet(),
+      <String>{
+        'suite',
+        'matrix',
+        'aggregateReport',
+        'nativeBlackBoxDriver',
+        'aiExploration',
+      },
+    );
+    expect(
+      paths.keys.any(
+        (path) => path.contains('suite') || path.contains('report'),
+      ),
+      isFalse,
+    );
+
+    final definitions = foundationSchemaJson[r'$defs']! as Map<String, Object?>;
+    final componentSchemas = components['schemas']! as Map<String, Object?>;
+    for (final entry in componentSchemas.entries) {
+      final reference =
+          (entry.value! as Map<String, Object?>)[r'$ref']! as String;
+      final definition = reference.split(r'#/$defs/').last;
+      expect(definitions, contains(definition), reason: entry.key);
+    }
+    final queryTokens = _allMaps(openApiJson).where(
+      (map) =>
+          map['in'] == 'query' &&
+          (map['name'] as String?)?.toLowerCase().contains('token') == true,
+    );
+    expect(queryTokens, isEmpty);
+
+    final eventOperation =
+        (paths['/api/v2/runs/{runId}/events']! as Map<String, Object?>)['get']!
+            as Map<String, Object?>;
+    final eventParameters = eventOperation['parameters']! as List<Object?>;
+    expect(
+      eventParameters.whereType<Map<String, Object?>>().map(
+        (parameter) => parameter['name'],
+      ),
+      containsAll(<String>['afterSequence', 'Last-Event-ID']),
+    );
+    final eventResponse =
+        (eventOperation['responses']! as Map<String, Object?>)['200']!
+            as Map<String, Object?>;
+    expect(eventResponse['content'], contains('text/event-stream'));
+
+    final artifactOperation =
+        (paths['/api/v2/runs/{runId}/artifacts/{artifactId}']!
+                as Map<String, Object?>)['get']!
+            as Map<String, Object?>;
+    final artifactResponse =
+        (artifactOperation['responses']! as Map<String, Object?>)['200']!
+            as Map<String, Object?>;
+    expect(artifactResponse['headers'], contains('Digest'));
+  });
+}
+
+void _expectDefinition(
+  JsonSchema schema,
+  String definition,
+  Object? instance, {
+  required bool isValid,
+}) {
+  final definitionSchema = schema.resolvePath(
+    Uri.parse('#/\$defs/$definition'),
+  );
+  final result = definitionSchema.validate(instance);
+  expect(result.isValid, isValid, reason: '$definition: ${result.errors}');
+}
+
+Directory _packageRoot() {
+  final current = Directory.current;
+  if (File(
+    p.join(current.path, 'schema', 'cockpit.foundation.v2.schema.json'),
+  ).existsSync()) {
+    return current;
+  }
+  final package = Directory(
+    p.join(current.path, 'packages', 'cockpit_protocol'),
+  );
+  if (File(
+    p.join(package.path, 'schema', 'cockpit.foundation.v2.schema.json'),
+  ).existsSync()) {
+    return package;
+  }
+  throw StateError('Cannot locate cockpit_protocol.');
+}
+
+String _hash(String character) => List<String>.filled(64, character).join();
+
+Iterable<Map<String, Object?>> _allMaps(Object? value) sync* {
+  if (value is Map<String, Object?>) {
+    yield value;
+    for (final child in value.values) {
+      yield* _allMaps(child);
+    }
+  } else if (value is List<Object?>) {
+    for (final child in value) {
+      yield* _allMaps(child);
+    }
+  }
+}
+
+Object? _resolveInternalReference(Object? document, String reference) {
+  final pointer = Uri.decodeComponent(reference.substring(1));
+  if (!pointer.startsWith('/')) {
+    throw FormatException('Expected an absolute JSON Pointer: $reference');
+  }
+
+  Object? current = document;
+  for (final encodedToken in pointer.substring(1).split('/')) {
+    final token = encodedToken.replaceAll('~1', '/').replaceAll('~0', '~');
+    if (current is Map<String, Object?>) {
+      if (!current.containsKey(token)) {
+        throw FormatException('Missing JSON Pointer token: $token');
+      }
+      current = current[token];
+      continue;
+    }
+    if (current is List<Object?>) {
+      final index = int.tryParse(token);
+      if (index == null || index < 0 || index >= current.length) {
+        throw FormatException('Invalid JSON Pointer index: $token');
+      }
+      current = current[index];
+      continue;
+    }
+    throw FormatException('JSON Pointer traverses a scalar at: $token');
+  }
+  return current;
+}

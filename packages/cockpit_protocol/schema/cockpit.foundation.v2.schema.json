@@ -1,0 +1,2466 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/cockpit-dev/flutter_cockpit/packages/cockpit_protocol/schema/cockpit.foundation.v2.schema.json",
+  "title": "Cockpit 2.0 foundation API contracts",
+  "description": "Strict platform-neutral contracts for Cockpit Supervisor clients, resources, operations, standalone runs, events, artifacts, and leases.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ServerInfo"
+    },
+    {
+      "$ref": "#/$defs/CapabilityDocument"
+    },
+    {
+      "$ref": "#/$defs/RootResource"
+    },
+    {
+      "$ref": "#/$defs/WorkspaceResource"
+    },
+    {
+      "$ref": "#/$defs/DocumentResource"
+    },
+    {
+      "$ref": "#/$defs/DocumentValidationResult"
+    },
+    {
+      "$ref": "#/$defs/OperationInvocation"
+    },
+    {
+      "$ref": "#/$defs/OperationResult"
+    },
+    {
+      "$ref": "#/$defs/RunSubmission"
+    },
+    {
+      "$ref": "#/$defs/RunAccepted"
+    },
+    {
+      "$ref": "#/$defs/RunResource"
+    },
+    {
+      "$ref": "#/$defs/RunEvent"
+    },
+    {
+      "$ref": "#/$defs/ArtifactResource"
+    },
+    {
+      "$ref": "#/$defs/LeaseResource"
+    },
+    {
+      "$ref": "#/$defs/ApiErrorResponse"
+    }
+  ],
+  "$defs": {
+    "Identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,127}$",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "Kind": {
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9]*(?:\\.[a-z][A-Za-z0-9]*)+$",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "Sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "UtcTimestamp": {
+      "type": "string",
+      "pattern": "Z$",
+      "format": "date-time",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "AbsolutePath": {
+      "type": "string",
+      "pattern": "^(?:/|[A-Za-z]:[\\\\/]|(?:\\\\\\\\|//)[^\\\\/]+[\\\\/][^\\\\/]+)",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "RelativePath": {
+      "type": "string",
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.?(?:/|$))[^/]+(?:/[^/]+)*$",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "ApiPath": {
+      "type": "string",
+      "pattern": "^/api/v2/",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "ApiTemplate": {
+      "type": "string",
+      "pattern": "^/api/v2/",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "SchemaReference": {
+      "type": "string",
+      "pattern": "#\\/\\$defs\\/",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "Cursor": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "IdempotencyKey": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "JsonObject": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "ApiVersion": {
+      "type": "object",
+      "properties": {
+        "major": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minor": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "major",
+        "minor"
+      ],
+      "additionalProperties": false
+    },
+    "FeatureDescriptor": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minimumApiMinor": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "minimumApiMinor"
+      ],
+      "additionalProperties": false
+    },
+    "ServerInfo": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "cockpit.foundation/v2",
+          "minLength": 1
+        },
+        "instanceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "apiVersion": {
+          "$ref": "#/$defs/ApiVersion"
+        },
+        "engineVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "startedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FeatureDescriptor"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "instanceId",
+        "apiVersion",
+        "engineVersion",
+        "startedAt",
+        "features"
+      ],
+      "additionalProperties": false
+    },
+    "NegotiationRequest": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "$ref": "#/$defs/ApiVersion"
+        },
+        "requiredFeatures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "apiVersion",
+        "requiredFeatures"
+      ],
+      "additionalProperties": false
+    },
+    "NegotiationResult": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "$ref": "#/$defs/ApiVersion"
+        },
+        "featureIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "apiVersion",
+        "featureIds"
+      ],
+      "additionalProperties": false
+    },
+    "ArtifactReference": {
+      "type": "object",
+      "properties": {
+        "artifactId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "runId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      },
+      "required": [
+        "artifactId",
+        "runId"
+      ],
+      "additionalProperties": false
+    },
+    "ApiError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "invalidInput",
+            "unsupported",
+            "environment",
+            "resource",
+            "driver",
+            "locator",
+            "assertion",
+            "application",
+            "evidence",
+            "cancelled",
+            "interrupted",
+            "internal"
+          ],
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "responsibleLayer": {
+          "type": "string",
+          "enum": [
+            "client",
+            "supervisor",
+            "worker",
+            "provider",
+            "driver",
+            "application"
+          ],
+          "minLength": 1
+        },
+        "redactedDetails": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ArtifactReference"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "code",
+        "category",
+        "message",
+        "retryable",
+        "responsibleLayer"
+      ],
+      "additionalProperties": false
+    },
+    "ApiWarning": {
+      "type": "object",
+      "properties": {
+        "stage": {
+          "type": "string",
+          "enum": [
+            "cleanup",
+            "evidence"
+          ],
+          "minLength": 1
+        },
+        "error": {
+          "$ref": "#/$defs/ApiError"
+        }
+      },
+      "required": [
+        "stage",
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "Failure": {
+      "type": "object",
+      "properties": {
+        "primary": {
+          "$ref": "#/$defs/ApiError"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiWarning"
+          }
+        }
+      },
+      "required": [
+        "primary"
+      ],
+      "additionalProperties": false
+    },
+    "ApiErrorResponse": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "cockpit.foundation/v2",
+          "minLength": 1
+        },
+        "requestId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "timestamp": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "failure": {
+          "$ref": "#/$defs/Failure"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "timestamp",
+        "failure"
+      ],
+      "additionalProperties": false
+    },
+    "PageRequest": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cursor": {
+          "$ref": "#/$defs/Cursor"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "ArtifactResource": {
+      "type": "object",
+      "properties": {
+        "artifactId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "runId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "stepExecutionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "kind": {
+          "$ref": "#/$defs/Kind"
+        },
+        "relativePath": {
+          "$ref": "#/$defs/RelativePath"
+        },
+        "mediaType": {
+          "type": "string",
+          "pattern": "^[a-z0-9!#$&^_.+-]+\\/[a-z0-9!#$&^_.+-]+$",
+          "minLength": 1,
+          "maxLength": 127
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "downloadUrl": {
+          "$ref": "#/$defs/ApiPath"
+        }
+      },
+      "required": [
+        "artifactId",
+        "workspaceId",
+        "runId",
+        "kind",
+        "relativePath",
+        "mediaType",
+        "sizeBytes",
+        "sha256",
+        "createdAt",
+        "downloadUrl"
+      ],
+      "additionalProperties": false
+    },
+    "RootResource": {
+      "type": "object",
+      "properties": {
+        "rootId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "canonicalPath": {
+          "$ref": "#/$defs/AbsolutePath"
+        },
+        "filesystemIdentity": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "active",
+            "draining",
+            "retired"
+          ],
+          "minLength": 1
+        },
+        "registeredAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "updatedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "retiredAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        }
+      },
+      "required": [
+        "rootId",
+        "canonicalPath",
+        "filesystemIdentity",
+        "state",
+        "registeredAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "retired"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "retiredAt"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "retiredAt"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "RootRegistration": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/AbsolutePath"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "RootRemoval": {
+      "type": "object",
+      "properties": {
+        "force": {
+          "type": "boolean"
+        },
+        "drainTimeoutMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300000
+        }
+      },
+      "required": [
+        "force",
+        "drainTimeoutMs"
+      ],
+      "additionalProperties": false
+    },
+    "WorkspaceMarker": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "cockpit.workspace/v2",
+          "minLength": 1
+        },
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "projectId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "checkoutId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "workspaceId",
+        "projectId",
+        "checkoutId",
+        "createdAt"
+      ],
+      "additionalProperties": false
+    },
+    "WorkspaceResource": {
+      "type": "object",
+      "properties": {
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "projectId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "checkoutId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "rootId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "canonicalPath": {
+          "$ref": "#/$defs/AbsolutePath"
+        },
+        "filesystemIdentity": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "active",
+            "draining",
+            "retired"
+          ],
+          "minLength": 1
+        },
+        "registeredAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "updatedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "projectId",
+        "checkoutId",
+        "rootId",
+        "canonicalPath",
+        "filesystemIdentity",
+        "state",
+        "registeredAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false
+    },
+    "WorkspaceRegistration": {
+      "type": "object",
+      "properties": {
+        "rootId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "path": {
+          "$ref": "#/$defs/AbsolutePath"
+        }
+      },
+      "required": [
+        "rootId",
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "WorkspaceRebind": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/AbsolutePath"
+        },
+        "expectedCheckoutId": {
+          "$ref": "#/$defs/Identifier"
+        }
+      },
+      "required": [
+        "path",
+        "expectedCheckoutId"
+      ],
+      "additionalProperties": false
+    },
+    "WorkspaceRemoval": {
+      "type": "object",
+      "properties": {
+        "force": {
+          "type": "boolean"
+        },
+        "drainTimeoutMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300000
+        }
+      },
+      "required": [
+        "force",
+        "drainTimeoutMs"
+      ],
+      "additionalProperties": false
+    },
+    "SourceLocation": {
+      "type": "object",
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "endLine": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "endColumn": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "line",
+        "column"
+      ],
+      "additionalProperties": false,
+      "dependentRequired": {
+        "endLine": [
+          "endColumn"
+        ],
+        "endColumn": [
+          "endLine"
+        ]
+      }
+    },
+    "SourceMapEntry": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "location": {
+          "$ref": "#/$defs/SourceLocation"
+        }
+      },
+      "required": [
+        "path",
+        "location"
+      ],
+      "additionalProperties": false
+    },
+    "Diagnostic": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warning"
+          ],
+          "minLength": 1
+        },
+        "location": {
+          "$ref": "#/$defs/SourceLocation"
+        },
+        "details": {
+          "$ref": "#/$defs/JsonObject"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "path",
+        "severity"
+      ],
+      "additionalProperties": false
+    },
+    "CaseIndexEntry": {
+      "type": "object",
+      "properties": {
+        "caseId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "location": {
+          "$ref": "#/$defs/SourceLocation"
+        }
+      },
+      "required": [
+        "caseId"
+      ],
+      "additionalProperties": false
+    },
+    "DocumentResource": {
+      "type": "object",
+      "properties": {
+        "documentId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "relativePath": {
+          "$ref": "#/$defs/RelativePath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "modifiedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CaseIndexEntry"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "documentId",
+        "workspaceId",
+        "relativePath",
+        "sha256",
+        "modifiedAt",
+        "cases"
+      ],
+      "additionalProperties": false
+    },
+    "IndexedCaseReference": {
+      "type": "object",
+      "properties": {
+        "documentId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "caseId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "documentSha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      },
+      "required": [
+        "documentId",
+        "caseId",
+        "documentSha256"
+      ],
+      "additionalProperties": false
+    },
+    "DocumentValidationRequest": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": [
+            "yaml",
+            "json"
+          ],
+          "minLength": 1
+        },
+        "sourceText": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 1048576
+        },
+        "relativePath": {
+          "$ref": "#/$defs/RelativePath"
+        }
+      },
+      "required": [
+        "format",
+        "sourceText"
+      ],
+      "additionalProperties": false
+    },
+    "DocumentValidationResult": {
+      "type": "object",
+      "properties": {
+        "valid": {
+          "type": "boolean"
+        },
+        "sourceSha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "case": {
+          "$ref": "cockpit.test.v2.schema.json#/$defs/case"
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          }
+        },
+        "sourceMap": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceMapEntry"
+          }
+        }
+      },
+      "required": [
+        "valid",
+        "sourceSha256",
+        "diagnostics",
+        "sourceMap"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "valid": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "case"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "case"
+              ]
+            },
+            "properties": {
+              "diagnostics": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "RootPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RootResource"
+          },
+          "maxItems": 100
+        },
+        "nextCursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "totalCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "WorkspacePage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WorkspaceResource"
+          },
+          "maxItems": 100
+        },
+        "nextCursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "totalCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "DocumentPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DocumentResource"
+          },
+          "maxItems": 100
+        },
+        "nextCursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "totalCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "CasePage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CaseIndexEntry"
+          },
+          "maxItems": 100
+        },
+        "nextCursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "totalCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "ArtifactPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ArtifactResource"
+          },
+          "maxItems": 100
+        },
+        "nextCursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "totalCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "OperationDescriptor": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/Kind"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "supervisor",
+            "root",
+            "workspace"
+          ],
+          "minLength": 1
+        },
+        "mutationClass": {
+          "type": "string",
+          "enum": [
+            "readOnly",
+            "mutating"
+          ],
+          "minLength": 1
+        },
+        "idempotency": {
+          "type": "string",
+          "enum": [
+            "prohibited",
+            "optional",
+            "required"
+          ],
+          "minLength": 1
+        },
+        "executionMode": {
+          "type": "string",
+          "enum": [
+            "synchronous",
+            "job"
+          ],
+          "minLength": 1
+        },
+        "safetyEffects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "shell",
+              "system",
+              "reset",
+              "permission",
+              "externalSideEffect",
+              "capture",
+              "recording"
+            ],
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "requestSchemaRef": {
+          "$ref": "#/$defs/SchemaReference"
+        },
+        "responseSchemaRef": {
+          "$ref": "#/$defs/SchemaReference"
+        },
+        "requiredFeatures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "kind",
+        "title",
+        "description",
+        "scope",
+        "mutationClass",
+        "idempotency",
+        "executionMode",
+        "safetyEffects",
+        "requestSchemaRef",
+        "responseSchemaRef",
+        "requiredFeatures"
+      ],
+      "additionalProperties": false,
+      "if": {
+        "properties": {
+          "mutationClass": {
+            "const": "readOnly"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "safetyEffects": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    "OperationInvocation": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/Kind"
+        },
+        "input": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "rootId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/IdempotencyKey"
+        },
+        "deadline": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "requiredFeatures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "kind",
+        "input",
+        "requiredFeatures"
+      ],
+      "additionalProperties": false,
+      "not": {
+        "required": [
+          "rootId",
+          "workspaceId"
+        ]
+      }
+    },
+    "OperationResult": {
+      "type": "object",
+      "properties": {
+        "operationId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "kind": {
+          "$ref": "#/$defs/Kind"
+        },
+        "rootId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "lifecycle": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "running",
+            "completed"
+          ],
+          "minLength": 1
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "succeeded",
+            "failed",
+            "blocked",
+            "cancelled",
+            "interrupted"
+          ],
+          "minLength": 1
+        },
+        "submittedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "startedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "finishedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "output": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "failure": {
+          "$ref": "#/$defs/Failure"
+        }
+      },
+      "required": [
+        "operationId",
+        "kind",
+        "lifecycle",
+        "submittedAt"
+      ],
+      "additionalProperties": false,
+      "not": {
+        "required": [
+          "rootId",
+          "workspaceId"
+        ]
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "lifecycle": {
+                "const": "completed"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "outcome",
+              "finishedAt"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "outcome"
+                  ]
+                },
+                {
+                  "required": [
+                    "finishedAt"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "lifecycle": {
+                "const": "running"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "startedAt"
+            ]
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "lifecycle": {
+                  "const": "queued"
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "required": [
+                  "startedAt"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "succeeded"
+              }
+            },
+            "required": [
+              "outcome"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "failure"
+              ]
+            }
+          },
+          "else": {
+            "if": {
+              "required": [
+                "outcome"
+              ]
+            },
+            "then": {
+              "required": [
+                "failure"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "failure"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ResourceDescriptor": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/Kind"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "supervisor",
+            "root",
+            "workspace"
+          ],
+          "minLength": 1
+        },
+        "uriTemplate": {
+          "$ref": "#/$defs/ApiTemplate"
+        },
+        "mediaType": {
+          "type": "string",
+          "pattern": "^[a-z0-9!#$&^_.+-]+\\/[a-z0-9!#$&^_.+-]+$",
+          "minLength": 1,
+          "maxLength": 127
+        },
+        "requiredFeatures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "kind",
+        "scope",
+        "uriTemplate",
+        "mediaType",
+        "requiredFeatures"
+      ],
+      "additionalProperties": false
+    },
+    "CapabilityDocument": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "cockpit.foundation/v2",
+          "minLength": 1
+        },
+        "apiVersion": {
+          "$ref": "#/$defs/ApiVersion"
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FeatureDescriptor"
+          },
+          "uniqueItems": true
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OperationDescriptor"
+          },
+          "uniqueItems": true
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResourceDescriptor"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "apiVersion",
+        "features",
+        "operations",
+        "resources"
+      ],
+      "additionalProperties": false
+    },
+    "InlineCaseSource": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "inline",
+          "minLength": 1
+        },
+        "case": {
+          "$ref": "cockpit.test.v2.schema.json#/$defs/case"
+        },
+        "sourceSha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      },
+      "required": [
+        "kind",
+        "case",
+        "sourceSha256"
+      ],
+      "additionalProperties": false
+    },
+    "IndexedCaseSource": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "indexed",
+          "minLength": 1
+        },
+        "reference": {
+          "$ref": "#/$defs/IndexedCaseReference"
+        }
+      },
+      "required": [
+        "kind",
+        "reference"
+      ],
+      "additionalProperties": false
+    },
+    "CaseSubmissionSource": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/InlineCaseSource"
+        },
+        {
+          "$ref": "#/$defs/IndexedCaseSource"
+        }
+      ]
+    },
+    "RunSubmission": {
+      "type": "object",
+      "properties": {
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "source": {
+          "$ref": "#/$defs/CaseSubmissionSource"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/IdempotencyKey"
+        },
+        "inputs": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "targetId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "requiredFeatures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "workspaceId",
+        "source",
+        "idempotencyKey",
+        "inputs",
+        "requiredFeatures"
+      ],
+      "additionalProperties": false
+    },
+    "RunAccepted": {
+      "type": "object",
+      "properties": {
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "runId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "statusUrl": {
+          "$ref": "#/$defs/ApiPath"
+        },
+        "eventsUrl": {
+          "$ref": "#/$defs/ApiPath"
+        },
+        "submittedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "replayed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "runId",
+        "statusUrl",
+        "eventsUrl",
+        "submittedAt",
+        "replayed"
+      ],
+      "additionalProperties": false
+    },
+    "RunCancellationRequest": {
+      "type": "object",
+      "properties": {
+        "idempotencyKey": {
+          "$ref": "#/$defs/IdempotencyKey"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      },
+      "required": [
+        "idempotencyKey"
+      ],
+      "additionalProperties": false
+    },
+    "RunCancellation": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "requestedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "replayed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "runId",
+        "requestedAt",
+        "replayed"
+      ],
+      "additionalProperties": false
+    },
+    "RunResource": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "runId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "caseId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "sourceSha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "lifecycle": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "running",
+            "completed"
+          ],
+          "minLength": 1
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed",
+            "blocked",
+            "cancelled",
+            "interrupted"
+          ],
+          "minLength": 1
+        },
+        "stability": {
+          "type": "string",
+          "enum": [
+            "stable",
+            "flaky",
+            "unknown"
+          ],
+          "minLength": 1
+        },
+        "submittedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "startedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "finishedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "attemptIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
+        },
+        "activeAttemptId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "failure": {
+          "$ref": "#/$defs/Failure"
+        }
+      },
+      "required": [
+        "projectId",
+        "workspaceId",
+        "runId",
+        "caseId",
+        "sourceSha256",
+        "lifecycle",
+        "submittedAt",
+        "attemptIds"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "lifecycle": {
+                "const": "completed"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "outcome",
+              "finishedAt",
+              "stability"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "outcome"
+                  ]
+                },
+                {
+                  "required": [
+                    "finishedAt"
+                  ]
+                },
+                {
+                  "required": [
+                    "stability"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "lifecycle": {
+                "const": "running"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "startedAt"
+            ]
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "lifecycle": {
+                  "const": "queued"
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "required": [
+                  "startedAt"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "passed"
+              }
+            },
+            "required": [
+              "outcome"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "failure"
+              ]
+            }
+          },
+          "else": {
+            "if": {
+              "required": [
+                "outcome"
+              ]
+            },
+            "then": {
+              "required": [
+                "failure"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "failure"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "passed"
+              }
+            },
+            "required": [
+              "outcome"
+            ]
+          },
+          "then": {
+            "properties": {
+              "attemptIds": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "lifecycle": {
+                "const": "completed"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "activeAttemptId"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "RunCaseResource": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "caseId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "sourceSha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "attemptIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed",
+            "blocked",
+            "cancelled",
+            "interrupted"
+          ],
+          "minLength": 1
+        },
+        "stability": {
+          "type": "string",
+          "enum": [
+            "stable",
+            "flaky",
+            "unknown"
+          ],
+          "minLength": 1
+        }
+      },
+      "required": [
+        "runId",
+        "caseId",
+        "sourceSha256",
+        "attemptIds"
+      ],
+      "additionalProperties": false,
+      "dependentRequired": {
+        "outcome": [
+          "stability"
+        ],
+        "stability": [
+          "outcome"
+        ]
+      }
+    },
+    "RunEvent": {
+      "type": "object",
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timestamp": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "kind": {
+          "$ref": "#/$defs/Kind"
+        },
+        "projectId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "runId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "caseId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "stepExecutionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "lifecycle": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "running",
+            "completed"
+          ],
+          "minLength": 1
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed",
+            "blocked",
+            "cancelled",
+            "interrupted"
+          ],
+          "minLength": 1
+        },
+        "stability": {
+          "type": "string",
+          "enum": [
+            "stable",
+            "flaky",
+            "unknown"
+          ],
+          "minLength": 1
+        },
+        "sourceLocation": {
+          "$ref": "#/$defs/SourceLocation"
+        },
+        "targetId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "requestedPlane": {
+          "type": "string",
+          "enum": [
+            "semantic",
+            "native",
+            "visual",
+            "coordinate"
+          ],
+          "minLength": 1
+        },
+        "actualPlane": {
+          "type": "string",
+          "enum": [
+            "semantic",
+            "native",
+            "visual",
+            "coordinate"
+          ],
+          "minLength": 1
+        },
+        "driverId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "degradation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "locatorSummary": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "failure": {
+          "$ref": "#/$defs/Failure"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ArtifactReference"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "eventId",
+        "sequence",
+        "timestamp",
+        "kind",
+        "projectId",
+        "workspaceId",
+        "runId",
+        "caseId"
+      ],
+      "additionalProperties": false,
+      "dependentRequired": {
+        "stepExecutionId": [
+          "attemptId"
+        ],
+        "outcome": [
+          "lifecycle",
+          "stability"
+        ],
+        "stability": [
+          "lifecycle",
+          "outcome"
+        ]
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "lifecycle": {
+                "const": "completed"
+              }
+            },
+            "required": [
+              "lifecycle"
+            ]
+          },
+          "then": {
+            "required": [
+              "outcome",
+              "stability"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "outcome"
+                  ]
+                },
+                {
+                  "required": [
+                    "stability"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "passed"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "failure"
+              ]
+            }
+          },
+          "else": {
+            "if": {
+              "required": [
+                "outcome"
+              ]
+            },
+            "then": {
+              "required": [
+                "failure"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "failure"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "EventCursor": {
+      "type": "object",
+      "properties": {
+        "afterSequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lastEventId": {
+          "$ref": "#/$defs/Identifier"
+        }
+      },
+      "required": [
+        "afterSequence"
+      ],
+      "additionalProperties": false
+    },
+    "EventReplayBoundary": {
+      "type": "object",
+      "properties": {
+        "requestedAfterSequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "earliestAvailableSequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "latestAvailableSequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "hasGap": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "requestedAfterSequence",
+        "earliestAvailableSequence",
+        "latestAvailableSequence",
+        "hasGap"
+      ],
+      "additionalProperties": false
+    },
+    "LeaseRequest": {
+      "type": "object",
+      "properties": {
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "resourceKind": {
+          "type": "string",
+          "enum": [
+            "device",
+            "session",
+            "browserContext",
+            "desktopInput",
+            "desktopWindow",
+            "capture",
+            "recording",
+            "forwardedPort",
+            "workspaceMutation"
+          ],
+          "minLength": 1
+        },
+        "resourceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "holderId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/IdempotencyKey"
+        },
+        "waitTimeoutMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300000
+        },
+        "ttlMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 300000
+        }
+      },
+      "required": [
+        "workspaceId",
+        "resourceKind",
+        "resourceId",
+        "holderId",
+        "idempotencyKey",
+        "waitTimeoutMs",
+        "ttlMs"
+      ],
+      "additionalProperties": false
+    },
+    "LeaseResource": {
+      "type": "object",
+      "properties": {
+        "leaseId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "resourceKind": {
+          "type": "string",
+          "enum": [
+            "device",
+            "session",
+            "browserContext",
+            "desktopInput",
+            "desktopWindow",
+            "capture",
+            "recording",
+            "forwardedPort",
+            "workspaceMutation"
+          ],
+          "minLength": 1
+        },
+        "resourceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "holderId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "active",
+            "releasing",
+            "released",
+            "expired",
+            "quarantined"
+          ],
+          "minLength": 1
+        },
+        "requestedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "acquiredAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "releasedAt": {
+          "$ref": "#/$defs/UtcTimestamp"
+        },
+        "queuePosition": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failure": {
+          "$ref": "#/$defs/Failure"
+        }
+      },
+      "required": [
+        "leaseId",
+        "workspaceId",
+        "resourceKind",
+        "resourceId",
+        "holderId",
+        "state",
+        "requestedAt"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "queued"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "queuePosition"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "queuePosition"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "quarantined"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "acquiredAt",
+              "expiresAt",
+              "failure"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "failure"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "active",
+                  "releasing",
+                  "expired",
+                  "quarantined"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "acquiredAt",
+              "expiresAt"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "released"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "releasedAt"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "releasedAt"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "OperationPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OperationDescriptor"
+          },
+          "maxItems": 100
+        },
+        "nextCursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "totalCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "RunCasePage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RunCaseResource"
+          },
+          "maxItems": 100
+        },
+        "nextCursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "totalCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "RunEventPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RunEvent"
+          },
+          "maxItems": 100
+        },
+        "nextCursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "totalCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "LeasePage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LeaseResource"
+          },
+          "maxItems": 100
+        },
+        "nextCursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "totalCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -12,6 +12,12 @@
   published JSON Schema 2020-12 document.
 - Published a generated, byte-identical Dart representation of the test schema
   so compiled host tools validate against the same contract as non-Dart clients.
+- Added the strict `cockpit.foundation/v2` DTOs, JSON Schema 2020-12 document,
+  and OpenAPI 3.1 contract for Supervisor discovery, roots, workspaces, typed
+  operations, standalone runs, durable events, artifacts, leases, paging,
+  idempotency, version/feature negotiation, and structured recovery.
+- Published byte-identical embedded foundation schema and OpenAPI constants for
+  compiled CLI, MCP, GUI, and third-party Dart clients.
 
 ## 1.1.4
 

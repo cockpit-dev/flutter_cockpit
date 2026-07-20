@@ -384,12 +384,24 @@ void main() {
     final caseSchema = File(
       'packages/cockpit_protocol/schema/cockpit.test.v2.schema.json',
     );
+    final foundationExample = File(
+      'packages/cockpit_protocol/example/foundation_contract.dart',
+    );
+    final foundationSchema = File(
+      'packages/cockpit_protocol/schema/cockpit.foundation.v2.schema.json',
+    );
+    final foundationOpenApi = File(
+      'packages/cockpit_protocol/openapi/cockpit.v2.openapi.json',
+    );
 
     expect(runtimeExample.existsSync(), isTrue);
     expect(devtoolsExample.existsSync(), isTrue);
     expect(caseYaml.existsSync(), isTrue);
     expect(caseJson.existsSync(), isTrue);
     expect(caseSchema.existsSync(), isTrue);
+    expect(foundationExample.existsSync(), isTrue);
+    expect(foundationSchema.existsSync(), isTrue);
+    expect(foundationOpenApi.existsSync(), isTrue);
 
     final runtimeSource = runtimeExample.readAsStringSync();
     final devtoolsSource = devtoolsExample.readAsStringSync();
