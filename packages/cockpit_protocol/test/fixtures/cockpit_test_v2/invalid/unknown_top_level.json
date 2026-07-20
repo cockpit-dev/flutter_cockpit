@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "cockpit.test/v2",
+  "kind": "case",
+  "id": "unknownTopLevel",
+  "target": {
+    "platform": "android",
+    "targetKind": "flutterApp",
+    "plane": "semantic"
+  },
+  "steps": [
+    {
+      "stepId": "goBack",
+      "action": {
+        "type": "back"
+      }
+    }
+  ],
+  "unexpected": true
+}

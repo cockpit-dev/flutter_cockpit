@@ -41,7 +41,7 @@ final class DevtoolsCommand extends CockpitCliCommand {
         'scope',
         defaultsTo: 'current',
         help:
-            'Initial history scope for the board URL. Use current, latest, all, or a concrete session/task scope id.',
+            'Default history scope reported to API clients. Use current, latest, all, or a concrete session/task scope id.',
       );
   }
 
@@ -53,17 +53,17 @@ final class DevtoolsCommand extends CockpitCliCommand {
 
   @override
   String get description =>
-      'Start the Flutter Cockpit live observability dashboard.';
+      'Start the Flutter Cockpit local observability API.';
 
   @override
-  String get summary => 'Serve the local live run dashboard.';
+  String get summary => 'Serve local live run APIs.';
 
   @override
   String get category => CockpitCliCategory.server;
 
   @override
   String get helpWhen =>
-      'Use when a human or agent needs a full-fidelity run board with state, timeline, screenshots, recordings, and bundle files.';
+      'Use when an agent or external client needs run state, events, screenshots, recordings, or bundle files over HTTP.';
 
   @override
   String get helpNeeds =>
@@ -75,7 +75,7 @@ final class DevtoolsCommand extends CockpitCliCommand {
 
   @override
   String get helpWrites =>
-      'A compact AI-readable launch record with the local dashboard URL.';
+      'A compact AI-readable launch record with the authenticated API endpoint.';
 
   @override
   Future<int> run() async {
@@ -97,17 +97,18 @@ final class DevtoolsCommand extends CockpitCliCommand {
       token: argResults?['token'] as String?,
     );
     final handle = await server.start();
-    final dashboardUri = handle.uri.replace(
-      queryParameters: <String, String>{
-        ...handle.uri.queryParameters,
-        'scope': scope,
-      },
+    final apiBaseUri = Uri(
+      scheme: handle.uri.scheme,
+      host: handle.uri.host,
+      port: handle.uri.port,
+      path: '/api/',
     );
     await cockpitWriteJsonPayload(
       commandName: name,
       payload: <String, Object?>{
         'command': name,
-        'url': dashboardUri.toString(),
+        'apiBaseUrl': apiBaseUri.toString(),
+        'token': handle.token,
         'historyRoot': historyRoot,
         'scope': scope,
         'host': host,

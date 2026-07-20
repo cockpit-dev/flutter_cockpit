@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "cockpit.test/v2",
+  "kind": "case",
+  "id": "zeroDrag",
+  "target": {
+    "platform": "android",
+    "targetKind": "flutterApp",
+    "plane": "semantic"
+  },
+  "steps": [
+    {
+      "stepId": "dragNowhere",
+      "action": {
+        "type": "drag",
+        "dx": 0,
+        "dy": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "cockpit.test/v2",
+  "kind": "case",
+  "id": "locatorStrategies",
+  "target": {
+    "platform": "android",
+    "targetKind": "nativeApp",
+    "plane": "coordinate"
+  },
+  "steps": [
+    {
+      "stepId": "tapCoordinate",
+      "action": {
+        "type": "tap",
+        "locator": {
+          "strategy": "coordinate",
+          "x": 0.5,
+          "y": 0.75,
+          "fallbacks": [
+            {
+              "strategy": "visual",
+              "value": "assets/continue.png",
+              "threshold": 0.9
+            },
+            {
+              "strategy": "text",
+              "value": "Continue",
+              "index": 0,
+              "ancestor": {
+                "strategy": "role",
+                "value": "dialog"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

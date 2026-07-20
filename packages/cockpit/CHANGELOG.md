@@ -6,6 +6,19 @@
   `cockpit_protocol` package.
 - Removed the `flutter_cockpit_protocol` dependency and established the 2.0
   package baseline without a compatibility forwarding layer.
+- Removed the embedded HTML DevTools dashboard and browser-only assets. The
+  local observability service is headless and exposes authenticated APIs for
+  independently implemented clients.
+- Added the standalone `cockpit.test/v2` YAML/JSON compiler, typed input and
+  secret binding, deterministic Flutter case runner, safety policy checks,
+  cancellation/cleanup kernel, and immutable `cockpit.report/v2` bundles.
+- Added strict offline 1.x workflow import without a runtime compatibility
+  path, plus package-local YAML and JSON case examples.
+- Added deadline-scoped operation leases, optional adapter-backed abort, and
+  late-completion isolation for deterministic cancellation and cleanup.
+- Kept compiler/importer/runner/control/policy/secret/bundle verification as
+  the public V2 boundary while retaining binder, plan, lowerer, kernel, and
+  recorder as internal implementation modules.
 
 ## 1.1.4
 

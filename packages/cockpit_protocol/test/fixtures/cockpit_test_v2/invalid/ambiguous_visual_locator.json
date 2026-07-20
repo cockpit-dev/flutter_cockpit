@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "cockpit.test/v2",
+  "kind": "case",
+  "id": "ambiguousLocator",
+  "target": {
+    "platform": "android",
+    "targetKind": "nativeApp",
+    "plane": "visual"
+  },
+  "steps": [
+    {
+      "stepId": "tapImage",
+      "action": {
+        "type": "tap",
+        "locator": {
+          "strategy": "visual",
+          "value": "button.png",
+          "x": 0.5,
+          "y": 0.5
+        }
+      }
+    }
+  ]
+}

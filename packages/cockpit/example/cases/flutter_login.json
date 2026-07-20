@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "cockpit.test/v2",
+  "kind": "case",
+  "id": "flutterLogin",
+  "name": "Flutter login",
+  "tags": ["acceptance", "authentication"],
+  "target": {
+    "platform": "android",
+    "targetKind": "flutterApp",
+    "plane": "semantic"
+  },
+  "defaults": {
+    "commandTimeoutMs": 15000,
+    "cleanupTimeoutMs": 20000,
+    "failFast": true,
+    "evidence": {
+      "screenshot": "onFailure",
+      "snapshot": "onFailure",
+      "failurePolicy": "recordWarning"
+    }
+  },
+  "variables": {
+    "username": {
+      "source": "input",
+      "type": "string",
+      "required": true
+    },
+    "password": {
+      "source": "secret",
+      "type": "string",
+      "reference": "env:COCKPIT_TEST_PASSWORD"
+    }
+  },
+  "fragments": {
+    "authenticate": [
+      {
+        "stepId": "enterUsername",
+        "action": {
+          "type": "enterText",
+          "locator": {"strategy": "testId", "value": "usernameField"},
+          "text": {"$var": "username"}
+        }
+      },
+      {
+        "stepId": "enterPassword",
+        "safety": {
+          "effects": ["credentialSensitive"],
+          "reason": "Authenticate the test account."
+        },
+        "action": {
+          "type": "enterText",
+          "locator": {"strategy": "testId", "value": "passwordField"},
+          "text": {"$var": "password"}
+        }
+      },
+      {
+        "stepId": "submitLogin",
+        "action": {
+          "type": "tap",
+          "locator": {"strategy": "testId", "value": "loginButton"}
+        }
+      }
+    ]
+  },
+  "setup": [
+    {
+      "stepId": "startAcceptanceRecording",
+      "startRecording": {
+        "name": "flutterLoginAcceptance",
+        "purpose": "acceptance",
+        "mode": "auto",
+        "attachToStep": true
+      }
+    }
+  ],
+  "steps": [
+    {"stepId": "callAuthenticate", "call": {"fragment": "authenticate"}},
+    {
+      "stepId": "verifyHome",
+      "retry": {
+        "maxAttempts": 3,
+        "delayMs": 250,
+        "steps": [
+          {
+            "stepId": "waitForHome",
+            "action": {
+              "type": "waitFor",
+              "condition": {
+                "type": "visible",
+                "locator": {"strategy": "text", "value": "Home"}
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "finally": [
+    {
+      "stepId": "stopAcceptanceRecording",
+      "stopRecording": {"settleMs": 500}
+    }
+  ]
+}

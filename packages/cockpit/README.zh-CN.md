@@ -36,6 +36,36 @@ cockpit --help
 cockpit_mcp
 ```
 
+## 独立 E2E 用例（2.0）
+
+`cockpit` 同时是无头 `cockpit.test/v2` 运行时所在的 Dart host 包，不需要再新增
+一个 CLI 包。公开模块包含严格 YAML/JSON 编译、带源码位置的诊断、类型化 input、
+不透明 secret dispatch binding、本地 fragment 展开、安全双检、确定性
+setup/main/finally 执行、取消与 cleanup，以及原子 `cockpit.report/v2` 报告包。
+公开客户端通过 `CockpitCaseRunner` 执行单用例，通过
+`CockpitTestAttemptBundleReader` 校验报告；binder、execution plan、lowerer、kernel
+和 recorder 均为内部实现，不构成客户端协议。
+
+包内提供
+[`example/cases/flutter_login.yaml`](example/cases/flutter_login.yaml) 和
+[`example/cases/flutter_login.json`](example/cases/flutter_login.json)。二者只是同一
+类型化协议的不同序列化形式，均可由 AI 生成并在不依赖 AI 的情况下稳定回放。
+
+首个执行 backend 只负责 Flutter semantic automation。协议可以表达其他 plane 和
+locator，但 Flutter backend 无法保真时会返回稳定的
+`unsupportedAction`/`unsupportedLocator`，不会隐式切换 plane、丢 locator 信号或
+改写参数。V2 入口也不会自动识别或执行 1.x workflow；旧格式只能通过显式离线
+`CockpitControlWorkflowImporter` 转换，歧义或不支持的行为直接失败。
+
+所有限时 driver 调用都由 execution lease 保护。超时、取消或 hard shutdown 会撤销
+lease，迟到的适配器结果无法污染 recorder 或已发布报告。自定义 driver 在传输层支持
+主动取消时应实现 `CockpitActiveOperationAborter`，由它终止目标端正在执行的操作。
+
+`CockpitTestAttemptResult` 和经过 hash 校验的
+`CockpitTestAttemptBundleManifest` 是后续 Flutter GUI、官方客户端和三方客户端的
+稳定边界。本包不内置 GUI；批量 suite、Supervisor 调度、多项目服务生命周期和原生
+平台 driver 属于后续 2.0 工作流。
+
 `cockpit_mcp` 就是这个包暴露出来的全局 MCP 启动命令。如果不需要全局命令，也可以直接这样启动：
 
 ```bash
@@ -85,33 +115,16 @@ dart run cockpit run-command --help
 5. `hot-reload` 或 `hot-restart`
 6. 交付时用 `run-script`、`run-task` 或 `validate-task`
 
-完整观测交付运行时，把本地看板指向同一个 output root：
+需要完整观测交付数据时，对同一个 output root 启动无头 loopback API：
 
 ```bash
 dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
 ```
 
-命令会在 loopback 上启动服务并保持运行，直到进程被中断。CLI/MCP 摘要仍是
-低 token 默认入口；当 timeline、截图、录屏或 bundle 文件需要人工检查时再打开
-看板。运行会按 workflow `sessionId` 分组：`sessionId` 表示一个隔离开发或验证任务，
-`taskId` 表示当前目标，`runId` 表示一次执行尝试。同一任务重试时复用
-`sessionId`，无关任务使用新的 `sessionId`。看板默认打开当前最新 scope 并固定 URL，
-避免不同任务混在同一 timeline；需要看历史时用 scope selector 或 `all runs`，需要持续
-跟随新任务时传 `--scope latest`。`scope=current` 和 `scope=latest` API URL 都解析到当前
-最新 scope；UI 会区分 `pinned scope` 与 `following latest`。Timeline 是 scope 级别：
-同一 `sessionId` 的重试按执行顺序一起展示，run detail 和 bundle 面板跟随当前选中
-run。artifact 链接带有所属 run 和 event key，重复相对路径也能追溯。看板还可以解析
-workflow YAML/JSON，并把 `runScript` 或 `validateTask` 作为后台 job 提交。从看板提交
-真实运行时需要保留 CLI 通常会提供的可执行 envelope，例如 `sessionHandle`、
-`baseUrl`、`outputRoot` 和平台 id；在 JSON/YAML 间切换时不要只保留内部 workflow。
-提交中的 job 在 live history 文件写入前也会显示；完成后的提交 job 只要 bundle 仍在
-同一个 history root 下，也会通过同一套 run API 暴露 bundle summary 和 artifact。
-长期 history root 会分页显示 run list，同时保留 scope 总数。过大或部分写入的 bundle
-JSON 会通过 `summaryFileIssues` 报告，而不是让看板失败。run detail 面板通过
-`GET /api/runs/<runId>/bundle-download` 提供 `download bundle`；响应是受
-token 保护的 tar 流，包含 `download_manifest.json`、`run_metadata.json`、
-`bundle/**` 和 `live/**`，live-only 或部分运行缺失的根目录会记录在
-`missingRoots`。
+命令会输出 `apiBaseUrl`、bearer `token` 和默认 `scope`，然后保持运行直到被中断。
+它不再内置 HTML 或 Flutter UI。CLI/MCP 是内置的用户和 AI 入口；未来 Flutter 或
+三方客户端独立消费同一套 `/api/*` 认证接口。生成的 `report.html` 仍是可携带的回归
+报告产物，不依赖该服务。
 
 target-first 闭环：
 

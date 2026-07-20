@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "cockpit.test/v2",
+  "kind": "case",
+  "id": "invalidSnapshotOptions",
+  "target": {
+    "platform": "android",
+    "targetKind": "flutterApp",
+    "plane": "semantic"
+  },
+  "steps": [
+    {
+      "stepId": "collectInvalidSnapshot",
+      "action": {
+        "type": "collectSnapshot",
+        "snapshotOptions": {
+          "profile": "minimal",
+          "includeNetworkActivity": "yes"
+        }
+      }
+    }
+  ]
+}

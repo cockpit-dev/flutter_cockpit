@@ -217,6 +217,7 @@ claude mcp list
 
 - [`packages/flutter_cockpit`](packages/flutter_cockpit)：应用内运行时、远程会话服务、命令执行、快照、截图、录屏
 - [`packages/cockpit`](packages/cockpit)：宿主侧 CLI、MCP、编排、bundle 写入、验证、workspace tooling
+- [`packages/cockpit_protocol`](packages/cockpit_protocol)：纯 Dart 的 V2 用例、运行结果、错误和报告包协议
 
 ## 推荐闭环
 
@@ -237,32 +238,17 @@ claude mcp list
 
 协议入口见 [`docs/contracts/flutter-cockpit-protocol.md`](docs/contracts/flutter-cockpit-protocol.md)。完整 AI 开发闭环契约见 [`docs/contracts/ai-development-protocol.md`](docs/contracts/ai-development-protocol.md)。工作流脚本协议见 [`docs/contracts/control-workflow-protocol.md`](docs/contracts/control-workflow-protocol.md)，机器 schema 见 [`docs/contracts/control-workflow.schema.json`](docs/contracts/control-workflow.schema.json)。
 
-长流程或交付结果不直观时，可以把本地看板指向 `run-script`、`run-task`
-或 `validate-task` 使用的同一个 output root：
+需要完整观测交付数据时，对 `run-script`、`run-task` 或 `validate-task` 使用的
+同一个 output root 启动无头 loopback API：
 
 ```bash
 dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
 ```
 
-CLI 和 MCP 摘要仍是低 token 默认入口；看板用于人工查看完整状态、timeline、
-截图、录屏和 bundle 文件。历史模型是 `sessionId` 表示一个隔离开发或验证任务，
-`taskId` 表示当前目标，`runId` 表示一次执行尝试。默认看板会打开当前最新
-workflow `sessionId` scope 并把 URL 固定到具体 scope，避免同一个 history root
-里的无关任务混在一起；只有需要跨 session 审计时才切到 `all runs`。传
-`--scope latest` 时看板会继续跟随最新任务。Timeline 是 scope 级别的，同一
-`sessionId` 的重试会按执行顺序一起展示；run detail 和 bundle 面板仍跟随当前选中
-run。截图、录屏、诊断和错误都会关联到所属 run 与事件序号。看板也可以解析粘贴的
-workflow YAML/JSON，并以后台 job 方式提交 `runScript` / `validateTask`。从看板提交
-真实运行时需要保留 CLI 通常会提供的可执行 envelope，例如 `sessionHandle`、
-`baseUrl`、`outputRoot` 和平台 id；在 JSON/YAML 间切换时不要只保留内部 workflow。
-提交中的 job 在 live history 文件写入前也会显示；完成后的提交 job 只要 bundle 仍在
-同一个 history root 下，也会通过同一套 run API 暴露 bundle summary 和 artifact。
-长期 history root 会分页展示 run list，同时保留 scope 总数。过大或部分写入的 bundle
-JSON 会显示到 `summaryFileIssues`，不会导致整个看板不可用。run detail 面板还提供
-`download bundle`，对应 `GET /api/runs/<runId>/bundle-download`。下载会以受
-token 保护的 tar 流式输出，不会把大型视频读入内存；内容包含
-`download_manifest.json`、`run_metadata.json`、`bundle/**` 和 `live/**`，
-不可用的根目录会记录在 `missingRoots`。
+命令会输出 `apiBaseUrl`、bearer `token` 和默认 `scope`，然后保持运行直到被中断。
+它不内置 HTML 或 Flutter UI。CLI/MCP 仍是内置入口；未来 Flutter GUI 或三方客户端
+独立消费同一套 `/api/*` 认证接口。生成的 `report.html` 是可携带的回归报告产物，
+不依赖该服务。
 
 target-first 或非 Flutter / 系统直控场景：
 

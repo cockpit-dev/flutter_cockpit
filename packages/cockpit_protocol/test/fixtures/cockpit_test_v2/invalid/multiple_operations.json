@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "cockpit.test/v2",
+  "kind": "case",
+  "id": "multipleOperations",
+  "target": {
+    "platform": "android",
+    "targetKind": "flutterApp",
+    "plane": "semantic"
+  },
+  "steps": [
+    {
+      "stepId": "ambiguousStep",
+      "action": {
+        "type": "back"
+      },
+      "stopRecording": {}
+    }
+  ]
+}

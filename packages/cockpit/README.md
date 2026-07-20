@@ -36,6 +36,58 @@ cockpit --help
 cockpit_mcp
 ```
 
+## Standalone E2E cases (2.0)
+
+`cockpit` is also the Dart host package for the headless `cockpit.test/v2`
+runtime. A separate CLI package is not required. The public module provides:
+
+- `CockpitTestDocumentCompiler` for strict YAML/JSON parsing, source locations,
+  diagnostics, call-graph validation, and bounded expansion;
+- `CockpitCaseRunner` for target/capability/safety preflight, deterministic
+  input binding, local-fragment expansion, setup/main/finally execution,
+  cancellation, and cleanup;
+- `CockpitCaseExecutionControl` and `CockpitActiveOperationAborter` for bounded
+  cancellation and driver-backed active-operation abort;
+- `CockpitTestAttemptBundleReader` for hash-complete
+  `cockpit.report/v2` bundle verification;
+- `CockpitControlWorkflowImporter` as an explicit offline migration utility.
+
+Examples are shipped as
+[`example/cases/flutter_login.yaml`](example/cases/flutter_login.yaml) and
+[`example/cases/flutter_login.json`](example/cases/flutter_login.json). YAML is
+convenient for authors; JSON is convenient for AI and generated cases. Both
+serialize the same typed protocol and compile to the same execution model.
+
+The first execution backend is Flutter semantic automation. V2 cases can
+declare other planes and locator strategies at the protocol level, but this
+backend returns stable `unsupportedAction`/`unsupportedLocator` errors when it
+cannot lower them faithfully. It never changes planes, drops locator signals,
+or coerces gesture parameters silently.
+
+Every run requires a `CockpitTestRunContext`, a concrete target id/environment,
+injected automation/capture/recording adapters, a `CockpitTestSafetyPolicy`,
+and a `CockpitTestSecretResolver`. Safety is checked during preflight and again
+immediately before dispatch. A secret provider is called only for the active
+dispatch; plaintext is excluded from plans, safety requests, diagnostics,
+results, and bundles.
+
+Every timed driver call is guarded by an execution lease. Deadline,
+cancellation, and hard-shutdown paths revoke the lease so late adapter results
+cannot mutate the recorder or published bundle. Custom adapters should also
+implement `CockpitActiveOperationAborter` when the target transport supports
+active cancellation; the lease protects host state, while the adapter owns
+stopping target-side work.
+
+The returned `CockpitTestAttemptResult` and verified
+`CockpitTestAttemptBundleManifest` are the client boundary for a future Flutter
+GUI or third-party client. No GUI is bundled here. Batch suites, Supervisor
+scheduling, multi-project service lifecycle, and native platform drivers are
+subsequent 2.0 workstreams rather than hidden behavior in the one-case runner.
+
+V2 entry points never auto-detect or execute 1.x workflow documents. Migration
+requires an explicit `CockpitTestImportRequest`; unsupported or ambiguous
+legacy behavior fails before canonical V2 output is produced.
+
 If you use FVM, asdf, mise, or another SDK switcher, make sure the global
 `cockpit` executable resolves `dart` from the same compatible Flutter/Dart SDK
 you use for the target workspace. Inside a project, `dart run cockpit ...`
@@ -91,42 +143,13 @@ Recommended app-first loop:
 5. `hot-reload` or `hot-restart`
 6. `run-script`, `run-task`, or `validate-task` for delivery
 
-For full-fidelity observability of delivery runs, point the local dashboard at
-the same output root used by the run:
+For full-fidelity delivery data, start the headless loopback observability API against the same output root used by the run:
 
 ```bash
 dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
 ```
 
-The command stays running until interrupted and serves only on loopback by
-default. Use CLI/MCP summaries for low-token agent decisions; use the dashboard
-when timeline, screenshots, recordings, or bundle files need human inspection.
-Runs are grouped by workflow `sessionId`. Treat `sessionId` as the isolated
-development or validation job, `taskId` as the current objective, and `runId` as
-one execution attempt. Reuse a `sessionId` for retries of the same job and use a
-new `sessionId` for unrelated work. The dashboard opens the current latest scope
-and pins the URL to that concrete scope, with a selector for older sessions or
-`all runs` when cross-session audit is intentional. Pass `--scope latest` only
-when you want it to keep following the newest job. `scope=current` and
-`scope=latest` API URLs resolve to the current latest scope, while the UI
-distinguishes `pinned scope` from `following latest`. Timelines render the
-active session/scope across its runs in execution order; run details and bundle
-panels track the selected run. Artifact links include the owning run and event
-key so repeated relative paths stay traceable. The dashboard can also parse
-workflow YAML/JSON and submit `runScript` or `validateTask` payloads as
-background jobs under the same history root. Board-submitted runs need the
-executable envelope that CLI normally supplies, such as `sessionHandle`,
-`baseUrl`, `outputRoot`, and platform ids; keep those fields when switching
-between JSON and YAML instead of pasting only the inner workflow. In-flight
-submitted jobs remain visible before their live history files are written, and
-completed submitted jobs expose bundle summaries and artifacts through the same
-run API when the bundle remains under the history root. Run lists are paged for
-long-lived history roots while scope totals remain visible.
-Large or partially written bundle JSON is reported through `summaryFileIssues`
-instead of failing the dashboard. The run detail panel exposes `download bundle`
-through `GET /api/runs/<runId>/bundle-download`; the response is a
-token-protected streamed tar with `download_manifest.json`, `run_metadata.json`,
-`bundle/**`, and `live/**`, plus `missingRoots` for live-only or partial runs.
+The command prints an `apiBaseUrl`, bearer `token`, and default `scope`, then stays running until interrupted. It bundles no HTML or Flutter UI. Authenticated clients can read run state, events, screenshots, recordings, bundle summaries, and bundle downloads through `/api/*`; CLI and MCP remain the built-in user and AI interfaces. Future Flutter or third-party clients consume the same service contract independently. A generated `report.html` is a portable regression artifact and does not depend on this service.
 
 Target-first loop when the agent needs direct system or non-Flutter control:
 

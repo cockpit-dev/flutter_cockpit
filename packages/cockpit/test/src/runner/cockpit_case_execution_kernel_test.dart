@@ -1,0 +1,298 @@
+import 'dart:async';
+
+import 'package:cockpit/cockpit.dart';
+import 'package:cockpit/src/artifacts/cockpit_test_attempt_recorder.dart';
+import 'package:cockpit/src/runner/cockpit_case_execution_kernel.dart';
+import 'package:cockpit/src/test/cockpit_test_execution_plan.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
+import 'package:test/test.dart';
+
+import '../support/cockpit_case_runtime_test_support.dart';
+
+void main() {
+  test(
+    'failFast false preserves setup failure and still runs main/finally',
+    () async {
+      final clock = ManualCockpitClock();
+      final delegate = DeterministicCaseDelegate()
+        ..actionResults['setupFailure'] = <CockpitTestKernelOperationResult>[
+          CockpitTestKernelOperationResult.failure(
+            testDriverError('setupFailure'),
+          ),
+        ]
+        ..actionResults['cleanupFailure'] = <CockpitTestKernelOperationResult>[
+          CockpitTestKernelOperationResult.failure(
+            testDriverError('cleanupFailure'),
+          ),
+        ];
+      final recorder = CockpitTestAttemptRecorder(clock: clock);
+      final result = await _kernel(clock, delegate, recorder).run(
+        plan: testExecutionPlan(
+          setup: <CockpitTestExecutionNode>[
+            actionNode('setupFailure', 'setup'),
+          ],
+          steps: <CockpitTestExecutionNode>[actionNode('mainAction', 'main')],
+          finallySteps: <CockpitTestExecutionNode>[
+            actionNode('cleanupFailure', 'finally'),
+          ],
+          failFast: false,
+        ),
+        control: CockpitCaseExecutionControl(),
+      );
+
+      expect(result.primaryError?.stepId, 'setupFailure');
+      expect(result.cleanupErrors.map((error) => error.stepId), <String?>[
+        'cleanupFailure',
+      ]);
+      expect(delegate.events, <String>[
+        'action:setupFailure:primary',
+        'action:mainAction:primary',
+        'action:cleanupFailure:cleanup',
+        'cleanup:residual',
+      ]);
+    },
+  );
+
+  test('conditions distinguish matched, notMatched, and error', () async {
+    final clock = ManualCockpitClock();
+    final delegate = DeterministicCaseDelegate()
+      ..conditionResults.addAll(<CockpitTestKernelConditionResult>[
+        const CockpitTestKernelConditionResult(
+          evaluation: CockpitTestConditionEvaluation.matched(),
+        ),
+        const CockpitTestKernelConditionResult(
+          evaluation: CockpitTestConditionEvaluation.notMatched(),
+        ),
+        CockpitTestKernelConditionResult(
+          evaluation: CockpitTestConditionEvaluation.error(
+            CockpitTestError(
+              code: CockpitTestErrorCode.conditionError,
+              message: 'Condition transport failed.',
+              stepId: 'errorIf',
+            ),
+          ),
+        ),
+      ]);
+    final recorder = CockpitTestAttemptRecorder(clock: clock);
+    final result = await _kernel(clock, delegate, recorder).run(
+      plan: testExecutionPlan(
+        failFast: false,
+        steps: <CockpitTestExecutionNode>[
+          _ifNode('matchedIf', 'matchedThen', 'matchedElse'),
+          _ifNode('notMatchedIf', 'notMatchedThen', 'notMatchedElse'),
+          _ifNode('errorIf', 'errorThen', 'errorElse'),
+        ],
+      ),
+      control: CockpitCaseExecutionControl(),
+    );
+
+    expect(result.primaryError?.code, CockpitTestErrorCode.conditionError);
+    expect(delegate.events, contains('action:matchedThen:primary'));
+    expect(delegate.events, contains('action:notMatchedElse:primary'));
+    expect(delegate.events, isNot(contains('action:errorThen:primary')));
+    expect(delegate.events, isNot(contains('action:errorElse:primary')));
+  });
+
+  test('retry and loop keep occurrences separate from execution ids', () async {
+    final clock = ManualCockpitClock();
+    final delegate = DeterministicCaseDelegate()
+      ..actionResults['retryChild'] = <CockpitTestKernelOperationResult>[
+        CockpitTestKernelOperationResult.failure(testDriverError('retryChild')),
+        const CockpitTestKernelOperationResult.success(),
+      ]
+      ..conditionResults.addAll(<CockpitTestKernelConditionResult>[
+        const CockpitTestKernelConditionResult(
+          evaluation: CockpitTestConditionEvaluation.matched(),
+        ),
+        const CockpitTestKernelConditionResult(
+          evaluation: CockpitTestConditionEvaluation.notMatched(),
+        ),
+      ]);
+    final recorder = CockpitTestAttemptRecorder(clock: clock);
+    final result = await _kernel(clock, delegate, recorder).run(
+      plan: testExecutionPlan(
+        steps: <CockpitTestExecutionNode>[_retryNode(), _loopNode()],
+      ),
+      control: CockpitCaseExecutionControl(),
+    );
+
+    expect(result.outcome, CockpitTestOutcome.passed);
+    final retry = recorder.steps.where((step) => step.stepId == 'retryChild');
+    expect(retry.map((step) => step.occurrence.retryAttempt), <int?>[1, 2]);
+    expect(retry.map((step) => step.executionId).toSet(), <String>{
+      'main/retry/retryChild',
+    });
+    final loop = recorder.steps.where((step) => step.stepId == 'loopChild');
+    expect(loop.single.occurrence.loopIteration, 1);
+  });
+
+  test(
+    'ordinary cancellation force-aborts primary then runs cleanup',
+    () async {
+      final clock = ManualCockpitClock();
+      final delegate = DeterministicCaseDelegate();
+      delegate.hangingActions['hang'] =
+          Completer<CockpitTestKernelOperationResult>();
+      final recorder = CockpitTestAttemptRecorder(clock: clock);
+      var abortCount = 0;
+      final control = CockpitCaseExecutionControl(
+        cancellationGrace: const Duration(milliseconds: 100),
+        forceAbort: () async => abortCount += 1,
+      );
+      final future = _kernel(clock, delegate, recorder).run(
+        plan: testExecutionPlan(
+          steps: <CockpitTestExecutionNode>[actionNode('hang', 'main')],
+          finallySteps: <CockpitTestExecutionNode>[
+            actionNode('cleanup', 'finally'),
+          ],
+        ),
+        control: control,
+      );
+      await _pump();
+      control.cancel();
+      await _pump();
+      clock.elapse(const Duration(milliseconds: 100));
+      final result = await future;
+
+      expect(abortCount, 1);
+      expect(result.outcome, CockpitTestOutcome.cancelled);
+      expect(delegate.events, contains('action:cleanup:cleanup'));
+    },
+  );
+
+  test(
+    'cleanup deadline records timeout and does not report success',
+    () async {
+      final clock = ManualCockpitClock();
+      final delegate = DeterministicCaseDelegate();
+      delegate.hangingActions['cleanupHang'] =
+          Completer<CockpitTestKernelOperationResult>();
+      final recorder = CockpitTestAttemptRecorder(clock: clock);
+      final future = _kernel(clock, delegate, recorder).run(
+        plan: testExecutionPlan(
+          cleanupTimeoutMs: 50,
+          steps: <CockpitTestExecutionNode>[actionNode('main', 'main')],
+          finallySteps: <CockpitTestExecutionNode>[
+            actionNode('cleanupHang', 'finally'),
+          ],
+        ),
+        control: CockpitCaseExecutionControl(),
+      );
+      await _pump();
+      clock.elapse(const Duration(milliseconds: 50));
+      final result = await future;
+
+      expect(result.outcome, CockpitTestOutcome.failed);
+      expect(
+        result.cleanupErrors.map((error) => error.code),
+        everyElement(CockpitTestErrorCode.timeout),
+      );
+    },
+  );
+
+  test('expired step deadline does not start the next operation', () async {
+    final clock = ManualCockpitClock();
+    final delegate = DeterministicCaseDelegate();
+    final recorder = CockpitTestAttemptRecorder(clock: clock);
+    final future = _kernel(clock, delegate, recorder).run(
+      plan: testExecutionPlan(
+        steps: <CockpitTestExecutionNode>[
+          CockpitTestExecutionNode(
+            stepId: 'stopRecording',
+            executionId: 'main/stopRecording',
+            section: 'main',
+            timeoutMs: 50,
+            evidence: const CockpitTestEvidencePolicy(
+              screenshot: CockpitTestEvidenceMode.none,
+              snapshot: CockpitTestEvidenceMode.none,
+            ),
+            safety: CockpitTestSafetyDeclaration(),
+            sourcePath: r'$.steps[0]',
+            operation: const CockpitTestStopRecordingPlanOperation(
+              settleMs: 50,
+            ),
+          ),
+        ],
+      ),
+      control: CockpitCaseExecutionControl(),
+    );
+    await _pump();
+    clock.elapse(const Duration(milliseconds: 50));
+    final result = await future;
+
+    expect(result.primaryError?.code, CockpitTestErrorCode.timeout);
+    expect(delegate.events, isNot(contains('recording:stop:stopRecording')));
+  });
+}
+
+CockpitCaseExecutionKernel _kernel(
+  ManualCockpitClock clock,
+  DeterministicCaseDelegate delegate,
+  CockpitTestAttemptRecorder recorder,
+) => CockpitCaseExecutionKernel(
+  clock: clock,
+  delegate: delegate,
+  recorder: recorder,
+);
+
+Future<void> _pump() async {
+  await Future<void>.value();
+  await Future<void>.value();
+}
+
+CockpitTestCondition _visibleCondition() => CockpitTestCondition(
+  kind: CockpitTestConditionKind.visible,
+  locator: CockpitTestLocator(
+    strategy: CockpitTestLocatorStrategy.testId,
+    value: 'target',
+  ),
+);
+
+CockpitTestExecutionNode _ifNode(String id, String thenId, String elseId) =>
+    _controlNode(
+      id,
+      CockpitTestIfPlanOperation(
+        condition: _visibleCondition(),
+        thenSteps: <CockpitTestExecutionNode>[actionNode(thenId, 'main')],
+        elseSteps: <CockpitTestExecutionNode>[actionNode(elseId, 'main')],
+      ),
+    );
+
+CockpitTestExecutionNode _retryNode() => _controlNode(
+  'retry',
+  CockpitTestRetryPlanOperation(
+    maxAttempts: 2,
+    delayMs: 0,
+    steps: <CockpitTestExecutionNode>[
+      actionNode('retryChild', 'main', executionId: 'main/retry/retryChild'),
+    ],
+  ),
+);
+
+CockpitTestExecutionNode _loopNode() => _controlNode(
+  'loop',
+  CockpitTestLoopPlanOperation(
+    maxIterations: 2,
+    condition: _visibleCondition(),
+    steps: <CockpitTestExecutionNode>[
+      actionNode('loopChild', 'main', executionId: 'main/loop/loopChild'),
+    ],
+  ),
+);
+
+CockpitTestExecutionNode _controlNode(
+  String id,
+  CockpitTestPlanOperation operation,
+) => CockpitTestExecutionNode(
+  stepId: id,
+  executionId: 'main/$id',
+  section: 'main',
+  timeoutMs: 1000,
+  evidence: const CockpitTestEvidencePolicy(
+    screenshot: CockpitTestEvidenceMode.none,
+    snapshot: CockpitTestEvidenceMode.none,
+  ),
+  safety: CockpitTestSafetyDeclaration(),
+  sourcePath: '\$.steps[0]',
+  operation: operation,
+);

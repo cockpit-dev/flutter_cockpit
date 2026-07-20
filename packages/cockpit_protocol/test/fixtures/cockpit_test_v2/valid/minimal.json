@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "cockpit.test/v2",
+  "kind": "case",
+  "id": "minimalCase",
+  "target": {
+    "platform": "android",
+    "targetKind": "flutterApp",
+    "plane": "semantic"
+  },
+  "steps": [
+    {
+      "stepId": "tapContinue",
+      "action": {
+        "type": "tap",
+        "locator": {
+          "strategy": "testId",
+          "value": "continueButton"
+        }
+      }
+    }
+  ]
+}

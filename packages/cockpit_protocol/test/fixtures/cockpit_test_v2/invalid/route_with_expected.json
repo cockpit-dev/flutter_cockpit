@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "cockpit.test/v2",
+  "kind": "case",
+  "id": "invalidRouteCondition",
+  "target": {
+    "platform": "ios",
+    "targetKind": "flutterApp",
+    "plane": "semantic"
+  },
+  "steps": [
+    {
+      "stepId": "waitForRoute",
+      "action": {
+        "type": "waitFor",
+        "condition": {
+          "type": "route",
+          "route": "/home",
+          "expected": true
+        }
+      }
+    }
+  ]
+}

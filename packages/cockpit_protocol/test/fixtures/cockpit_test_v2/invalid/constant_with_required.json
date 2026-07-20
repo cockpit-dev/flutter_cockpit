@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "cockpit.test/v2",
+  "kind": "case",
+  "id": "invalidConstant",
+  "target": {
+    "platform": "android",
+    "targetKind": "flutterApp",
+    "plane": "semantic"
+  },
+  "variables": {
+    "count": {
+      "source": "constant",
+      "type": "integer",
+      "value": 2,
+      "required": false
+    }
+  },
+  "steps": [
+    {
+      "stepId": "goBack",
+      "action": {
+        "type": "back"
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "cockpit.test/v2",
+  "kind": "case",
+  "id": "whitespaceText",
+  "target": {
+    "platform": "android",
+    "targetKind": "flutterApp",
+    "plane": "semantic"
+  },
+  "steps": [
+    {
+      "stepId": "enterWhitespace",
+      "action": {
+        "type": "enterText",
+        "text": "   "
+      }
+    }
+  ]
+}

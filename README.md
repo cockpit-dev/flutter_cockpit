@@ -242,45 +242,13 @@ For delivery:
 Delivery bundles include `steps.json` as the full action log and `trace.json` as the compact step-to-command-to-artifact index. After `validate-task`, `validation.json` records the durable validation verdict for external E2E consumers. Start from the protocol map in [`docs/contracts/flutter-cockpit-protocol.md`](docs/contracts/flutter-cockpit-protocol.md); the workflow script protocol is documented in [`docs/contracts/control-workflow-protocol.md`](docs/contracts/control-workflow-protocol.md), with the machine-readable schema in [`docs/contracts/control-workflow.schema.json`](docs/contracts/control-workflow.schema.json).
 The full AI development loop contract is documented in [`docs/contracts/ai-development-protocol.md`](docs/contracts/ai-development-protocol.md).
 
-For long or confusing delivery runs, start the local dashboard against the same
-output root used by `run-script`, `run-task`, or `validate-task`:
+For full-fidelity delivery data, start the headless loopback observability API against the same output root used by the run:
 
 ```bash
 dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
 ```
 
-CLI and MCP summaries remain the low-token default. The dashboard is for
-full-fidelity state, timeline, screenshots, recordings, and bundle files. The
-history model is `sessionId` for one isolated development or validation job,
-`taskId` for the current objective inside that job, and `runId` for one
-execution attempt. Reuse the same `sessionId` for retries of the same job; use a
-new `sessionId` for unrelated work. The dashboard opens the current latest
-workflow `sessionId` scope and pins the URL to that concrete scope so unrelated
-jobs under the same history root do not mix timelines. Use the scope selector
-for older sessions or `all runs` only when you intentionally want a cross-session
-audit. Pass `--scope latest` when you intentionally want the board to keep
-following the newest job. It can also read `scope=current` and `scope=latest`
-API URLs as aliases for the current latest scope; the UI labels pinned views as
-`pinned scope` and live-following views as `following latest`. The timeline is
-scope-level, so retries with the same `sessionId` render together in execution
-order while run detail and bundle panels stay tied to the selected run.
-Screenshots, recordings, diagnostics, and errors link back to their owning run
-and event sequence. The dashboard can also parse pasted workflow YAML/JSON or
-submit `runScript` / `validateTask` payloads as background jobs under the same
-history root. Board-submitted runs need the executable envelope that CLI
-normally supplies, such as `sessionHandle`, `baseUrl`, `outputRoot`, and
-platform ids; keep those fields when switching between JSON and YAML instead of
-pasting only the inner workflow. In-flight submitted jobs remain visible before
-their live history files are written, and completed submitted jobs expose their
-bundle summaries and artifacts through the same run API when the bundle stays
-under the history root. Run lists are paged for long-lived history roots while
-scope totals remain visible. If a large or partially written bundle JSON cannot
-be summarized safely, the dashboard reports it in `summaryFileIssues` and keeps
-serving the remaining timeline and artifacts. The run detail panel also exposes
-`download bundle`, backed by `GET /api/runs/<runId>/bundle-download`. The
-streamed tar is token-protected, avoids loading large media into memory, and
-contains `download_manifest.json`, `run_metadata.json`, `bundle/**`, and
-`live/**`; unavailable roots are listed in `missingRoots`.
+The command prints an `apiBaseUrl`, bearer `token`, and default `scope`, then stays running until interrupted. It bundles no HTML or Flutter UI. Authenticated clients can read run state, events, screenshots, recordings, bundle summaries, and bundle downloads through `/api/*`; CLI and MCP remain the built-in user and AI interfaces. Future Flutter or third-party clients consume the same service contract independently. A generated `report.html` is a portable regression artifact and does not depend on this service.
 
 For target-first and non-Flutter/system work:
 

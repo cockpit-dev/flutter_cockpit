@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "cockpit.test/v2",
+  "kind": "case",
+  "id": "authenticatedCheckout",
+  "name": "Authenticated checkout",
+  "description": "Exercises reusable login and deterministic cleanup.",
+  "tags": ["acceptance", "checkout"],
+  "target": {
+    "platform": "ios",
+    "targetKind": "flutterApp",
+    "plane": "semantic",
+    "appId": "dev.cockpit.shop",
+    "requiredCapabilities": ["tap", "enterText", "captureScreenshot"]
+  },
+  "defaults": {
+    "commandTimeoutMs": 15000,
+    "cleanupTimeoutMs": 20000,
+    "failFast": true,
+    "evidence": {
+      "screenshot": "onFailure",
+      "snapshot": "onFailure",
+      "failurePolicy": "recordWarning"
+    },
+    "limits": {
+      "maxDocumentBytes": 1048576,
+      "maxNesting": 16,
+      "maxExpandedSteps": 500,
+      "maxLoopIterations": 20,
+      "maxRetryAttempts": 5
+    }
+  },
+  "variables": {
+    "username": {
+      "source": "input",
+      "type": "string",
+      "default": "qa@example.test",
+      "required": false
+    },
+    "password": {
+      "source": "secret",
+      "type": "string",
+      "reference": "env:COCKPIT_TEST_PASSWORD"
+    },
+    "attempts": {
+      "source": "constant",
+      "type": "integer",
+      "value": 3
+    },
+    "nullablePayload": {
+      "source": "constant",
+      "type": "json",
+      "value": null
+    }
+  },
+  "fragments": {
+    "login": [
+      {
+        "stepId": "enterUsername",
+        "action": {
+          "type": "enterText",
+          "locator": {
+            "strategy": "testId",
+            "value": "username"
+          },
+          "text": {
+            "$var": "username"
+          }
+        }
+      },
+      {
+        "stepId": "enterPassword",
+        "safety": {
+          "effects": ["credentialSensitive"],
+          "reason": "Authenticate the test account."
+        },
+        "action": {
+          "type": "enterText",
+          "locator": {
+            "strategy": "testId",
+            "value": "password"
+          },
+          "text": {
+            "$var": "password"
+          }
+        }
+      }
+    ]
+  },
+  "setup": [
+    {
+      "stepId": "startAcceptanceRecording",
+      "startRecording": {
+        "name": "checkoutAcceptance",
+        "purpose": "acceptance",
+        "mode": "auto"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "stepId": "callLogin",
+      "call": {
+        "fragment": "login"
+      }
+    },
+    {
+      "stepId": "waitForHome",
+      "retry": {
+        "maxAttempts": 3,
+        "delayMs": 250,
+        "steps": [
+          {
+            "stepId": "assertHomeVisible",
+            "action": {
+              "type": "waitFor",
+              "condition": {
+                "type": "visible",
+                "locator": {
+                  "strategy": "text",
+                  "value": "Home"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "stepId": "captureHome",
+      "if": {
+        "condition": {
+          "type": "route",
+          "route": "/home"
+        },
+        "then": [
+          {
+            "stepId": "captureHomeScreenshot",
+            "action": {
+              "type": "captureScreenshot",
+              "artifactName": "home-${username}",
+              "captureOptions": {
+                "includeSnapshot": true,
+                "allowFallback": false
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "finally": [
+    {
+      "stepId": "stopAcceptanceRecording",
+      "stopRecording": {
+        "settleMs": 500
+      }
+    }
+  ],
+  "x-owner": "quality"
+}

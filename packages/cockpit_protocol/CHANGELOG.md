@@ -7,6 +7,9 @@
 - Renamed the public libraries to `cockpit_protocol.dart` and
   `cockpit_remote_bridge_protocol.dart` without a compatibility forwarding
   package.
+- Added the strict `cockpit.test/v2` case, action, locator, variable, policy,
+  run/result/error, import, and `cockpit.report/v2` bundle contracts with a
+  published JSON Schema 2020-12 document.
 
 ## 1.1.4
 

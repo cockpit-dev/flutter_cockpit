@@ -41,6 +41,32 @@ void main() {
     expect(devtoolsPubspec, isNot(contains('flutter_pilot: ^1.0.0')));
   });
 
+  test('Cockpit V2 barrel exposes only stable case runtime boundaries', () {
+    final barrel = File('packages/cockpit/lib/cockpit.dart').readAsStringSync();
+
+    for (final stableExport in <String>[
+      'cockpit_test_attempt_bundle_writer.dart',
+      'cockpit_active_operation_aborter.dart',
+      'cockpit_case_execution_control.dart',
+      'cockpit_case_runner.dart',
+      'cockpit_control_workflow_importer.dart',
+      'cockpit_test_document_compiler.dart',
+      'cockpit_test_safety_policy.dart',
+      'cockpit_test_secret_resolver.dart',
+    ]) {
+      expect(barrel, contains(stableExport));
+    }
+    for (final internalExport in <String>[
+      'cockpit_test_attempt_recorder.dart',
+      'cockpit_case_execution_kernel.dart',
+      'cockpit_test_action_lowerer.dart',
+      'cockpit_test_execution_plan.dart',
+      'cockpit_test_variable_binder.dart',
+    ]) {
+      expect(barrel, isNot(contains(internalExport)));
+    }
+  });
+
   test('supported Flutter floor matches package, tooling, and CI bounds', () {
     final workspacePubspec = File('pubspec.yaml').readAsStringSync();
     final workspaceLockfile = File('pubspec.lock').readAsStringSync();
@@ -353,9 +379,17 @@ void main() {
   test('published packages include package-local examples', () {
     final runtimeExample = File('packages/flutter_cockpit/example/main.dart');
     final devtoolsExample = File('packages/cockpit/example/main.dart');
+    final caseYaml = File('packages/cockpit/example/cases/flutter_login.yaml');
+    final caseJson = File('packages/cockpit/example/cases/flutter_login.json');
+    final caseSchema = File(
+      'packages/cockpit_protocol/schema/cockpit.test.v2.schema.json',
+    );
 
     expect(runtimeExample.existsSync(), isTrue);
     expect(devtoolsExample.existsSync(), isTrue);
+    expect(caseYaml.existsSync(), isTrue);
+    expect(caseJson.existsSync(), isTrue);
+    expect(caseSchema.existsSync(), isTrue);
 
     final runtimeSource = runtimeExample.readAsStringSync();
     final devtoolsSource = devtoolsExample.readAsStringSync();

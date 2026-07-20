@@ -6,11 +6,16 @@ export 'package:args/command_runner.dart' show UsageException;
 export 'src/infrastructure/cockpit_clock.dart';
 export 'src/infrastructure/cockpit_file_system.dart';
 export 'src/infrastructure/cockpit_http_client.dart';
+export 'src/infrastructure/cockpit_monotonic_clock.dart'
+    show CockpitMonotonicClock, CockpitSystemMonotonicClock;
 export 'src/infrastructure/cockpit_process_manager.dart';
 export 'src/infrastructure/cockpit_sdk_environment.dart';
 export 'src/artifacts/task_run_bundle_writer.dart';
 export 'src/artifacts/cockpit_recording_keyframe_extractor.dart';
+export 'src/artifacts/cockpit_test_attempt_bundle_writer.dart'
+    show CockpitTestAttemptBundleReader, CockpitTestBundleIntegrityException;
 export 'src/adapters/cockpit_automation_adapter.dart';
+export 'src/adapters/cockpit_active_operation_aborter.dart';
 export 'src/adapters/cockpit_capture_adapter.dart';
 export 'src/adapters/cockpit_recording_adapter.dart';
 export 'src/application/cockpit_application_service_exception.dart';
@@ -132,7 +137,6 @@ export 'src/devtools/cockpit_live_run_observer.dart';
 export 'src/devtools/cockpit_live_run_state.dart';
 export 'src/devtools/cockpit_live_run_store.dart';
 export 'src/devtools/cockpit_sensitive_data_redactor.dart';
-export 'src/devtools/cockpit_devtools_asset_provider.dart';
 export 'src/devtools/cockpit_devtools_server.dart';
 export 'src/session/cockpit_android_remote_session_launcher.dart';
 export 'src/session/cockpit_flutter_launch_configuration.dart';
@@ -147,4 +151,12 @@ export 'src/session/cockpit_windows_remote_session_launcher.dart';
 export 'src/runner/cockpit_control_runner.dart';
 export 'src/runner/cockpit_control_run_result.dart';
 export 'src/runner/cockpit_workflow_step.dart';
+export 'src/runner/cockpit_case_execution_control.dart'
+    show CockpitCaseExecutionControl;
+export 'src/runner/cockpit_case_runner.dart';
 export 'src/cli/cockpit_control_script.dart';
+export 'src/test/cockpit_control_workflow_importer.dart';
+export 'src/test/cockpit_test_document_compiler.dart';
+export 'src/test/cockpit_test_safety_policy.dart';
+export 'src/test/cockpit_test_secret_resolver.dart'
+    show CockpitTestSecretResolver;

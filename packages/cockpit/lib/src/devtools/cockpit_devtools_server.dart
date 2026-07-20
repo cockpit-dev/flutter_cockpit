@@ -10,7 +10,6 @@ import '../application/cockpit_validate_task_service.dart';
 import '../cli/cockpit_cli_config_file.dart';
 import '../cli/cockpit_control_script.dart';
 import '../session/cockpit_remote_session_handle.dart';
-import 'cockpit_devtools_asset_provider.dart';
 import 'cockpit_live_run_identity.dart';
 
 typedef CockpitDevtoolsRunScriptFunction =
@@ -38,14 +37,11 @@ final class CockpitDevtoolsServer {
     String? token,
     InternetAddress? address,
     this.port = 0,
-    CockpitDevtoolsAssetProvider assetProvider =
-        const CockpitDevtoolsAssetProvider(),
     CockpitDevtoolsRunScriptFunction? runScript,
     CockpitDevtoolsValidateTaskFunction? validateTask,
   }) : historyRoot = p.normalize(p.absolute(historyRoot)),
        token = token ?? _generateToken(),
        address = address ?? InternetAddress.loopbackIPv4,
-       _assetProvider = assetProvider,
        _runScript = runScript ?? CockpitRunRemoteControlScriptService().run,
        _validateTask = validateTask ?? CockpitValidateTaskService().validate;
 
@@ -53,7 +49,6 @@ final class CockpitDevtoolsServer {
   final String token;
   final InternetAddress address;
   final int port;
-  final CockpitDevtoolsAssetProvider _assetProvider;
   final CockpitDevtoolsRunScriptFunction _runScript;
   final CockpitDevtoolsValidateTaskFunction _validateTask;
   final Map<String, _DevtoolsJob> _jobs = <String, _DevtoolsJob>{};
@@ -87,41 +82,6 @@ final class CockpitDevtoolsServer {
         return;
       }
       final path = request.uri.path;
-      if (path == '/' || path == '/index.html') {
-        if (request.method == 'POST') {
-          await _writeText(
-            request,
-            HttpStatus.methodNotAllowed,
-            'method not allowed',
-          );
-          return;
-        }
-        await _writeText(
-          request,
-          HttpStatus.ok,
-          _assetProvider.indexHtml,
-          contentType: ContentType.html,
-        );
-        return;
-      }
-      if (path == '/favicon.ico') {
-        if (request.method == 'POST') {
-          await _writeText(
-            request,
-            HttpStatus.methodNotAllowed,
-            'method not allowed',
-          );
-          return;
-        }
-        await _writeBinary(
-          request,
-          HttpStatus.ok,
-          _faviconBytes,
-          contentType: ContentType('image', 'x-icon'),
-          cacheControl: 'public, max-age=3600',
-        );
-        return;
-      }
       if (!path.startsWith('/api/')) {
         await _writeText(request, HttpStatus.notFound, 'not found');
         return;
@@ -1296,7 +1256,7 @@ final class CockpitDevtoolsServer {
       'job': job.toJson(),
       if (job.error != null) 'lastError': job.error,
       if (job.status == 'completed' && bundleDir != null)
-        'recommendedNextStep': 'inspect bundle evidence from the dashboard',
+        'recommendedNextStep': 'inspect bundle evidence through the API',
       if (job.status == 'failed')
         'recommendedNextStep': 'inspect devtools job error before retrying',
     };
@@ -1721,94 +1681,7 @@ final class CockpitDevtoolsServer {
     }
     await request.response.close();
   }
-
-  Future<void> _writeBinary(
-    HttpRequest request,
-    int statusCode,
-    List<int> body, {
-    required ContentType contentType,
-    String cacheControl = 'no-store',
-  }) async {
-    request.response
-      ..statusCode = statusCode
-      ..headers.contentType = contentType
-      ..headers.set(HttpHeaders.cacheControlHeader, cacheControl);
-    _setCommonSecurityHeaders(request.response.headers);
-    if (request.method != 'HEAD') {
-      request.response.add(body);
-    }
-    await request.response.close();
-  }
 }
-
-const List<int> _faviconBytes = <int>[
-  0x00,
-  0x00,
-  0x01,
-  0x00,
-  0x01,
-  0x00,
-  0x01,
-  0x01,
-  0x00,
-  0x00,
-  0x01,
-  0x00,
-  0x20,
-  0x00,
-  0x30,
-  0x00,
-  0x00,
-  0x00,
-  0x16,
-  0x00,
-  0x00,
-  0x00,
-  0x28,
-  0x00,
-  0x00,
-  0x00,
-  0x01,
-  0x00,
-  0x00,
-  0x00,
-  0x02,
-  0x00,
-  0x00,
-  0x00,
-  0x01,
-  0x00,
-  0x20,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x08,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x72,
-  0xe4,
-  0xb5,
-  0xff,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-];
 
 const int _tarTypeRegularFile = 0x30;
 const int _tarTypePaxExtendedHeader = 0x78;
