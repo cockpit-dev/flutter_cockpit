@@ -1,3 +1,5 @@
+import 'package:cockpit_protocol/src/foundation/cockpit_foundation_constraints.dart';
+
 import 'foundation_openapi_helpers.dart';
 import 'foundation_openapi_paths.dart';
 
@@ -91,7 +93,9 @@ Map<String, Object?> buildFoundationOpenApi() => <String, Object?>{
     },
     'responses': _errorResponses(),
   },
-  'x-cockpit-request-limit-bytes': 1048576,
+  'x-cockpit-request-limit-bytes': cockpitFoundationRequestMaximumBytes,
+  'x-cockpit-json-maximum-depth': cockpitFoundationJsonMaximumDepth,
+  'x-cockpit-json-maximum-nodes': cockpitFoundationJsonMaximumNodes,
   'x-cockpit-cors': 'deny',
   'x-cockpit-deferred-capabilities': <String>[
     'suite',

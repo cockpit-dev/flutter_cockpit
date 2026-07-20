@@ -1,5 +1,4 @@
 import 'dart:collection';
-import 'dart:convert';
 
 import 'cockpit_decode_policy.dart';
 import 'cockpit_foundation_constraints.dart';
@@ -225,7 +224,7 @@ final class CockpitFoundationValueReader {
   }
 
   static Object? jsonValue(Object? value, String path) {
-    return _freezeJsonValue(value, path, 0, _JsonFreezeState());
+    return _freezeJsonValue(value, path);
   }
 
   static Map<String, Object?> jsonObject(Object? value, String path) {
@@ -235,76 +234,229 @@ final class CockpitFoundationValueReader {
     }
     return frozen;
   }
-
-  static String canonicalJson(Object? value) =>
-      jsonEncode(jsonValue(value, r'$'));
 }
 
-Object? _freezeJsonValue(
-  Object? value,
-  String path,
-  int depth,
-  _JsonFreezeState state,
-) {
-  if (depth > cockpitFoundationJsonMaximumDepth) {
-    throw FormatException('JSON nesting exceeds the limit at $path.');
+Object? _freezeJsonValue(Object? value, String path) {
+  final state = _JsonFreezeState();
+  final root = _JsonResultSlot();
+  final tasks = <_JsonFreezeTask>[
+    _JsonVisitTask(
+      value: value,
+      path: _JsonPath.root(path),
+      depth: 0,
+      assign: root.assign,
+    ),
+  ];
+  while (tasks.isNotEmpty) {
+    tasks.removeLast().run(tasks, state);
   }
-  state.countNode(path);
+  return root.value;
+}
 
-  if (value == null || value is String || value is bool || value is int) {
-    return value;
-  }
-  if (value is num) {
-    if (!value.isFinite) {
-      throw FormatException('Expected a finite JSON number at $path.');
+typedef _JsonValueAssignment = void Function(Object? value);
+
+sealed class _JsonFreezeTask {
+  void run(List<_JsonFreezeTask> tasks, _JsonFreezeState state);
+}
+
+final class _JsonVisitTask implements _JsonFreezeTask {
+  _JsonVisitTask({
+    required this.value,
+    required this.path,
+    required this.depth,
+    required this.assign,
+  });
+
+  final Object? value;
+  final _JsonPath path;
+  final int depth;
+  final _JsonValueAssignment assign;
+
+  @override
+  void run(List<_JsonFreezeTask> tasks, _JsonFreezeState state) {
+    if (depth > cockpitFoundationJsonMaximumDepth) {
+      throw FormatException(
+        'JSON nesting exceeds the limit at ${path.render()}.',
+      );
     }
-    return value.toDouble();
-  }
-  if (value is List<Object?>) {
-    state.enterContainer(value, path);
-    try {
-      return List<Object?>.unmodifiable(<Object?>[
-        for (var index = 0; index < value.length; index += 1)
-          _freezeJsonValue(value[index], '$path[$index]', depth + 1, state),
-      ]);
-    } finally {
-      state.leaveContainer(value);
+    state.countNode(path);
+
+    final currentValue = value;
+    if (currentValue == null ||
+        currentValue is String ||
+        currentValue is bool ||
+        currentValue is int) {
+      assign(currentValue);
+      return;
     }
-  }
-  if (value is Map<Object?, Object?>) {
-    state.enterContainer(value, path);
-    try {
-      final map = CockpitFoundationValueReader.object(value, path);
-      return Map<String, Object?>.unmodifiable(<String, Object?>{
-        for (final entry in map.entries)
-          entry.key: _freezeJsonValue(
-            entry.value,
-            '$path.${entry.key}',
-            depth + 1,
-            state,
-          ),
-      });
-    } finally {
-      state.leaveContainer(value);
+    if (currentValue is num) {
+      if (!currentValue.isFinite) {
+        throw FormatException(
+          'Expected a finite JSON number at ${path.render()}.',
+        );
+      }
+      assign(currentValue.toDouble());
+      return;
     }
+    if (currentValue is List<Object?>) {
+      state.enterContainer(currentValue, path);
+      tasks.add(
+        _JsonListTask(
+          source: currentValue,
+          path: path,
+          depth: depth,
+          assign: assign,
+        ),
+      );
+      return;
+    }
+    if (currentValue is Map<Object?, Object?>) {
+      state.enterContainer(currentValue, path);
+      tasks.add(
+        _JsonMapTask(
+          source: currentValue,
+          path: path,
+          depth: depth,
+          assign: assign,
+        ),
+      );
+      return;
+    }
+    throw FormatException('Expected a JSON value at ${path.render()}.');
   }
-  throw FormatException('Expected a JSON value at $path.');
+}
+
+final class _JsonListTask implements _JsonFreezeTask {
+  _JsonListTask({
+    required this.source,
+    required this.path,
+    required this.depth,
+    required this.assign,
+  });
+
+  final List<Object?> source;
+  final List<Object?> result = <Object?>[];
+  final _JsonPath path;
+  final int depth;
+  final _JsonValueAssignment assign;
+  var _index = 0;
+
+  @override
+  void run(List<_JsonFreezeTask> tasks, _JsonFreezeState state) {
+    if (_index >= source.length) {
+      state.leaveContainer(source);
+      assign(List<Object?>.unmodifiable(result));
+      return;
+    }
+    final index = _index;
+    _index += 1;
+    tasks
+      ..add(this)
+      ..add(
+        _JsonVisitTask(
+          value: source[index],
+          path: path.index(index),
+          depth: depth + 1,
+          assign: result.add,
+        ),
+      );
+  }
+}
+
+final class _JsonMapTask implements _JsonFreezeTask {
+  _JsonMapTask({
+    required this.source,
+    required this.path,
+    required this.depth,
+    required this.assign,
+  }) : _entries = source.entries.iterator;
+
+  final Map<Object?, Object?> source;
+  final Iterator<MapEntry<Object?, Object?>> _entries;
+  final Map<String, Object?> result = <String, Object?>{};
+  final _JsonPath path;
+  final int depth;
+  final _JsonValueAssignment assign;
+
+  @override
+  void run(List<_JsonFreezeTask> tasks, _JsonFreezeState state) {
+    if (!_entries.moveNext()) {
+      state.leaveContainer(source);
+      assign(Map<String, Object?>.unmodifiable(result));
+      return;
+    }
+    final entry = _entries.current;
+    final key = entry.key;
+    if (key is! String) {
+      throw FormatException('Expected a string key at ${path.render()}.');
+    }
+    tasks
+      ..add(this)
+      ..add(
+        _JsonVisitTask(
+          value: entry.value,
+          path: path.key(key),
+          depth: depth + 1,
+          assign: (value) => result[key] = value,
+        ),
+      );
+  }
+}
+
+final class _JsonResultSlot {
+  Object? value;
+
+  void assign(Object? value) {
+    this.value = value;
+  }
+}
+
+final class _JsonPath {
+  const _JsonPath._({this.root, this.parent, this.segment});
+
+  factory _JsonPath.root(String root) => _JsonPath._(root: root);
+
+  final String? root;
+  final _JsonPath? parent;
+  final String? segment;
+
+  _JsonPath index(int index) => _JsonPath._(parent: this, segment: '[$index]');
+
+  _JsonPath key(String key) => _JsonPath._(parent: this, segment: '.$key');
+
+  String render() {
+    final segments = <String>[];
+    var current = this;
+    while (current.parent != null) {
+      segments.add(current.segment!);
+      current = current.parent!;
+    }
+    final result = StringBuffer(current.root!);
+    for (var index = segments.length - 1; index >= 0; index -= 1) {
+      result.write(segments[index]);
+    }
+    return result.toString();
+  }
 }
 
 final class _JsonFreezeState {
   final Set<Object> _activeContainers = HashSet<Object>.identity();
   var _nodeCount = 0;
 
-  void countNode(String path) {
+  void countNode(_JsonPath path) {
     _nodeCount += 1;
     if (_nodeCount > cockpitFoundationJsonMaximumNodes) {
-      throw FormatException('JSON node count exceeds the limit at $path.');
+      throw FormatException(
+        'JSON node count exceeds the limit at ${path.render()}.',
+      );
     }
   }
 
-  void enterContainer(Object container, String path) {
+  void enterContainer(Object container, _JsonPath path) {
     if (!_activeContainers.add(container)) {
-      throw FormatException('JSON container cycle detected at $path.');
+      throw FormatException(
+        'JSON container cycle detected at ${path.render()}.',
+      );
     }
   }
 

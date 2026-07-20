@@ -362,7 +362,7 @@ void main() {
       },
     );
 
-    test('JSON values freeze within structural resource bounds', () {
+    test('JSON values freeze iteratively within wire-derived bounds', () {
       final shared = <Object?>[1, 'two'];
       final frozen = CockpitFoundationValueReader.jsonObject(<String, Object?>{
         'first': shared,
@@ -374,29 +374,27 @@ void main() {
         () => (frozen['first']! as List<Object?>).add(3),
         throwsUnsupportedError,
       );
+      expect(() => frozen['third'] = null, throwsUnsupportedError);
 
       final cyclic = <String, Object?>{};
       cyclic['self'] = cyclic;
       expect(
-        () => CockpitFoundationValueReader.canonicalJson(cyclic),
+        () => CockpitFoundationValueReader.jsonObject(cyclic, r'$'),
         throwsA(_formatExceptionAt(r'$.self')),
       );
 
-      Object? tooDeep;
-      for (var depth = 0; depth <= 64; depth += 1) {
-        tooDeep = <Object?>[tooDeep];
+      Object? deepValue = 'leaf';
+      for (var depth = 0; depth < 4096; depth += 1) {
+        deepValue = <Object?>[deepValue];
       }
-      expect(
-        () => CockpitFoundationValueReader.jsonValue(tooDeep, r'$'),
-        throwsA(_formatExceptionAt(r'$[')),
+      Object? frozenValue = CockpitFoundationValueReader.jsonValue(
+        deepValue,
+        r'$',
       );
-      expect(
-        () => CockpitFoundationValueReader.jsonValue(
-          List<Object?>.filled(65536, null),
-          r'$',
-        ),
-        throwsA(_formatExceptionAt(r'$[65535]')),
-      );
+      for (var depth = 0; depth < 4096; depth += 1) {
+        frozenValue = (frozenValue! as List<Object?>).single;
+      }
+      expect(frozenValue, 'leaf');
       expect(
         () => CockpitFoundationValueReader.jsonObject(<String, Object?>{
           'value': double.nan,

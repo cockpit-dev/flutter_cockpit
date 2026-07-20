@@ -4560,6 +4560,8 @@ const String cockpitV2OpenApiJson = r'''
     }
   },
   "x-cockpit-request-limit-bytes": 1048576,
+  "x-cockpit-json-maximum-depth": 524288,
+  "x-cockpit-json-maximum-nodes": 1048576,
   "x-cockpit-cors": "deny",
   "x-cockpit-deferred-capabilities": [
     "suite",

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cockpit_protocol/cockpit_protocol.dart';
+import 'package:cockpit_protocol/src/foundation/cockpit_foundation_constraints.dart';
 import 'package:json_schema/json_schema.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -346,6 +347,25 @@ void main() {
       ),
       throwsFormatException,
     );
+
+    final wideJsonObject = <String, Object?>{
+      'values': List<Object?>.filled(65535, null),
+    };
+    expect(
+      utf8.encode(jsonEncode(wideJsonObject)).length,
+      lessThan(cockpitFoundationRequestMaximumBytes),
+    );
+    final invocation = CockpitOperationInvocation(
+      kind: 'case.run',
+      input: wideJsonObject,
+    );
+    expect(invocation.input['values'], hasLength(65535));
+    _expectDefinition(
+      foundationSchema,
+      'JsonObject',
+      wideJsonObject,
+      isValid: true,
+    );
   });
 
   test('OpenAPI publishes the exact authenticated Workstream 1 surface', () {
@@ -417,7 +437,18 @@ void main() {
     expect(openApiJson['security'], <Object?>[
       <String, Object?>{'bearerAuth': <Object?>[]},
     ]);
-    expect(openApiJson['x-cockpit-request-limit-bytes'], 1048576);
+    expect(
+      openApiJson['x-cockpit-request-limit-bytes'],
+      cockpitFoundationRequestMaximumBytes,
+    );
+    expect(
+      openApiJson['x-cockpit-json-maximum-depth'],
+      cockpitFoundationJsonMaximumDepth,
+    );
+    expect(
+      openApiJson['x-cockpit-json-maximum-nodes'],
+      cockpitFoundationJsonMaximumNodes,
+    );
     expect(openApiJson['x-cockpit-cors'], 'deny');
     expect(
       (openApiJson['x-cockpit-deferred-capabilities']! as List<Object?>)
