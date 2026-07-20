@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cockpit/src/session/cockpit_remote_session_launcher.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+import 'package:yaml/yaml.dart';
 
 void main() {
   test(
@@ -32,10 +33,22 @@ void main() {
 }
 
 String _resolvePackageDir() {
-  final currentDir = Directory.current.path;
-  final packageDir = p.join(currentDir, 'packages', 'cockpit');
-  if (Directory(packageDir).existsSync()) {
-    return packageDir;
+  final currentDir = Directory.current.absolute.path;
+  final candidates = <String>[
+    p.join(currentDir, 'packages', 'cockpit'),
+    currentDir,
+  ];
+  for (final candidate in candidates) {
+    final pubspec = File(p.join(candidate, 'pubspec.yaml'));
+    if (!pubspec.existsSync()) {
+      continue;
+    }
+    final document = loadYaml(pubspec.readAsStringSync());
+    if (document is YamlMap && document['name'] == 'cockpit') {
+      return p.normalize(candidate);
+    }
   }
-  return currentDir;
+  throw StateError(
+    'Unable to resolve the cockpit package from ${Directory.current.path}.',
+  );
 }
