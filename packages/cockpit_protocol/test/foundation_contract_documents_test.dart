@@ -348,6 +348,39 @@ void main() {
       throwsFormatException,
     );
 
+    final atDepthLimit = _jsonObjectWithContainerDepth(
+      cockpitFoundationJsonMaximumDepth,
+    );
+    _expectDefinition(
+      foundationSchema,
+      'JsonObject',
+      atDepthLimit,
+      isValid: true,
+    );
+    expect(
+      () => CockpitOperationInvocation(
+        kind: 'custom.execute',
+        input: atDepthLimit,
+      ),
+      returnsNormally,
+    );
+    final beyondDepthLimit = _jsonObjectWithContainerDepth(
+      cockpitFoundationJsonMaximumDepth + 1,
+    );
+    _expectDefinition(
+      foundationSchema,
+      'JsonObject',
+      beyondDepthLimit,
+      isValid: false,
+    );
+    expect(
+      () => CockpitOperationInvocation(
+        kind: 'custom.execute',
+        input: beyondDepthLimit,
+      ),
+      throwsFormatException,
+    );
+
     final wideJsonObject = <String, Object?>{
       'values': List<Object?>.filled(65535, null),
     };
@@ -541,6 +574,14 @@ Directory _packageRoot() {
 }
 
 String _hash(String character) => List<String>.filled(64, character).join();
+
+Map<String, Object?> _jsonObjectWithContainerDepth(int depth) {
+  Object? value = <Object?>[];
+  for (var currentDepth = 1; currentDepth < depth; currentDepth += 1) {
+    value = <Object?>[value];
+  }
+  return <String, Object?>{'value': value};
+}
 
 Iterable<Map<String, Object?>> _allMaps(Object? value) sync* {
   if (value is Map<String, Object?>) {

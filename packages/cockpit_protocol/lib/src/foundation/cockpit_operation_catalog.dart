@@ -7,6 +7,7 @@ final class CockpitOperationCatalog {
   CockpitOperationCatalog(Iterable<CockpitOperationContract<Object?>> contracts)
     : _contracts = <String, CockpitOperationContract<Object?>>{} {
     for (final contract in contracts) {
+      contract.validateCatalogRegistration();
       final descriptor = contract.descriptor;
       if (_contracts.containsKey(descriptor.kind)) {
         throw FormatException('Duplicate operation kind ${descriptor.kind}.');

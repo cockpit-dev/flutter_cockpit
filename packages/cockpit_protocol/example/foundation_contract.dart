@@ -44,13 +44,7 @@ void main() {
     },
   );
   CockpitOperationCatalog(<CockpitOperationContract<Object?>>[
-    CockpitOperationContract<CockpitDocumentValidationRequest>(
-      descriptor: descriptor,
-      requestSchemaRef: '#/\$defs/DocumentValidationRequest',
-      inputDecoder: CockpitDocumentValidationRequest.fromJson,
-      admissionProjector: (_) =>
-          const CockpitOperationAdmissionProjection.empty(),
-    ),
+    CockpitOperationContract.documentValidation(descriptor: descriptor),
   ]).admit(invocation, negotiatedFeatureIds: negotiation.featureIds);
 
   print(server.toJson());

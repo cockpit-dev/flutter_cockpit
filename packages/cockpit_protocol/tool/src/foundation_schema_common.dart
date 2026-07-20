@@ -33,6 +33,12 @@ Map<String, Object?> foundationCommonDefinitions() => <String, Object?>{
     pattern: r'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$',
     maxLength: 128,
   ),
+  for (
+    var remainingDepth = 0;
+    remainingDepth < cockpitFoundationJsonMaximumDepth;
+    remainingDepth += 1
+  )
+    'JsonValue$remainingDepth': jsonValueSchema(remainingDepth),
   'JsonObject': jsonObjectSchema(),
   'ApiVersion': objectSchema(<String, Object?>{
     'major': integerSchema(minimum: 1),

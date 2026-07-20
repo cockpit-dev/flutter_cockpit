@@ -36,8 +36,28 @@ Map<String, Object?> booleanSchema() => <String, Object?>{'type': 'boolean'};
 
 Map<String, Object?> jsonObjectSchema() => <String, Object?>{
   'type': 'object',
-  'additionalProperties': true,
+  'additionalProperties': schemaRef(
+    'JsonValue${cockpitFoundationJsonMaximumDepth - 1}',
+  ),
 };
+
+Map<String, Object?> jsonValueSchema(int remainingDepth) =>
+    oneOfSchema(<Map<String, Object?>>[
+      <String, Object?>{
+        'type': <String>['null', 'boolean', 'number', 'string'],
+      },
+      if (remainingDepth == 0)
+        <String, Object?>{'type': 'array', 'maxItems': 0}
+      else
+        arraySchema(schemaRef('JsonValue${remainingDepth - 1}')),
+      if (remainingDepth == 0)
+        <String, Object?>{'type': 'object', 'maxProperties': 0}
+      else
+        <String, Object?>{
+          'type': 'object',
+          'additionalProperties': schemaRef('JsonValue${remainingDepth - 1}'),
+        },
+    ]);
 
 Map<String, Object?> objectSchema(
   Map<String, Object?> properties, {

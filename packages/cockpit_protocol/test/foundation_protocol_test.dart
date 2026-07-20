@@ -1,4 +1,5 @@
 import 'package:cockpit_protocol/cockpit_protocol.dart';
+import 'package:cockpit_protocol/src/foundation/cockpit_foundation_constraints.dart';
 import 'package:cockpit_protocol/src/foundation/cockpit_foundation_value_reader.dart';
 import 'package:test/test.dart';
 
@@ -362,7 +363,7 @@ void main() {
       },
     );
 
-    test('JSON values freeze iteratively within wire-derived bounds', () {
+    test('JSON values freeze iteratively within declared bounds', () {
       final shared = <Object?>[1, 'two'];
       final frozen = CockpitFoundationValueReader.jsonObject(<String, Object?>{
         'first': shared,
@@ -383,18 +384,26 @@ void main() {
         throwsA(_formatExceptionAt(r'$.self')),
       );
 
-      Object? deepValue = 'leaf';
-      for (var depth = 0; depth < 4096; depth += 1) {
-        deepValue = <Object?>[deepValue];
-      }
-      Object? frozenValue = CockpitFoundationValueReader.jsonValue(
-        deepValue,
+      final atDepthLimit = CockpitFoundationValueReader.jsonObject(
+        _jsonObjectWithContainerDepth(cockpitFoundationJsonMaximumDepth),
         r'$',
       );
-      for (var depth = 0; depth < 4096; depth += 1) {
+      Object? frozenValue = atDepthLimit['value'];
+      for (
+        var depth = 1;
+        depth < cockpitFoundationJsonMaximumDepth;
+        depth += 1
+      ) {
         frozenValue = (frozenValue! as List<Object?>).single;
       }
-      expect(frozenValue, 'leaf');
+      expect(frozenValue, isEmpty);
+      expect(
+        () => CockpitFoundationValueReader.jsonObject(
+          _jsonObjectWithContainerDepth(cockpitFoundationJsonMaximumDepth + 1),
+          r'$',
+        ),
+        throwsA(_formatExceptionAt(r'$.value[')),
+      );
       expect(
         () => CockpitFoundationValueReader.jsonObject(<String, Object?>{
           'value': double.nan,
@@ -498,13 +507,72 @@ void main() {
           input: validSubmission.toJson(),
         );
         expect(
-          () => CockpitOperationContract<CockpitRunSubmission>(
-            descriptor: _runDescriptor(),
-            requestSchemaRef: r'#/$defs/DocumentValidationRequest',
-            inputDecoder: CockpitRunSubmission.fromJson,
-            admissionProjector: _runAdmissionProjection,
-          ),
+          () =>
+              CockpitOperationContract.custom<CockpitDocumentValidationRequest>(
+                descriptor: _runDescriptor(),
+                requestSchemaRef: r'#/$defs/RunSubmission',
+                inputDecoder: CockpitDocumentValidationRequest.fromJson,
+                admissionProjector: (_) =>
+                    const CockpitOperationAdmissionProjection.empty(),
+              ),
           throwsFormatException,
+        );
+        expect(
+          () =>
+              CockpitOperationContract.custom<CockpitDocumentValidationRequest>(
+                descriptor: _customDescriptor(
+                  requestSchemaRef: r'#/$defs/RunSubmission',
+                ),
+                requestSchemaRef: r'#/$defs/RunSubmission',
+                inputDecoder: CockpitDocumentValidationRequest.fromJson,
+                admissionProjector: (_) =>
+                    const CockpitOperationAdmissionProjection.empty(),
+              ),
+          throwsFormatException,
+        );
+        final customDescriptor = _customDescriptor();
+        final customContract =
+            CockpitOperationContract.custom<Map<String, Object?>>(
+              descriptor: customDescriptor,
+              requestSchemaRef: customDescriptor.requestSchemaRef,
+              inputDecoder: (input) =>
+                  CockpitFoundationValueReader.jsonObject(input, r'$'),
+              admissionProjector: (_) =>
+                  const CockpitOperationAdmissionProjection.empty(),
+            );
+        expect(customContract.descriptor, same(customDescriptor));
+        expect(
+          CockpitOperationCatalog(<CockpitOperationContract<Object?>>[
+            customContract,
+          ]).admit(
+            CockpitOperationInvocation(
+              kind: 'custom.execute',
+              input: const <String, Object?>{'value': true},
+            ),
+            negotiatedFeatureIds: const <String>[],
+          ),
+          same(customDescriptor),
+        );
+        final validationDescriptor = _documentValidationDescriptor();
+        final validationContract = CockpitOperationContract.documentValidation(
+          descriptor: validationDescriptor,
+        );
+        expect(validationContract.descriptor, same(validationDescriptor));
+        expect(
+          CockpitOperationCatalog(<CockpitOperationContract<Object?>>[
+            validationContract,
+          ]).admit(
+            CockpitOperationInvocation(
+              kind: 'case.validate',
+              workspaceId: 'workspaceA',
+              input: const <String, Object?>{
+                'format': 'yaml',
+                'sourceText': 'schemaVersion: cockpit.test/v2',
+              },
+            ),
+            negotiatedFeatureIds: const <String>[],
+          ),
+          same(validationDescriptor),
         );
         final catalog = CockpitOperationCatalog(
           <CockpitOperationContract<Object?>>[_runContract()],
@@ -912,6 +980,14 @@ List<CockpitFeatureDescriptor> _features() => <CockpitFeatureDescriptor>[
     CockpitFeatureDescriptor(id: feature.id, revision: 1, minimumApiMinor: 0),
 ];
 
+Map<String, Object?> _jsonObjectWithContainerDepth(int depth) {
+  Object? value = <Object?>[];
+  for (var currentDepth = 1; currentDepth < depth; currentDepth += 1) {
+    value = <Object?>[value];
+  }
+  return <String, Object?>{'value': value};
+}
+
 CockpitOperationDescriptor _runDescriptor() => CockpitOperationDescriptor(
   kind: 'case.run',
   title: 'Run case',
@@ -931,21 +1007,36 @@ CockpitOperationContract<CockpitRunSubmission> _runContract([
   CockpitOperationDescriptor? descriptor,
 ]) {
   final operationDescriptor = descriptor ?? _runDescriptor();
-  return CockpitOperationContract<CockpitRunSubmission>(
+  return CockpitOperationContract.runSubmission(
     descriptor: operationDescriptor,
-    requestSchemaRef: operationDescriptor.requestSchemaRef,
-    inputDecoder: CockpitRunSubmission.fromJson,
-    admissionProjector: _runAdmissionProjection,
   );
 }
 
-CockpitOperationAdmissionProjection _runAdmissionProjection(
-  CockpitRunSubmission submission,
-) => CockpitOperationAdmissionProjection(
-  rootId: null,
-  workspaceId: submission.workspaceId,
-  idempotencyKey: submission.idempotencyKey,
-  requiredFeatures: submission.requiredFeatures,
+CockpitOperationDescriptor _documentValidationDescriptor() =>
+    CockpitOperationDescriptor(
+      kind: 'case.validate',
+      title: 'Validate case',
+      description: 'Compile and validate one standalone case document.',
+      scope: CockpitOperationScope.workspace,
+      mutationClass: CockpitMutationClass.readOnly,
+      idempotency: CockpitIdempotencyBehavior.prohibited,
+      executionMode: CockpitOperationExecutionMode.synchronous,
+      requestSchemaRef: r'#/$defs/DocumentValidationRequest',
+      responseSchemaRef: r'#/$defs/DocumentValidationResult',
+    );
+
+CockpitOperationDescriptor _customDescriptor({
+  String requestSchemaRef = r'#/$defs/JsonObject',
+}) => CockpitOperationDescriptor(
+  kind: 'custom.execute',
+  title: 'Custom operation',
+  description: 'Execute one application-specific operation.',
+  scope: CockpitOperationScope.supervisor,
+  mutationClass: CockpitMutationClass.readOnly,
+  idempotency: CockpitIdempotencyBehavior.prohibited,
+  executionMode: CockpitOperationExecutionMode.synchronous,
+  requestSchemaRef: requestSchemaRef,
+  responseSchemaRef: r'#/$defs/JsonObject',
 );
 
 CockpitRunSubmission _runSubmission({
