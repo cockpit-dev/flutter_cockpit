@@ -19,6 +19,8 @@
 - Kept compiler/importer/runner/control/policy/secret/bundle verification as
   the public V2 boundary while retaining binder, plan, lowerer, kernel, and
   recorder as internal implementation modules.
+- Aggregated independent structural compiler diagnostics through the published
+  schema while retaining deterministic source paths and locations.
 
 ## 1.1.4
 

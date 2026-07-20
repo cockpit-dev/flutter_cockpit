@@ -7,6 +7,15 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
+  test('embedded schema is byte-identical to the published schema', () {
+    expect(
+      File(
+        p.join(_packageRoot().path, 'schema', 'cockpit.test.v2.schema.json'),
+      ).readAsStringSync(),
+      cockpitTestV2SchemaJson,
+    );
+  });
+
   final packageRoot = _packageRoot();
   final schemaPath = p.join(
     packageRoot.path,

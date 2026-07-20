@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:crypto/crypto.dart';
+import 'package:json_schema/json_schema.dart';
 import 'package:source_span/source_span.dart';
 import 'package:yaml/yaml.dart';
 
@@ -68,6 +69,9 @@ final class CockpitTestDocumentCompiler {
   const CockpitTestDocumentCompiler();
 
   static const int _maximumDocumentBytes = 16777216;
+  static final JsonSchema _schema = JsonSchema.create(
+    jsonDecode(cockpitTestV2SchemaJson),
+  );
 
   CockpitTestCompilationResult compile(String source) {
     final bytes = utf8.encode(source);
@@ -97,6 +101,34 @@ final class CockpitTestDocumentCompiler {
       );
     } on FormatException catch (error) {
       return _failure('parseFailed', error.message, r'$');
+    }
+
+    final schemaDiagnostics = _validateSchema(normalized, sourceMap);
+    if (schemaDiagnostics.isNotEmpty) {
+      final diagnostics = <CockpitTestDiagnostic>[...schemaDiagnostics];
+      try {
+        CockpitTestCase.fromJson(normalized);
+      } on FormatException catch (error) {
+        final path = _pathFromMessage(error.message);
+        diagnostics.removeWhere(
+          (diagnostic) =>
+              path == diagnostic.path ||
+              path.startsWith('${diagnostic.path}.') ||
+              path.startsWith('${diagnostic.path}['),
+        );
+        diagnostics.add(
+          CockpitTestDiagnostic(
+            code: 'validationFailed',
+            message: error.message,
+            path: path,
+            location: _nearestLocation(sourceMap, path),
+          ),
+        );
+      }
+      diagnostics.sort(_compareDiagnostics);
+      return CockpitTestCompilationResult(
+        diagnostics: List<CockpitTestDiagnostic>.unmodifiable(diagnostics),
+      );
     }
 
     CockpitTestCase testCase;
@@ -153,6 +185,106 @@ final class CockpitTestDocumentCompiler {
       CockpitTestDiagnostic(code: code, message: message, path: path),
     ],
   );
+}
+
+List<CockpitTestDiagnostic> _validateSchema(
+  Object? document,
+  Map<String, CockpitTestSourceLocation> sourceMap,
+) {
+  final errors = CockpitTestDocumentCompiler._schema.validate(document).errors;
+  final diagnostics = <CockpitTestDiagnostic>[];
+  final seen = <String>{};
+  for (final error in errors) {
+    final path = _schemaErrorPath(document, error.instancePath, error.message);
+    final key = '$path\u0000${error.message}';
+    if (!seen.add(key)) continue;
+    diagnostics.add(
+      CockpitTestDiagnostic(
+        code: 'validationFailed',
+        message: error.message,
+        path: path,
+        location: _nearestLocation(sourceMap, path),
+      ),
+    );
+  }
+  diagnostics.sort(_compareDiagnostics);
+  return List<CockpitTestDiagnostic>.unmodifiable(diagnostics);
+}
+
+String _schemaErrorPath(Object? document, String pointer, String message) {
+  final base = _jsonPointerPath(pointer);
+  final additionalProperty = RegExp(
+    r'^unallowed additional property (.+)$',
+  ).firstMatch(message);
+  if (additionalProperty != null) {
+    return _childPath(base, additionalProperty.group(1)!);
+  }
+  final value = _valueAtPointer(document, pointer);
+  if (message.contains('/oneOf:') && value is Map) {
+    final type = value['type'];
+    if (type is String &&
+        !CockpitTestActionKind.values.any((kind) => kind.name == type)) {
+      return _childPath(base, 'type');
+    }
+  }
+  return base;
+}
+
+Object? _valueAtPointer(Object? document, String pointer) {
+  var value = document;
+  if (pointer.isEmpty) return value;
+  for (final encoded in pointer.split('/').skip(1)) {
+    final segment = encoded.replaceAll('~1', '/').replaceAll('~0', '~');
+    if (value is Map) {
+      value = value[segment];
+      continue;
+    }
+    if (value is List) {
+      final index = int.tryParse(segment);
+      if (index == null || index < 0 || index >= value.length) return null;
+      value = value[index];
+      continue;
+    }
+    return null;
+  }
+  return value;
+}
+
+String _jsonPointerPath(String pointer) {
+  if (pointer.isEmpty) return r'$';
+  final segments = pointer
+      .split('/')
+      .skip(1)
+      .map((segment) => segment.replaceAll('~1', '/').replaceAll('~0', '~'));
+  var path = r'$';
+  for (final segment in segments) {
+    final index = int.tryParse(segment);
+    if (index != null && index.toString() == segment) {
+      path = '$path[$index]';
+    } else {
+      path = _childPath(path, segment);
+    }
+  }
+  return path;
+}
+
+int _compareDiagnostics(
+  CockpitTestDiagnostic left,
+  CockpitTestDiagnostic right,
+) {
+  final leftLocation = left.location;
+  final rightLocation = right.location;
+  final line = (leftLocation?.line ?? 0x7fffffff).compareTo(
+    rightLocation?.line ?? 0x7fffffff,
+  );
+  if (line != 0) return line;
+  final column = (leftLocation?.column ?? 0x7fffffff).compareTo(
+    rightLocation?.column ?? 0x7fffffff,
+  );
+  if (column != 0) return column;
+  final path = left.path.compareTo(right.path);
+  if (path != 0) return path;
+  return left.message.compareTo(right.message);
 }
 
 Object? _normalizeNode(

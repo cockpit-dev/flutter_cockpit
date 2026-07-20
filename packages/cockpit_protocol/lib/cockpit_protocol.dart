@@ -53,6 +53,7 @@ export 'src/recording/cockpit_recording_request.dart';
 export 'src/recording/cockpit_recording_result.dart';
 export 'src/recording/cockpit_recording_session.dart';
 export 'src/recording/cockpit_recording_state.dart';
+export 'src/schema/cockpit_test_v2_schema.dart' show cockpitTestV2SchemaJson;
 export 'src/runtime/cockpit_capabilities.dart';
 export 'src/runtime/cockpit_accessibility_summary.dart';
 export 'src/runtime/cockpit_action_capability.dart';

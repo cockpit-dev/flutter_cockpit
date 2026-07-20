@@ -10,6 +10,8 @@
 - Added the strict `cockpit.test/v2` case, action, locator, variable, policy,
   run/result/error, import, and `cockpit.report/v2` bundle contracts with a
   published JSON Schema 2020-12 document.
+- Published a generated, byte-identical Dart representation of the test schema
+  so compiled host tools validate against the same contract as non-Dart clients.
 
 ## 1.1.4
 

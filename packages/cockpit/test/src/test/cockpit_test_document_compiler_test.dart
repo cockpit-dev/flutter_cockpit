@@ -116,9 +116,12 @@ taskId: old-task
 platform: android
 commands: []
 failFast: true
-''');
+    ''');
     expect(legacy.isSuccess, isFalse);
-    expect(legacy.diagnostics.single.code, 'validationFailed');
+    expect(
+      legacy.diagnostics.map((diagnostic) => diagnostic.code),
+      everyElement('validationFailed'),
+    );
   });
 
   test('enforces the authored document byte bound', () {
@@ -186,6 +189,43 @@ steps:
       r'$.defaults.evidence.unknownEvidenceField',
     );
     expect(result.diagnostics.single.location?.line, 7);
+  });
+
+  test('independent structural diagnostics are aggregated in source order', () {
+    final result = compiler.compile('''
+schemaVersion: cockpit.test/v2
+kind: case
+id: aggregateCase
+target:
+  platform: android
+  targetKind: flutterApp
+  plane: unsupportedPlane
+defaults:
+  cleanupTimeoutMs: 0
+steps:
+  - stepId: invalidAction
+    action: {type: unknownAction}
+''');
+
+    expect(result.isSuccess, isFalse);
+    expect(result.diagnostics, hasLength(greaterThanOrEqualTo(3)));
+    expect(
+      result.diagnostics.map((diagnostic) => diagnostic.path),
+      containsAll(<String>[
+        r'$.target.plane',
+        r'$.defaults.cleanupTimeoutMs',
+        r'$.steps[0].action.type',
+      ]),
+    );
+    expect(
+      result.diagnostics.map((diagnostic) => diagnostic.location?.line),
+      orderedEquals(
+        result.diagnostics
+            .map((diagnostic) => diagnostic.location?.line)
+            .toList()
+          ..sort((left, right) => (left ?? 0).compareTo(right ?? 0)),
+      ),
+    );
   });
 }
 
