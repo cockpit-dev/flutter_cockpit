@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/mcp/tools/cockpit_read_system_capabilities_tool.dart';
 import 'package:cockpit/src/mcp/tools/cockpit_run_system_action_tool.dart';
 import 'package:cockpit/src/system_control/cockpit_system_control_service.dart';

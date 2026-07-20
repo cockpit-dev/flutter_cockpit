@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:args/command_runner.dart';
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/cockpit.dart';
 import 'package:cockpit/src/cli/commands/collect_development_probe_command.dart';
 import 'package:test/test.dart';

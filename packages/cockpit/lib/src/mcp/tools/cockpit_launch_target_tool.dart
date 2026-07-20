@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 
 import '../../application/cockpit_app_handle.dart';
 import '../../application/cockpit_launch_target_service.dart';

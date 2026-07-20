@@ -1,5 +1,5 @@
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
-import 'package:flutter_cockpit_protocol/flutter_cockpit_remote_bridge_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_remote_bridge_protocol.dart';
 import 'package:test/test.dart';
 
 void main() {

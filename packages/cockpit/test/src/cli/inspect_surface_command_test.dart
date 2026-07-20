@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:args/command_runner.dart';
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_inspect_surface_service.dart';
 import 'package:cockpit/src/cli/commands/inspect_surface_command.dart';
 import 'package:cockpit/src/targets/cockpit_target_handle.dart';

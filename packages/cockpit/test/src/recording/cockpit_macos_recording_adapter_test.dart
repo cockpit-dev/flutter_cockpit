@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/platform/macos/cockpit_macos_window_target.dart';
 import 'package:cockpit/src/recording/cockpit_host_recording_adapter.dart';
 import 'package:cockpit/src/recording/cockpit_macos_recording_adapter.dart';

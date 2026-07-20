@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.0
+
+- Migrated host CLI and MCP protocol imports to the platform-neutral
+  `cockpit_protocol` package.
+- Removed the `flutter_cockpit_protocol` dependency and established the 2.0
+  package baseline without a compatibility forwarding layer.
+
 ## 1.1.4
 
 - Added standalone `cockpit/` project support across CLI, MCP, validation

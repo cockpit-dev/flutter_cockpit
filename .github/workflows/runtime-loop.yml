@@ -10,6 +10,7 @@ on:
       - 'examples/cockpit_demo/cockpit/**'
       - 'examples/cockpit_demo/lib/**'
       - 'examples/cockpit_demo/pubspec.yaml'
+      - 'packages/cockpit_protocol/**'
       - 'packages/flutter_cockpit/**'
       - 'packages/cockpit/**'
       - 'test/**'
@@ -20,6 +21,7 @@ on:
       - 'examples/cockpit_demo/cockpit/**'
       - 'examples/cockpit_demo/lib/**'
       - 'examples/cockpit_demo/pubspec.yaml'
+      - 'packages/cockpit_protocol/**'
       - 'packages/flutter_cockpit/**'
       - 'packages/cockpit/**'
       - 'test/**'
@@ -66,14 +68,14 @@ jobs:
         timeout-minutes: 20
         run: |
           dart format --output=none --set-exit-if-changed \
-            packages/flutter_cockpit_protocol \
+            packages/cockpit_protocol \
             packages/flutter_cockpit \
             packages/cockpit \
             examples/cockpit_demo \
             examples/cockpit_demo/cockpit \
             test
-          flutter analyze packages/flutter_cockpit_protocol packages/flutter_cockpit packages/cockpit examples/cockpit_demo examples/cockpit_demo/cockpit test
-          (cd packages/flutter_cockpit_protocol && dart pub publish --dry-run)
+          flutter analyze packages/cockpit_protocol packages/flutter_cockpit packages/cockpit examples/cockpit_demo examples/cockpit_demo/cockpit test
+          (cd packages/cockpit_protocol && dart pub publish --dry-run)
           (cd packages/flutter_cockpit && flutter pub publish --dry-run)
           (cd packages/cockpit && dart pub publish --dry-run)
           flutter pub get
@@ -83,7 +85,7 @@ jobs:
         timeout-minutes: 35
         run: |
           dart test test
-          (cd packages/flutter_cockpit_protocol && dart test)
+          (cd packages/cockpit_protocol && dart test)
           flutter test --no-pub packages/flutter_cockpit/test
           dart test packages/cockpit/test
           flutter pub get

@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_inspect_surface_service.dart';
 import 'package:cockpit/src/mcp/tools/cockpit_inspect_surface_tool.dart';
 import 'package:cockpit/src/targets/cockpit_target_handle.dart';

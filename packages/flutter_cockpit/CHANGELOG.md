@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.0
+
+- Migrated all shared runtime, control, evidence, and bridge models to the
+  platform-neutral `cockpit_protocol` package.
+- Removed the `flutter_cockpit_protocol` dependency and established the 2.0
+  package baseline without a compatibility forwarding layer.
+
 ## 1.1.4
 
 - Added automatic route tracking for plain and nested `Navigator` stacks and

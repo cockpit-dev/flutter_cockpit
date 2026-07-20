@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 
 import '../../platform/windows/cockpit_windows_powershell.dart';
 import '../cockpit_system_control_action.dart';

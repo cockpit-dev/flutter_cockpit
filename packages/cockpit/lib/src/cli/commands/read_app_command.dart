@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 
 import '../../application/cockpit_interactive_result_profile.dart';
 import '../../application/cockpit_read_app_service.dart';

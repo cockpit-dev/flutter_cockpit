@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cockpit/src/infrastructure/cockpit_process_manager.dart';
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/adapters/cockpit_capture_adapter.dart';
 import 'package:cockpit/src/adapters/cockpit_recording_adapter.dart';
 import 'package:cockpit/src/system_control/cockpit_ios_webdriver_agent_client.dart';

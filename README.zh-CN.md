@@ -29,8 +29,8 @@
 
 ```yaml
 dev_dependencies:
-  flutter_cockpit: ^1.1.4
-  cockpit: ^1.1.4
+  flutter_cockpit: ^2.0.0
+  cockpit: ^2.0.0
 ```
 
 两个包都只作为开发依赖。所有 Cockpit import 和接入代码都放在 `cockpit/`
@@ -44,10 +44,11 @@ iOS 和 macOS 同时支持 CocoaPods 与 Swift Package Manager。插件在两个
 
 - [`flutter_cockpit` on pub.dev](https://pub.dev/packages/flutter_cockpit)
 - [`cockpit` on pub.dev](https://pub.dev/packages/cockpit)
+- [`cockpit_protocol` on pub.dev](https://pub.dev/packages/cockpit_protocol)
 
-维护者发布顺序：先发布 `packages/flutter_cockpit_protocol`，然后发布
+维护者发布顺序：先发布 `packages/cockpit_protocol`，然后发布
 `packages/flutter_cockpit`，最后发布 `packages/cockpit`。runtime 和宿主包都会
-从 pub.dev 解析匹配版本的依赖，因此每个 1.1.4 前置包都必须先在线，才能发布下一个。
+从 pub.dev 解析匹配版本的依赖，因此每个 2.0.0 前置包都必须先在线，才能发布下一个。
 
 安装 Dart 包本身，并不会自动安装 AI skill，也不会自动提供全局可调用的 MCP 启动命令。这两件事都属于宿主侧额外配置。
 

@@ -25,7 +25,7 @@
 
 ```yaml
 dev_dependencies:
-  cockpit: ^1.1.4
+  cockpit: ^2.0.0
 ```
 
 可选的全局安装方式：

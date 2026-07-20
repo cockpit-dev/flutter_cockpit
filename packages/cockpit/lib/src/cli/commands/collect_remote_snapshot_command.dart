@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 
 import '../../application/cockpit_collect_remote_snapshot_service.dart';
 import '../cockpit_cli_help.dart';

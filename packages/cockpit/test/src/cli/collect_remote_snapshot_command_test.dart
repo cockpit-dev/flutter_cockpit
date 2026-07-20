@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:args/command_runner.dart';
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_collect_remote_snapshot_service.dart';
 import 'package:cockpit/src/cli/commands/collect_remote_snapshot_command.dart';
 import 'package:cockpit/src/session/cockpit_remote_session_handle.dart';

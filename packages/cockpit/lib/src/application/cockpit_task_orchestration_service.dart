@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 
 import '../cli/cockpit_control_script.dart';
 import '../runner/cockpit_workflow_step.dart';

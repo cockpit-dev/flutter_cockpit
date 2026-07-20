@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:cockpit/src/capture/cockpit_host_capture_adapter.dart';
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:test/test.dart';
 
 void main() {

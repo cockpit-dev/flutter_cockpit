@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_app_handle.dart';
 import 'package:cockpit/src/application/cockpit_execute_remote_command_batch_service.dart';
 import 'package:cockpit/src/application/cockpit_interactive_result_profile.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 
 import '../../capture/cockpit_adb_capture_adapter.dart';
 import '../../recording/cockpit_adb_recording_adapter.dart';

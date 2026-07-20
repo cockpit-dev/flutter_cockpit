@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/cockpit.dart';
 import 'package:cockpit/src/platform/ios/cockpit_ios_device_connection.dart';
 import 'package:cockpit/src/session/cockpit_session_process_runner.dart';

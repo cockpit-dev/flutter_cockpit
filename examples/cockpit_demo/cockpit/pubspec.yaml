@@ -16,9 +16,9 @@ dependencies:
 
 dev_dependencies:
   args: ^2.7.0
-  cockpit: ^1.1.4
+  cockpit: ^2.0.0
   drift: ">=2.29.0 <2.30.0"
-  flutter_cockpit: ^1.1.4
+  flutter_cockpit: ^2.0.0
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter

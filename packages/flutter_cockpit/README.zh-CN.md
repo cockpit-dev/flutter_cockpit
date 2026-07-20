@@ -24,7 +24,7 @@
 
 ```yaml
 dev_dependencies:
-  flutter_cockpit: ^1.1.4
+  flutter_cockpit: ^2.0.0
 ```
 
 runtime 只作为开发依赖。所有 `flutter_cockpit` import 和接入代码都放在

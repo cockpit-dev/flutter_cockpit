@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 
 import '../platform/cockpit_platform_driver_registry.dart';
 import '../targets/cockpit_target_capability_support.dart';

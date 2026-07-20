@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/cli/commands/read_system_capabilities_command.dart';
 import 'package:cockpit/src/cli/commands/run_system_action_command.dart';
 import 'package:cockpit/src/system_control/cockpit_system_control_service.dart';

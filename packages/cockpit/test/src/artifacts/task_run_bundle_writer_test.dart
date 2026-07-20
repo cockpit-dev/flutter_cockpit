@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/cockpit.dart';
 import 'package:cockpit/src/artifacts/cockpit_timeline_video_fallback_builder.dart';
 import 'package:image/image.dart' as img;

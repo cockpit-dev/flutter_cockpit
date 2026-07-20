@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 
 import 'cockpit_application_service_exception.dart';
 

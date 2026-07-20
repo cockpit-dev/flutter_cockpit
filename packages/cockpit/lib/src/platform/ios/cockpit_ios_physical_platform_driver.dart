@@ -1,4 +1,4 @@
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 
 import '../../session/cockpit_ios_physical_remote_session_launcher.dart';
 import '../../session/cockpit_remote_session_handle.dart';

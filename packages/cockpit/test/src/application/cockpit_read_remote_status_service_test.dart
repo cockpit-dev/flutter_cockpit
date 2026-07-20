@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_interactive_result_profile.dart';
 import 'package:cockpit/src/application/cockpit_read_remote_status_service.dart';
 import 'package:cockpit/src/application/cockpit_session_reference_resolver.dart';

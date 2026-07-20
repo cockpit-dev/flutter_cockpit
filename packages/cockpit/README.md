@@ -25,7 +25,7 @@ Flutter workspace.
 
 ```yaml
 dev_dependencies:
-  cockpit: ^1.1.4
+  cockpit: ^2.0.0
 ```
 
 Optional global activation:

@@ -44,16 +44,13 @@ void main() {
     expect(
       workflow,
       contains(
-        'flutter analyze packages/flutter_cockpit_protocol packages/flutter_cockpit packages/cockpit examples/cockpit_demo examples/cockpit_demo/cockpit test',
+        'flutter analyze packages/cockpit_protocol packages/flutter_cockpit packages/cockpit examples/cockpit_demo examples/cockpit_demo/cockpit test',
       ),
     );
     expect(workflow, contains('flutter pub publish --dry-run'));
     expect(workflow, contains('dart pub publish --dry-run'));
     expect(workflow, contains('dart test test'));
-    expect(
-      workflow,
-      contains('(cd packages/flutter_cockpit_protocol && dart test)'),
-    );
+    expect(workflow, contains('(cd packages/cockpit_protocol && dart test)'));
     expect(
       workflow,
       contains('flutter test --no-pub packages/flutter_cockpit/test'),
@@ -729,9 +726,7 @@ void main() {
     expect(readinessBlock, contains('flutter pub get'));
     expect(
       readinessBlock,
-      contains(
-        '(cd packages/flutter_cockpit_protocol && dart pub publish --dry-run)',
-      ),
+      contains('(cd packages/cockpit_protocol && dart pub publish --dry-run)'),
     );
     expect(readinessBlock, contains('git diff --exit-code pubspec.lock'));
   });
@@ -747,7 +742,7 @@ void main() {
 
       expect(
         regressionBlock,
-        contains('(cd packages/flutter_cockpit_protocol && dart test)'),
+        contains('(cd packages/cockpit_protocol && dart test)'),
       );
       expect(regressionBlock, contains('dart test packages/cockpit/test'));
       expect(regressionBlock, contains('flutter pub get'));

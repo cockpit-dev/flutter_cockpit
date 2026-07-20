@@ -1,1 +1,1 @@
-export 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+export 'package:cockpit_protocol/cockpit_protocol.dart';

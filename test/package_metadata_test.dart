@@ -3,33 +3,31 @@ import 'dart:io';
 import 'package:test/test.dart';
 
 void main() {
-  test('published package names and dependency edges use flutter_cockpit', () {
+  test('published packages use the Cockpit 2.0 dependency graph', () {
     final runtimePubspec = File(
       'packages/flutter_cockpit/pubspec.yaml',
     ).readAsStringSync();
     final protocolPubspec = File(
-      'packages/flutter_cockpit_protocol/pubspec.yaml',
+      'packages/cockpit_protocol/pubspec.yaml',
     ).readAsStringSync();
     final devtoolsPubspec = File(
       'packages/cockpit/pubspec.yaml',
     ).readAsStringSync();
     final runtimeVersion = _readPackageVersion('packages/flutter_cockpit');
-    final protocolVersion = _readPackageVersion(
-      'packages/flutter_cockpit_protocol',
-    );
+    final protocolVersion = _readPackageVersion('packages/cockpit_protocol');
+    final devtoolsVersion = _readPackageVersion('packages/cockpit');
 
     expect(runtimePubspec, contains('name: flutter_cockpit'));
     expect(runtimePubspec, isNot(contains('name: flutter_pilot')));
-    expect(protocolPubspec, contains('name: flutter_cockpit_protocol'));
+    expect(protocolPubspec, contains('name: cockpit_protocol'));
     expect(devtoolsPubspec, contains('name: cockpit'));
-    expect(
-      runtimePubspec,
-      contains('flutter_cockpit_protocol: ^$protocolVersion'),
-    );
-    expect(
-      devtoolsPubspec,
-      contains('flutter_cockpit_protocol: ^$protocolVersion'),
-    );
+    expect(runtimeVersion, '2.0.0');
+    expect(protocolVersion, '2.0.0');
+    expect(devtoolsVersion, '2.0.0');
+    expect(runtimePubspec, contains('cockpit_protocol: ^$protocolVersion'));
+    expect(devtoolsPubspec, contains('cockpit_protocol: ^$protocolVersion'));
+    expect(runtimePubspec, isNot(contains('flutter_cockpit_protocol:')));
+    expect(devtoolsPubspec, isNot(contains('flutter_cockpit_protocol:')));
     expect(
       devtoolsPubspec,
       isNot(contains('flutter_cockpit: ^$runtimeVersion')),
@@ -47,7 +45,7 @@ void main() {
     final workspacePubspec = File('pubspec.yaml').readAsStringSync();
     final workspaceLockfile = File('pubspec.lock').readAsStringSync();
     final protocolPubspec = File(
-      'packages/flutter_cockpit_protocol/pubspec.yaml',
+      'packages/cockpit_protocol/pubspec.yaml',
     ).readAsStringSync();
     final runtimePubspec = File(
       'packages/flutter_cockpit/pubspec.yaml',

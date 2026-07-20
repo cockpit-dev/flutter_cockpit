@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_bundle_artifact_paths.dart';
 import 'package:cockpit/src/application/cockpit_app_handle.dart';
 import 'package:cockpit/src/application/cockpit_launch_remote_session_service.dart';

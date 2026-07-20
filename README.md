@@ -29,8 +29,8 @@ single dependency graph without `dependency_overrides`.
 
 ```yaml
 dev_dependencies:
-  flutter_cockpit: ^1.1.4
-  cockpit: ^1.1.4
+  flutter_cockpit: ^2.0.0
+  cockpit: ^2.0.0
 ```
 
 Keep both packages development-only. Put every Cockpit import and integration
@@ -47,11 +47,12 @@ Package pages:
 
 - [`flutter_cockpit` on pub.dev](https://pub.dev/packages/flutter_cockpit)
 - [`cockpit` on pub.dev](https://pub.dev/packages/cockpit)
+- [`cockpit_protocol` on pub.dev](https://pub.dev/packages/cockpit_protocol)
 
-Release order for maintainers: publish `packages/flutter_cockpit_protocol`,
+Release order for maintainers: publish `packages/cockpit_protocol`,
 then `packages/flutter_cockpit`, and finally `packages/cockpit`. The runtime and
 host packages resolve their matching published dependencies from pub.dev, so
-each preceding 1.1.4 package must be available before publishing the next one.
+each preceding 2.0.0 package must be available before publishing the next one.
 
 Installing the Dart packages does not automatically install the AI skill or expose a globally callable MCP launcher. Those are separate host-side setup steps.
 

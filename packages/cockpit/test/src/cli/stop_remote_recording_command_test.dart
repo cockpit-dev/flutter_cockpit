@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:args/command_runner.dart';
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_interactive_result_data.dart';
 import 'package:cockpit/src/application/cockpit_stop_remote_recording_service.dart';
 import 'package:cockpit/src/cli/commands/stop_remote_recording_command.dart';

@@ -1,12 +1,12 @@
-name: flutter_cockpit_protocol
-description: Pure Dart protocol models shared by flutter_cockpit runtime and cockpit host tooling.
-version: 1.1.4
+name: cockpit_protocol
+description: Platform-neutral protocol models shared by Cockpit clients, runtimes, drivers, and host tooling.
+version: 2.0.0
 homepage: https://github.com/cockpit-dev/flutter_cockpit
 repository: https://github.com/cockpit-dev/flutter_cockpit
 issue_tracker: https://github.com/cockpit-dev/flutter_cockpit/issues
-documentation: https://github.com/cockpit-dev/flutter_cockpit/tree/main/packages/flutter_cockpit_protocol
+documentation: https://github.com/cockpit-dev/flutter_cockpit/tree/main/packages/cockpit_protocol
 topics:
-  - flutter
+  - e2e-testing
   - automation
   - testing
   - ai

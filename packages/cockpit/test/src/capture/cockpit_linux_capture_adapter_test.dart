@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/capture/cockpit_linux_capture_adapter.dart';
 import 'package:cockpit/src/platform/linux/cockpit_linux_window_target.dart';
 import 'package:cockpit/src/recording/cockpit_linux_recording_adapter.dart';

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter_cockpit_protocol/flutter_cockpit_protocol.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:cockpit/src/application/cockpit_session_registry.dart';
 import 'package:cockpit/src/development/cockpit_development_session_handle.dart';
 import 'package:cockpit/src/development/cockpit_development_session_status.dart';
