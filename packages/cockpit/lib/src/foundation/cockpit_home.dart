@@ -99,12 +99,15 @@ final class CockpitHomePaths {
   String get rootsRegistry => p.join(registryDirectory, 'roots.json');
   String get workspacesRegistry => p.join(registryDirectory, 'workspaces.json');
   String get referencesRegistry => p.join(registryDirectory, 'references.json');
+  String get leasesDirectory => p.join(home, 'leases');
+  String get leaseRegistry => p.join(leasesDirectory, 'leases.json');
   String get runsDirectory => p.join(home, 'runs');
   String get artifactsDirectory => p.join(home, 'artifacts');
 
   Iterable<String> get directories => <String>[
     home,
     registryDirectory,
+    leasesDirectory,
     runsDirectory,
     artifactsDirectory,
   ];

@@ -319,6 +319,9 @@ extension _CockpitWorkspaceRegistrySupport on CockpitWorkspaceRegistry {
         CockpitIdKind.project => state.workspaces.any(
           (value) => value.projectId == candidate,
         ),
+        CockpitIdKind.lease || CockpitIdKind.cleanup => throw ArgumentError(
+          'Lease identifiers cannot be allocated by the workspace registry.',
+        ),
       };
       if (!exists) return candidate;
     }
