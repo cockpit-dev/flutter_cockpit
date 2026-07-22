@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import '../infrastructure/cockpit_process_manager.dart';
 import 'cockpit_system_control_action.dart';
 import 'cockpit_system_control_adapter.dart';
 
@@ -34,7 +35,7 @@ final class CockpitIosWebDriverAgentClient {
     CockpitIosWdaProcessRunner? processRunner,
   }) : _httpClient = httpClient,
        _httpClientFactory = httpClientFactory ?? http.Client.new,
-       _processRunner = processRunner ?? Process.run;
+       _processRunner = processRunner ?? cockpitRunIsolatedProcess;
 
   final http.Client? _httpClient;
   final CockpitIosWdaHttpClientFactory _httpClientFactory;

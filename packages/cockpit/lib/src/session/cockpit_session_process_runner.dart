@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import '../infrastructure/cockpit_process_output_collector.dart';
+import '../infrastructure/cockpit_process_manager.dart';
 
 Future<ProcessResult> cockpitRunProcessWithTimeout(
   String executable,
@@ -10,7 +11,7 @@ Future<ProcessResult> cockpitRunProcessWithTimeout(
   Map<String, String>? environment,
   required Duration timeout,
 }) async {
-  final process = await Process.start(
+  final process = await cockpitStartIsolatedProcess(
     executable,
     arguments,
     workingDirectory: workingDirectory,
@@ -123,7 +124,7 @@ Future<ProcessResult> _runKillHelperProcess(
   String executable,
   List<String> arguments,
 ) async {
-  final process = await Process.start(executable, arguments);
+  final process = await cockpitStartIsolatedProcess(executable, arguments);
   final stdoutCollector = CockpitProcessOutputCollector(process.stdout);
   final stderrCollector = CockpitProcessOutputCollector(process.stderr);
   try {

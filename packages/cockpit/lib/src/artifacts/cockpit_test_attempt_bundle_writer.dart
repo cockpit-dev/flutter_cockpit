@@ -26,6 +26,9 @@ final class CockpitTestBundleIntegrityException implements Exception {
   String toString() => 'CockpitTestBundleIntegrityException: ${error.message}';
 }
 
+typedef CockpitTestBundlePrePublicationValidator =
+    Future<CockpitTestError?> Function(String stagingPath);
+
 final class CockpitTestAttemptBundleReader {
   const CockpitTestAttemptBundleReader();
 
@@ -107,6 +110,7 @@ final class CockpitTestAttemptBundleWriter {
     required CockpitTestAttemptResult result,
     required List<CockpitTestRecordedArtifact> artifacts,
     required DateTime createdAt,
+    CockpitTestBundlePrePublicationValidator? prePublicationValidator,
   }) async {
     final finalPath = p.join(
       rootPath,
@@ -190,6 +194,10 @@ final class CockpitTestAttemptBundleWriter {
       final manifestFile = File(p.join(staging.path, 'manifest.json'));
       await _writeAndFlush(manifestFile, manifestBytes);
       final manifestHash = sha256.convert(manifestBytes).toString();
+      final validationError = await prePublicationValidator?.call(staging.path);
+      if (validationError != null) {
+        throw CockpitTestBundlePublicationException(validationError);
+      }
       await staging.rename(finalPath);
       return CockpitTestBundleSummary(
         path: finalPath,
@@ -198,6 +206,8 @@ final class CockpitTestAttemptBundleWriter {
       );
     } on CockpitTestBundlePublicationException {
       rethrow;
+    } on CockpitTestError catch (error) {
+      throw CockpitTestBundlePublicationException(error);
     } catch (_) {
       throw _publicationError('Attempt bundle publication failed.');
     } finally {

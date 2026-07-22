@@ -146,6 +146,7 @@ CockpitTestExecutionPlan testExecutionPlan({
   setup: setup,
   steps: steps,
   finallySteps: finallySteps,
+  resolvedInputs: const <String, Object?>{},
   secretBindings: CockpitTestSecretBindings(const <String, String>{}),
 );
 

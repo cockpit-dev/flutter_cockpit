@@ -415,16 +415,30 @@ void main() {
   });
 
   test(
-    'development supervisor readiness probe uses lightweight ready endpoint',
-    () {
-      final supervisorBinary =
-          File('bin/cockpit_development_supervisor.dart').existsSync()
-          ? File('bin/cockpit_development_supervisor.dart')
-          : File('packages/cockpit/bin/cockpit_development_supervisor.dart');
-      final source = supervisorBinary.readAsStringSync();
+    'worker-owned supervisor can run without an HTTP control plane',
+    () async {
+      final harness = _MachineHarness();
+      addTearDown(harness.dispose);
+      final handle = harness.handle.copyWith(
+        supervisorBaseUrl: 'cockpit-worker://development/dev-session-1',
+      );
+      final supervisor = CockpitDevelopmentSessionSupervisor(
+        initialHandle: handle,
+        machineClient: harness.client,
+        remoteReachabilityProbe: (_) async => true,
+        remoteControlReadinessProbe: (_) async => true,
+        bindPort: -1,
+        bindControlPlane: false,
+        settlePollInterval: const Duration(milliseconds: 1),
+      );
+      addTearDown(supervisor.dispose);
 
-      expect(source, contains('.ready()'));
-      expect(source, isNot(contains('.readStatus();\n          return true;')));
+      await supervisor.start();
+
+      expect(
+        (await supervisor.currentHandle()).supervisorBaseUrl,
+        'cockpit-worker://development/dev-session-1',
+      );
     },
   );
 

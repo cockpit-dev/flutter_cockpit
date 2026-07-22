@@ -35,6 +35,7 @@ final class CockpitDevelopmentSessionSupervisor {
     DateTime Function()? now,
     InternetAddress? bindAddress,
     int bindPort = 0,
+    bool bindControlPlane = true,
     Duration settleTimeout = const Duration(seconds: 30),
     Duration settlePollInterval = const Duration(milliseconds: 500),
     Duration settleProbeTimeout = const Duration(seconds: 2),
@@ -51,6 +52,7 @@ final class CockpitDevelopmentSessionSupervisor {
        _now = now ?? DateTime.now,
        _bindAddress = bindAddress ?? InternetAddress.loopbackIPv4,
        _bindPort = bindPort,
+       _bindControlPlane = bindControlPlane,
        _settleTimeout = settleTimeout,
        _settlePollInterval = settlePollInterval,
        _settleProbeTimeout = settleProbeTimeout,
@@ -74,6 +76,7 @@ final class CockpitDevelopmentSessionSupervisor {
   final DateTime Function() _now;
   final InternetAddress _bindAddress;
   final int _bindPort;
+  final bool _bindControlPlane;
   final Duration _settleTimeout;
   final Duration _settlePollInterval;
   final Duration _settleProbeTimeout;
@@ -98,15 +101,17 @@ final class CockpitDevelopmentSessionSupervisor {
         _handle = _handle.copyWith(appBaseUrl: bridge.baseUri.toString());
       }
     }
-    _server = await HttpServer.bind(_bindAddress, _bindPort);
-    _handle = _handle.copyWith(
-      supervisorBaseUrl: Uri(
-        scheme: 'http',
-        host: _server!.address.host,
-        port: _server!.port,
-      ).toString(),
-    );
-    _requestSubscription = _server!.listen(_handleHttpRequest);
+    if (_bindControlPlane) {
+      _server = await HttpServer.bind(_bindAddress, _bindPort);
+      _handle = _handle.copyWith(
+        supervisorBaseUrl: Uri(
+          scheme: 'http',
+          host: _server!.address.host,
+          port: _server!.port,
+        ).toString(),
+      );
+      _requestSubscription = _server!.listen(_handleHttpRequest);
+    }
     _subscribeToMachineClient(_machineClient);
     _log(
       'supervisor started control_plane=${_handle.supervisorBaseUrl} '

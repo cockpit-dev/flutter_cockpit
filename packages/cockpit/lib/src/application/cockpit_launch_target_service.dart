@@ -34,6 +34,7 @@ final class CockpitLaunchTargetRequest {
     this.targetKind = CockpitTargetKind.flutterApp,
     this.mode = CockpitAppMode.development,
     this.launchTimeout = const Duration(seconds: 120),
+    this.allowSessionPortFallback = true,
     this.targetHandlePath,
     this.launchConfiguration = CockpitFlutterLaunchConfiguration.empty,
   });
@@ -47,6 +48,7 @@ final class CockpitLaunchTargetRequest {
   final CockpitTargetKind targetKind;
   final CockpitAppMode mode;
   final Duration launchTimeout;
+  final bool allowSessionPortFallback;
   final String? targetHandlePath;
   final CockpitFlutterLaunchConfiguration launchConfiguration;
 }
@@ -135,6 +137,7 @@ final class CockpitLaunchTargetService {
         sessionPort: request.sessionPort,
         mode: request.mode,
         launchTimeout: request.launchTimeout,
+        allowSessionPortFallback: request.allowSessionPortFallback,
         launchConfiguration: request.launchConfiguration,
       ),
     );

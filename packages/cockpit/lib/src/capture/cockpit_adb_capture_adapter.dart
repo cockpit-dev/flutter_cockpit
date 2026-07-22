@@ -4,13 +4,14 @@ import 'dart:io';
 import 'package:cockpit_protocol/cockpit_protocol.dart';
 
 import '../infrastructure/cockpit_process_output_collector.dart';
+import '../infrastructure/cockpit_process_manager.dart';
 import 'cockpit_host_capture_adapter.dart';
 
 final class CockpitAdbCaptureAdapter implements CockpitHostCaptureAdapter {
   CockpitAdbCaptureAdapter({
     required String deviceId,
     String executable = 'adb',
-    CockpitCaptureProcessStarter processStarter = Process.start,
+    CockpitCaptureProcessStarter processStarter = cockpitStartIsolatedProcess,
     CockpitCaptureTempFileFactory tempFileFactory =
         cockpitCreateCaptureTempFile,
     Duration timeout = const Duration(seconds: 5),

@@ -358,6 +358,7 @@ final class CockpitPortReservation {
       : throw StateError('Reservation lease is not a loopback port.');
 
   CockpitLeaseResource get lease => _lease;
+  String get handoffToken => _handoffToken;
   CockpitPortReservationState get state => _state;
   CockpitVerifiedPortLease? get verifiedLease => _verifiedLease;
 

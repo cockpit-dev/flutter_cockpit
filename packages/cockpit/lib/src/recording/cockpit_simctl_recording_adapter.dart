@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:cockpit_protocol/cockpit_protocol.dart';
 
+import '../infrastructure/cockpit_process_manager.dart';
 import 'cockpit_host_recording_adapter.dart';
 
 const Duration cockpitDefaultSimctlRecordingStartupTimeout = Duration(
@@ -700,7 +701,7 @@ Future<Process> _startDetachedRecordingProcess(
   String executable,
   List<String> arguments,
 ) {
-  return Process.start(
+  return cockpitStartIsolatedProcess(
     executable,
     arguments,
     mode: ProcessStartMode.detachedWithStdio,

@@ -5,6 +5,7 @@ import 'dart:math';
 
 import 'package:path/path.dart' as p;
 
+import '../infrastructure/cockpit_process_manager.dart';
 import 'cockpit_home.dart';
 import 'cockpit_permissions.dart';
 
@@ -46,7 +47,7 @@ final class CockpitSystemDirectorySyncer implements CockpitDirectorySyncer {
     final arguments = platform == CockpitHostPlatform.linux
         ? <String>['-f', directoryPath]
         : const <String>[];
-    final result = await Process.run('sync', arguments);
+    final result = await cockpitRunIsolatedProcess('sync', arguments);
     if (result.exitCode != 0) {
       throw FileSystemException(
         'Could not synchronize directory metadata: ${_bounded(result.stderr)}',
@@ -110,6 +111,70 @@ final class CockpitAtomicJsonFile {
   }
 }
 
+String? cockpitAtomicJsonTemporaryTargetName(String name) {
+  if (!name.startsWith('.') || !name.endsWith('.tmp')) return null;
+  final body = name.substring(1, name.length - '.tmp'.length);
+  final tokenSeparator = body.lastIndexOf('.');
+  if (tokenSeparator <= 0) return null;
+  final token = body.substring(tokenSeparator + 1);
+  final beforeToken = body.substring(0, tokenSeparator);
+  final processSeparator = beforeToken.lastIndexOf('.');
+  if (processSeparator <= 0) return null;
+  final processId = beforeToken.substring(processSeparator + 1);
+  final targetName = beforeToken.substring(0, processSeparator);
+  if (targetName.isEmpty ||
+      processId.isEmpty ||
+      !_isDecimal(processId) ||
+      !_isLowercaseHex(token, length: 24)) {
+    return null;
+  }
+  return targetName;
+}
+
+Future<void> cockpitValidateCanonicalRegularFile(
+  String path, {
+  required String diagnostic,
+}) async {
+  final type = await FileSystemEntity.type(path, followLinks: false);
+  if (type != FileSystemEntityType.file) {
+    throw FileSystemException(diagnostic, path);
+  }
+  final canonical = p.normalize(await File(path).resolveSymbolicLinks());
+  if (!p.equals(canonical, p.normalize(path))) {
+    throw FileSystemException(diagnostic, path);
+  }
+}
+
+Future<void> cockpitDeleteAtomicJsonTemporary({
+  required String path,
+  required CockpitDirectorySyncer directorySyncer,
+}) async {
+  await cockpitValidateCanonicalRegularFile(
+    path,
+    diagnostic: 'Atomic JSON temporary file is not canonical and regular.',
+  );
+  final file = File(path);
+  await file.delete();
+  await directorySyncer.sync(file.parent.path);
+}
+
+bool _isDecimal(String value) {
+  for (final codeUnit in value.codeUnits) {
+    if (codeUnit < 48 || codeUnit > 57) return false;
+  }
+  return true;
+}
+
+bool _isLowercaseHex(String value, {required int length}) {
+  if (value.length != length) return false;
+  for (final codeUnit in value.codeUnits) {
+    if ((codeUnit < 48 || codeUnit > 57) && (codeUnit < 97 || codeUnit > 102)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 final class CockpitLockedJsonUpdate<T, R> {
   const CockpitLockedJsonUpdate._({
     required this.value,
@@ -150,7 +215,8 @@ final class CockpitLockedJsonStore<T> {
   }) : _atomicFile = CockpitAtomicJsonFile(
          permissionHardener: permissionHardener,
          directorySyncer: directorySyncer,
-       );
+       ),
+       _directorySyncer = directorySyncer;
 
   final String path;
   final CockpitJsonCodec<T> codec;
@@ -158,6 +224,7 @@ final class CockpitLockedJsonStore<T> {
   final CockpitPermissionHardener permissionHardener;
   final int maximumBytes;
   final CockpitAtomicJsonFile _atomicFile;
+  final CockpitDirectorySyncer _directorySyncer;
 
   String get lockPath => '$path.lock';
 
@@ -185,6 +252,7 @@ final class CockpitLockedJsonStore<T> {
       await permissionHardener.hardenFile(lockFile);
       await lockHandle.lock(FileLock.blockingExclusive);
       acquired = true;
+      await _cleanupTemporariesLocked(target);
       final current = await _readLocked(target);
       final update = await transaction(current);
       if (update.shouldWrite) {
@@ -202,6 +270,26 @@ final class CockpitLockedJsonStore<T> {
         }
       } finally {
         await lockHandle.close();
+      }
+    }
+  }
+
+  Future<void> _cleanupTemporariesLocked(File target) async {
+    final targetName = p.basename(target.path);
+    await for (final entity in target.parent.list(followLinks: false)) {
+      final name = p.basename(entity.path);
+      if (cockpitAtomicJsonTemporaryTargetName(name) != targetName) continue;
+      try {
+        await cockpitDeleteAtomicJsonTemporary(
+          path: entity.path,
+          directorySyncer: _directorySyncer,
+        );
+      } on FileSystemException {
+        final type = await FileSystemEntity.type(
+          entity.path,
+          followLinks: false,
+        );
+        if (type != FileSystemEntityType.notFound) rethrow;
       }
     }
   }

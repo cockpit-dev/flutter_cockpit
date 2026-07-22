@@ -6,6 +6,7 @@ import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:path/path.dart' as p;
 
 import '../application/cockpit_application_service_exception.dart';
+import '../infrastructure/cockpit_process_manager.dart';
 import '../platform/ios/cockpit_ios_device_connection.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import 'cockpit_android_remote_session_launcher.dart';
@@ -125,7 +126,7 @@ String cockpitRemotePublicHostForPlatform(String platform) {
 }
 
 Future<String> cockpitResolveActiveFlutterExecutable({
-  CockpitFlutterCommandRunner processRunner = Process.run,
+  CockpitFlutterCommandRunner processRunner = cockpitRunIsolatedProcess,
   bool? isWindows,
 }) async {
   final defaultExecutable = cockpitFlutterExecutable(isWindows: isWindows);
@@ -146,7 +147,7 @@ Future<String> cockpitResolveActiveFlutterExecutable({
 }
 
 Future<String> cockpitResolveActiveDartExecutable({
-  CockpitExecutableLookupRunner processRunner = Process.run,
+  CockpitExecutableLookupRunner processRunner = cockpitRunIsolatedProcess,
   bool? isWindows,
   String? currentExecutable,
 }) async {
@@ -181,7 +182,7 @@ Future<String> cockpitResolveActiveDartExecutable({
 }
 
 Future<String> cockpitReadActiveFlutterVersion({
-  CockpitFlutterCommandRunner processRunner = Process.run,
+  CockpitFlutterCommandRunner processRunner = cockpitRunIsolatedProcess,
   bool? isWindows,
 }) async {
   return cockpitReadFlutterVersion(
@@ -192,7 +193,7 @@ Future<String> cockpitReadActiveFlutterVersion({
 
 Future<String> cockpitReadFlutterVersion(
   String flutterExecutable, {
-  CockpitFlutterCommandRunner processRunner = Process.run,
+  CockpitFlutterCommandRunner processRunner = cockpitRunIsolatedProcess,
 }) async {
   final result = await processRunner(flutterExecutable, <String>[
     '--version',

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../infrastructure/cockpit_process_manager.dart';
+
 typedef CockpitVideoArtifactProcessRunner =
     Future<ProcessResult> Function(
       String executable,
@@ -329,7 +331,7 @@ Future<ProcessResult> _runProcess(
   List<String> arguments, {
   required Duration timeout,
 }) async {
-  final process = await Process.start(executable, arguments);
+  final process = await cockpitStartIsolatedProcess(executable, arguments);
   final stdoutFuture = process.stdout.transform(utf8.decoder).join();
   final stderrFuture = process.stderr.transform(utf8.decoder).join();
   try {

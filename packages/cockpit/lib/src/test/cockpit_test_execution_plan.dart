@@ -11,10 +11,12 @@ final class CockpitTestExecutionPlan {
     required Iterable<CockpitTestExecutionNode> setup,
     required Iterable<CockpitTestExecutionNode> steps,
     required Iterable<CockpitTestExecutionNode> finallySteps,
+    required Map<String, Object?> resolvedInputs,
     required this.secretBindings,
   }) : setup = List<CockpitTestExecutionNode>.unmodifiable(setup),
        steps = List<CockpitTestExecutionNode>.unmodifiable(steps),
-       finallySteps = List<CockpitTestExecutionNode>.unmodifiable(finallySteps);
+       finallySteps = List<CockpitTestExecutionNode>.unmodifiable(finallySteps),
+       resolvedInputs = Map<String, Object?>.unmodifiable(resolvedInputs);
 
   final String caseId;
   final String sourceSha256;
@@ -23,6 +25,7 @@ final class CockpitTestExecutionPlan {
   final List<CockpitTestExecutionNode> setup;
   final List<CockpitTestExecutionNode> steps;
   final List<CockpitTestExecutionNode> finallySteps;
+  final Map<String, Object?> resolvedInputs;
   final CockpitTestSecretBindings secretBindings;
 
   Iterable<CockpitTestExecutionNode> get allNodes sync* {

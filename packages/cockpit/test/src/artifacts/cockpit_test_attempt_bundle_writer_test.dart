@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cockpit/src/artifacts/cockpit_test_attempt_bundle_writer.dart';
 import 'package:cockpit/src/artifacts/cockpit_test_attempt_recorder.dart';
+import 'package:cockpit/src/worker/cockpit_worker_logger.dart';
 import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -67,6 +68,160 @@ void main() {
       ),
       throwsA(isA<CockpitTestBundlePublicationException>()),
     );
+  });
+
+  test('validates complete staging once before atomic publication', () async {
+    final root = await Directory.systemTemp.createTemp(
+      'cockpit-v2-commit-guard-',
+    );
+    addTearDown(() => root.delete(recursive: true));
+    final result = _result(evidence: const <String>['artifact000001']);
+    final expectedFinalPath = _bundlePath(root.path, result.context);
+    var validationCount = 0;
+    String? observedStagingPath;
+
+    final summary = await writer.write(
+      rootPath: root.path,
+      context: result.context,
+      sourceSha256: _hash('f'),
+      result: result,
+      artifacts: <CockpitTestRecordedArtifact>[
+        CockpitTestRecordedArtifact(
+          artifactId: 'artifact000001',
+          kind: 'screenshot',
+          relativePath: 'screenshots/final.png',
+          mediaType: 'image/png',
+          stepExecutionId: 'main/verify',
+          bytes: const <int>[1, 2, 3, 4],
+        ),
+      ],
+      createdAt: DateTime.utc(2026, 7, 20, 1),
+      prePublicationValidator: (stagingPath) async {
+        validationCount += 1;
+        observedStagingPath = stagingPath;
+        expect(await Directory(expectedFinalPath).exists(), isFalse);
+        final manifest = await reader.readAndVerify(path: stagingPath);
+        expect(manifest.artifacts.single.relativePath, 'screenshots/final.png');
+        return null;
+      },
+    );
+
+    expect(validationCount, 1);
+    expect(summary.path, expectedFinalPath);
+    expect(await Directory(expectedFinalPath).exists(), isTrue);
+    expect(await Directory(observedStagingPath!).exists(), isFalse);
+  });
+
+  test('secret artifacts and manifests never reach the final path', () async {
+    const secret = 'pre-publication-secret';
+    for (final source in const <String>['artifact', 'manifest']) {
+      final root = await Directory.systemTemp.createTemp(
+        'cockpit-v2-secret-$source-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final result = _result(
+        evidence: source == 'artifact'
+            ? const <String>['artifact000001']
+            : const <String>[],
+        primaryError: source == 'manifest'
+            ? CockpitTestError(
+                code: CockpitTestErrorCode.driverFailed,
+                message: 'Driver exposed $secret.',
+              )
+            : null,
+      );
+      final finalPath = _bundlePath(root.path, result.context);
+      String? stagingPath;
+      final validationError = CockpitTestError(
+        code: CockpitTestErrorCode.bundlePublicationFailed,
+        message: 'Bundle contains a plaintext secret.',
+        details: const <String, Object?>{'reason': 'plaintextSecretRejected'},
+      );
+
+      await expectLater(
+        writer.write(
+          rootPath: root.path,
+          context: result.context,
+          sourceSha256: _hash('1'),
+          result: result,
+          artifacts: source == 'artifact'
+              ? <CockpitTestRecordedArtifact>[
+                  CockpitTestRecordedArtifact(
+                    artifactId: 'artifact000001',
+                    kind: 'binary',
+                    relativePath: 'artifacts/payload.bin',
+                    mediaType: 'application/octet-stream',
+                    stepExecutionId: 'main/verify',
+                    bytes: <int>[0xff, ...utf8.encode(secret), 0xfe],
+                  ),
+                ]
+              : const <CockpitTestRecordedArtifact>[],
+          createdAt: DateTime.utc(2026, 7, 20, 1),
+          prePublicationValidator: (path) async {
+            stagingPath = path;
+            return await _treeContainsSensitiveBytes(path, secret)
+                ? validationError
+                : null;
+          },
+        ),
+        throwsA(
+          isA<CockpitTestBundlePublicationException>().having(
+            (error) => error.error,
+            'error',
+            same(validationError),
+          ),
+        ),
+        reason: source,
+      );
+      expect(await Directory(finalPath).exists(), isFalse, reason: source);
+      expect(await Directory(stagingPath!).exists(), isFalse, reason: source);
+    }
+  });
+
+  test('preserves typed validator throws and cleans staging', () async {
+    final validationError = CockpitTestError(
+      code: CockpitTestErrorCode.evidenceFailed,
+      message: 'Commit guard rejected the bundle.',
+    );
+    final validators = <CockpitTestBundlePrePublicationValidator>[
+      (_) async => throw validationError,
+      (_) async => throw CockpitTestBundlePublicationException(validationError),
+    ];
+    for (var index = 0; index < validators.length; index += 1) {
+      final root = await Directory.systemTemp.createTemp(
+        'cockpit-v2-typed-validator-$index-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final result = _result(evidence: const <String>[]);
+      String? stagingPath;
+
+      await expectLater(
+        writer.write(
+          rootPath: root.path,
+          context: result.context,
+          sourceSha256: _hash('2'),
+          result: result,
+          artifacts: const <CockpitTestRecordedArtifact>[],
+          createdAt: DateTime.utc(2026, 7, 20, 1),
+          prePublicationValidator: (path) async {
+            stagingPath = path;
+            return validators[index](path);
+          },
+        ),
+        throwsA(
+          isA<CockpitTestBundlePublicationException>().having(
+            (error) => error.error,
+            'error',
+            same(validationError),
+          ),
+        ),
+      );
+      expect(
+        await Directory(_bundlePath(root.path, result.context)).exists(),
+        isFalse,
+      );
+      expect(await Directory(stagingPath!).exists(), isFalse);
+    }
   });
 
   test('verification detects artifact tampering', () async {
@@ -213,7 +368,10 @@ void main() {
   });
 }
 
-CockpitTestAttemptResult _result({required List<String> evidence}) {
+CockpitTestAttemptResult _result({
+  required List<String> evidence,
+  CockpitTestError? primaryError,
+}) {
   final context = CockpitTestRunContext(
     projectId: 'projectOne',
     workspaceId: 'workspaceOne',
@@ -225,7 +383,9 @@ CockpitTestAttemptResult _result({required List<String> evidence}) {
   return CockpitTestAttemptResult(
     context: context,
     lifecycle: CockpitTestLifecycle.completed,
-    outcome: CockpitTestOutcome.passed,
+    outcome: primaryError == null
+        ? CockpitTestOutcome.passed
+        : CockpitTestOutcome.failed,
     stability: CockpitTestStability.stable,
     startedAt: DateTime.utc(2026, 7, 20),
     finishedAt: DateTime.utc(2026, 7, 20, 0, 0, 1),
@@ -234,6 +394,7 @@ CockpitTestAttemptResult _result({required List<String> evidence}) {
     platform: 'android',
     requestedPlane: CockpitTestPlane.semantic,
     actualPlane: CockpitTestPlane.semantic,
+    primaryError: primaryError,
     steps: <CockpitTestStepResult>[
       CockpitTestStepResult(
         stepId: 'verify',
@@ -246,6 +407,29 @@ CockpitTestAttemptResult _result({required List<String> evidence}) {
       ),
     ],
   );
+}
+
+String _bundlePath(String rootPath, CockpitTestRunContext context) => p.join(
+  rootPath,
+  context.projectId,
+  context.workspaceId,
+  context.runId,
+  'cases',
+  context.caseId,
+  'attempts',
+  context.attemptId,
+);
+
+Future<bool> _treeContainsSensitiveBytes(String rootPath, String value) async {
+  final scanner = CockpitSensitiveByteScanner(<String>[value]);
+  await for (final entity in Directory(
+    rootPath,
+  ).list(recursive: true, followLinks: false)) {
+    if (entity is File && await scanner.contains(entity.openRead())) {
+      return true;
+    }
+  }
+  return false;
 }
 
 String _hash(String character) => List<String>.filled(64, character).join();

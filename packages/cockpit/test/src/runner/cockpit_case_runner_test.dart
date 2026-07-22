@@ -109,6 +109,43 @@ void main() {
     expect(adapter.commands, isEmpty);
   });
 
+  test('preparation failure publication preserves validator error', () async {
+    final root = await Directory.systemTemp.createTemp(
+      'cockpit-v2-preparation-guard-',
+    );
+    addTearDown(() => root.delete(recursive: true));
+    final validationError = CockpitTestError(
+      code: CockpitTestErrorCode.bundlePublicationFailed,
+      message: 'Preparation bundle failed commit validation.',
+      details: const <String, Object?>{'reason': 'commitGuardRejected'},
+    );
+    var validationCount = 0;
+    final result =
+        await _runner(
+          RecordingAutomationAdapter(),
+          RecordingSecretResolver('unused'),
+          RecordingSafetyPolicy(),
+          bundlePrePublicationValidator: (_) async {
+            validationCount += 1;
+            return validationError;
+          },
+        ).run(
+          compiled: compiler
+              .compile(_simpleCase(targetKind: 'app'))
+              .requireCompiled(),
+          context: _context('simpleCase'),
+          targetId: 'emulatorOne',
+          targetEnvironment: CockpitTestTargetEnvironment.test,
+          reportRoot: root.path,
+        );
+
+    expect(validationCount, 1);
+    expect(result.primaryError?.code, CockpitTestErrorCode.targetMismatch);
+    expect(result.cleanupErrors, hasLength(1));
+    expect(result.cleanupErrors.single, same(validationError));
+    expect(result.bundlePath, isNull);
+  });
+
   test('successful retry marks the attempt flaky', () async {
     final root = await Directory.systemTemp.createTemp('cockpit-v2-retry-');
     addTearDown(() => root.delete(recursive: true));
@@ -337,11 +374,13 @@ void main() {
 CockpitCaseRunner _runner(
   RecordingAutomationAdapter adapter,
   RecordingSecretResolver resolver,
-  RecordingSafetyPolicy safety,
-) => CockpitCaseRunner(
+  RecordingSafetyPolicy safety, {
+  CockpitTestBundlePrePublicationValidator? bundlePrePublicationValidator,
+}) => CockpitCaseRunner(
   automationAdapter: adapter,
   secretResolver: resolver,
   safetyPolicy: safety,
+  bundlePrePublicationValidator: bundlePrePublicationValidator,
   clock: ManualCockpitClock(),
 );
 

@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:image/image.dart' as img;
+
 import '../artifacts/cockpit_recording_keyframe_extractor.dart';
 import '../capture/cockpit_screenshot_inspector.dart';
+import '../infrastructure/cockpit_process_manager.dart';
 import '../recording/cockpit_video_artifact_inspector.dart';
-import 'package:image/image.dart' as img;
 
 typedef CockpitArtifactValidationProcessRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
@@ -30,7 +32,8 @@ final class CockpitBundleArtifactValidator {
   CockpitBundleArtifactValidator({
     String ffprobeExecutable = 'ffprobe',
     String ffmpegExecutable = 'ffmpeg',
-    CockpitArtifactValidationProcessRunner processRunner = Process.run,
+    CockpitArtifactValidationProcessRunner processRunner =
+        cockpitRunIsolatedProcess,
     CockpitScreenshotInspector screenshotInspector =
         const CockpitImageScreenshotInspector(),
     CockpitVideoArtifactInspector? videoArtifactInspector,

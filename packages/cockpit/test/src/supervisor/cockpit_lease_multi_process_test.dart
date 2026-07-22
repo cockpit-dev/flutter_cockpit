@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:cockpit/src/supervisor/cockpit_lease_registry.dart';
 import 'package:cockpit_protocol/cockpit_protocol.dart';
@@ -140,8 +141,15 @@ Future<_HelperProcess> _spawnHelper(
   required String holderId,
   required String signalPath,
 }) async {
+  final packageLibrary = await Isolate.resolvePackageUri(
+    Uri.parse('package:cockpit/cockpit.dart'),
+  );
+  if (packageLibrary == null) {
+    throw StateError('Unable to resolve the cockpit package root.');
+  }
+  final packageRoot = p.dirname(p.dirname(packageLibrary.toFilePath()));
   final helper = p.join(
-    Directory.current.path,
+    packageRoot,
     'test',
     'src',
     'supervisor',
@@ -156,7 +164,7 @@ Future<_HelperProcess> _spawnHelper(
     resourceId,
     holderId,
     signalPath,
-  ], workingDirectory: Directory.current.path);
+  ], workingDirectory: packageRoot);
   return _HelperProcess(process);
 }
 

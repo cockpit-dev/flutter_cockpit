@@ -6,6 +6,7 @@ import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:path/path.dart' as p;
 
 import '../adapters/cockpit_recording_adapter.dart';
+import '../infrastructure/cockpit_process_manager.dart';
 import '../session/cockpit_session_process_runner.dart';
 
 typedef CockpitRecordingProcessStarter =
@@ -237,7 +238,7 @@ Future<Process> cockpitStartDetachedRecordingProcess(
   String executable,
   List<String> arguments,
 ) {
-  return Process.start(
+  return cockpitStartIsolatedProcess(
     executable,
     arguments,
     mode: ProcessStartMode.detachedWithStdio,

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../infrastructure/cockpit_process_manager.dart';
 import 'cockpit_filesystem_identity.dart';
 import 'cockpit_home.dart';
 
@@ -27,7 +28,7 @@ final class CockpitPowerShellWindowsFileIdentityProbe
   Future<CockpitWindowsFileIdentityProbeResult> inspect(
     String canonicalPath,
   ) async {
-    final result = await Process.run('powershell.exe', <String>[
+    final result = await cockpitRunIsolatedProcess('powershell.exe', <String>[
       '-NoLogo',
       '-NoProfile',
       '-NonInteractive',

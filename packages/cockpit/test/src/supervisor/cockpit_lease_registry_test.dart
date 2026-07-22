@@ -6,6 +6,7 @@ import 'package:cockpit/src/foundation/cockpit_locked_json_store.dart';
 import 'package:cockpit/src/supervisor/cockpit_lease_registry.dart';
 import 'package:cockpit/src/supervisor/cockpit_lease_registry_activity.dart';
 import 'package:cockpit/src/supervisor/cockpit_lease_support.dart';
+import 'package:cockpit/src/worker/cockpit_worker_resource_identity.dart';
 import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:test/test.dart';
 
@@ -13,6 +14,44 @@ import 'cockpit_lease_test_support.dart';
 
 void main() {
   group('durable lease admission', () {
+    test(
+      'serializes the same canonical physical device across workspaces',
+      () async {
+        final fixture = await CockpitLeaseTestFixture.create();
+        addTearDown(fixture.dispose);
+        final firstResourceId = cockpitCanonicalDeviceResourceId(
+          platform: ' Android ',
+          deviceId: 'emulator-5554',
+        );
+        final secondResourceId = cockpitCanonicalDeviceResourceId(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+        );
+
+        expect(secondResourceId, firstResourceId);
+        final first = await fixture.registry.acquire(
+          leaseRequest(
+            key: 'physical-device.workspace-a',
+            resourceId: firstResourceId,
+          ),
+        );
+        await expectLater(
+          fixture.registry.acquire(
+            leaseRequest(
+              key: 'physical-device.workspace-b',
+              resourceId: secondResourceId,
+              workspaceId: 'workspaceB',
+              holderId: 'runB',
+              waitTimeoutMs: 0,
+            ),
+          ),
+          throwsLease('resourceBusy'),
+        );
+
+        await fixture.registry.release(first.leaseId, holderId: first.holderId);
+      },
+    );
+
     test(
       'replays idempotently and grants one resource in FIFO order',
       () async {

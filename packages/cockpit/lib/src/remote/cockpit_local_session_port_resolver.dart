@@ -7,6 +7,7 @@ Future<int> cockpitResolveLocalSessionPort({
   required String platform,
   required String deviceId,
   required int preferredPort,
+  bool allowFallbackAllocation = true,
   CockpitHostPortAllocator portAllocator = cockpitAllocateHostPort,
   CockpitHostPortAvailabilityChecker portAvailabilityChecker =
       cockpitIsHostPortAvailable,
@@ -17,6 +18,12 @@ Future<int> cockpitResolveLocalSessionPort({
 
   if (await portAvailabilityChecker(preferredPort)) {
     return preferredPort;
+  }
+
+  if (!allowFallbackAllocation) {
+    throw const SocketException(
+      'Supervisor-granted session port is unavailable after handoff.',
+    );
   }
 
   return portAllocator();

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../session/cockpit_remote_session_launcher.dart';
 import '../session/cockpit_session_process_runner.dart';
+import '../infrastructure/cockpit_process_manager.dart';
 import 'cockpit_flutter_run_machine_event.dart';
 
 final class CockpitFlutterRunMachineRequestException implements Exception {
@@ -68,7 +69,7 @@ final class CockpitFlutterRunMachineClient {
   }) async {
     final resolvedFlutterExecutable =
         flutterExecutable ?? cockpitFlutterExecutable();
-    final process = await Process.start(
+    final process = await cockpitStartIsolatedProcess(
       resolvedFlutterExecutable,
       <String>[
         'run',
@@ -116,7 +117,7 @@ final class CockpitFlutterRunMachineClient {
   }) async {
     final resolvedFlutterExecutable =
         flutterExecutable ?? cockpitFlutterExecutable();
-    final process = await Process.start(
+    final process = await cockpitStartIsolatedProcess(
       resolvedFlutterExecutable,
       <String>[
         'attach',

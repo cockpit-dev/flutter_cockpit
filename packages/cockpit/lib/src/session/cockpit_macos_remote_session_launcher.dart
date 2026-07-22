@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../infrastructure/cockpit_process_manager.dart';
 import 'cockpit_android_remote_session_launcher.dart';
 import 'cockpit_apple_bundle_support.dart';
 import 'cockpit_flutter_launch_configuration.dart';
@@ -354,7 +355,7 @@ final class CockpitMacosRemoteSessionLauncher
     }
     final pathContext = cockpitSessionPathContext(executablePath);
     final process =
-        await Process.start(
+        await cockpitStartIsolatedProcess(
           executablePath,
           const <String>[],
           workingDirectory: pathContext.dirname(executablePath),

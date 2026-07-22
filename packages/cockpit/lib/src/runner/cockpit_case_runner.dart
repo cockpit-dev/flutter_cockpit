@@ -23,12 +23,14 @@ final class CockpitCaseRunner {
     CockpitRecordingAdapter? recordingAdapter,
     required CockpitTestSecretResolver secretResolver,
     required CockpitTestSafetyPolicy safetyPolicy,
+    CockpitTestBundlePrePublicationValidator? bundlePrePublicationValidator,
     CockpitMonotonicClock? clock,
   }) : _automationAdapter = automationAdapter,
        _captureAdapter = captureAdapter,
        _recordingAdapter = recordingAdapter,
        _secretResolver = secretResolver,
        _safetyPolicy = safetyPolicy,
+       _bundlePrePublicationValidator = bundlePrePublicationValidator,
        _clock = clock ?? CockpitSystemMonotonicClock();
 
   final CockpitAutomationAdapter _automationAdapter;
@@ -36,6 +38,8 @@ final class CockpitCaseRunner {
   final CockpitRecordingAdapter? _recordingAdapter;
   final CockpitTestSecretResolver _secretResolver;
   final CockpitTestSafetyPolicy _safetyPolicy;
+  final CockpitTestBundlePrePublicationValidator?
+  _bundlePrePublicationValidator;
   final CockpitTestActionLowerer _lowerer = const CockpitTestActionLowerer();
   final CockpitMonotonicClock _clock;
   final CockpitTestAttemptBundleWriter _bundleWriter =
@@ -48,6 +52,7 @@ final class CockpitCaseRunner {
     required CockpitTestTargetEnvironment targetEnvironment,
     required String reportRoot,
     Map<String, Object?> inputs = const <String, Object?>{},
+    CockpitTestExecutionPlan? preparedPlan,
     CockpitCaseExecutionControl? control,
   }) async {
     final startedAt = _clock.utcNow;
@@ -68,10 +73,31 @@ final class CockpitCaseRunner {
       );
     }
 
-    CockpitTestExecutionPlan plan;
-    try {
-      plan = CockpitTestVariableBinder().bind(compiled, inputs: inputs);
-    } on CockpitTestBindingException catch (error) {
+    late final CockpitTestExecutionPlan plan;
+    if (preparedPlan != null) {
+      if (inputs.isNotEmpty) {
+        throw ArgumentError(
+          'Runtime inputs cannot accompany an already prepared case plan.',
+        );
+      }
+      plan = preparedPlan;
+    } else {
+      try {
+        plan = CockpitTestVariableBinder().bind(compiled, inputs: inputs);
+      } on CockpitTestBindingException catch (error) {
+        return _publishPreparationFailure(
+          compiled: compiled,
+          context: context,
+          targetId: targetId,
+          reportRoot: reportRoot,
+          startedAt: startedAt,
+          startedElapsed: startedElapsed,
+          error: error.error,
+        );
+      }
+    }
+    if (plan.caseId != compiled.testCase.id ||
+        plan.sourceSha256 != compiled.sourceSha256) {
       return _publishPreparationFailure(
         compiled: compiled,
         context: context,
@@ -79,7 +105,10 @@ final class CockpitCaseRunner {
         reportRoot: reportRoot,
         startedAt: startedAt,
         startedElapsed: startedElapsed,
-        error: error.error,
+        error: CockpitTestError(
+          code: CockpitTestErrorCode.validationFailed,
+          message: 'Prepared plan does not match the compiled case.',
+        ),
       );
     }
 
@@ -344,6 +373,7 @@ final class CockpitCaseRunner {
         result: result,
         artifacts: artifacts,
         createdAt: finishedAt,
+        prePublicationValidator: _bundlePrePublicationValidator,
       );
       result = CockpitTestAttemptResult(
         context: context,

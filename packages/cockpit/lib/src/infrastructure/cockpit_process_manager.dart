@@ -6,6 +6,72 @@ import 'package:process/process.dart';
 
 import 'cockpit_process_output_collector.dart';
 
+const Set<String> _cockpitMinimumChildEnvironmentNames = <String>{
+  'PATH',
+  'HOME',
+  'USERPROFILE',
+  'TMPDIR',
+  'TMP',
+  'TEMP',
+  'SystemRoot',
+  'WINDIR',
+  'LANG',
+  'LC_ALL',
+};
+
+Map<String, String> cockpitMinimumChildEnvironment({
+  Map<String, String>? environment,
+  Map<String, String>? parentEnvironment,
+}) {
+  final parent = parentEnvironment ?? Platform.environment;
+  return <String, String>{
+    for (final entry in parent.entries)
+      if (_cockpitMinimumChildEnvironmentNames.contains(entry.key))
+        entry.key: entry.value,
+    ...?environment,
+  };
+}
+
+Future<Process> cockpitStartIsolatedProcess(
+  String executable,
+  List<String> arguments, {
+  String? workingDirectory,
+  Map<String, String>? environment,
+  bool runInShell = false,
+  ProcessStartMode mode = ProcessStartMode.normal,
+}) {
+  return Process.start(
+    executable,
+    arguments,
+    workingDirectory: workingDirectory,
+    environment: cockpitMinimumChildEnvironment(environment: environment),
+    includeParentEnvironment: false,
+    runInShell: runInShell,
+    mode: mode,
+  );
+}
+
+Future<ProcessResult> cockpitRunIsolatedProcess(
+  String executable,
+  List<String> arguments, {
+  String? workingDirectory,
+  Map<String, String>? environment,
+  bool runInShell = false,
+  Encoding? stdoutEncoding = systemEncoding,
+  Encoding? stderrEncoding = systemEncoding,
+}) {
+  return Process.run(
+    executable,
+    arguments,
+    workingDirectory: workingDirectory,
+    environment: cockpitMinimumChildEnvironment(environment: environment),
+    includeParentEnvironment: false,
+    runInShell: runInShell,
+    stdoutEncoding: stdoutEncoding,
+    stderrEncoding: stderrEncoding,
+  );
+}
+
 abstract interface class CockpitProcessManager {
   Future<ProcessResult> run(
     String executable,
@@ -167,6 +233,8 @@ Future<void> cockpitKillLocalProcessDescendants(int rootPid) async {
       await Process.run(
         'taskkill',
         <String>['/PID', '$rootPid', '/T', '/F'],
+        environment: cockpitMinimumChildEnvironment(),
+        includeParentEnvironment: false,
         stdoutEncoding: utf8,
         stderrEncoding: utf8,
       ).timeout(const Duration(milliseconds: 800));
@@ -176,6 +244,8 @@ Future<void> cockpitKillLocalProcessDescendants(int rootPid) async {
     final result = await Process.run(
       'ps',
       const <String>['-axo', 'pid=,ppid='],
+      environment: cockpitMinimumChildEnvironment(),
+      includeParentEnvironment: false,
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
     ).timeout(const Duration(milliseconds: 800));

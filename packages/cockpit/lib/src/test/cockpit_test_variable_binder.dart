@@ -67,6 +67,14 @@ final class CockpitTestVariableBinder {
       environment: environment,
       fragments: testCase.fragments,
     );
+    final resolvedInputs = <String, Object?>{
+      for (final entry in testCase.variables.entries)
+        if (entry.value.source != CockpitTestVariableSource.secret)
+          entry.key: cockpitTestCopyJsonValue(
+            environment[entry.key],
+            path: '\$.resolvedInputs.${entry.key}',
+          ),
+    };
     return CockpitTestExecutionPlan(
       caseId: testCase.id,
       sourceSha256: compiled.sourceSha256,
@@ -90,6 +98,7 @@ final class CockpitTestVariableBinder {
         executionBase: 'finally',
         section: 'finally',
       ),
+      resolvedInputs: resolvedInputs,
       secretBindings: CockpitTestSecretBindings(secretReferences),
     );
   }

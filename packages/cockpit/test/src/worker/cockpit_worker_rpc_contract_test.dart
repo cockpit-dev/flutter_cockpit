@@ -1,0 +1,1744 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:cockpit/src/foundation/cockpit_locked_json_store.dart';
+import 'package:cockpit/src/foundation/cockpit_permissions.dart';
+import 'package:cockpit/src/supervisor/cockpit_supervisor_worker_endpoint.dart';
+import 'package:cockpit/src/supervisor/cockpit_worker_resource_authority.dart';
+import 'package:cockpit/src/worker/cockpit_json_rpc_message.dart';
+import 'package:cockpit/src/worker/cockpit_json_rpc_peer.dart';
+import 'package:cockpit/src/worker/cockpit_worker_case_run_store.dart';
+import 'package:cockpit/src/worker/cockpit_worker_memory_event_exchange.dart';
+import 'package:cockpit/src/worker/cockpit_worker_operation_journal.dart';
+import 'package:cockpit/src/worker/cockpit_worker_protocol_result.dart';
+import 'package:cockpit/src/worker/cockpit_worker_resource_grant.dart';
+import 'package:cockpit/src/worker/cockpit_worker_server.dart';
+import 'package:cockpit/src/worker/cockpit_worker_value_reader.dart';
+import 'package:cockpit/src/worker/cockpit_workspace_application_adapters.dart';
+import 'package:cockpit/src/worker/cockpit_workspace_operation_registry.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
+import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
+
+void main() {
+  const workspaceId = 'workspaceA';
+  const engineVersion = 'engineA';
+  const workspaceRoot = '/workspace/a';
+
+  group('shared worker RPC corpus', () {
+    for (final invalid in _invalidEnvelopeCorpus) {
+      test('worker endpoint rejects ${invalid.name}', () async {
+        final server = CockpitWorkerServer(
+          workspaceId: workspaceId,
+          engineVersion: engineVersion,
+          workspaceRoot: workspaceRoot,
+          supportedFeatures: const <String>['featureA'],
+          operations: const _TestOperationDispatcher(),
+          events: CockpitWorkerMemoryEventExchange(),
+        );
+        final harness = _PeerHarness(server.handle);
+        server.bindPeer(harness.server);
+        harness.start();
+        addTearDown(harness.close);
+        await _initialize(
+          harness.client,
+          workspaceId: workspaceId,
+          engineVersion: engineVersion,
+          workspaceRoot: workspaceRoot,
+        );
+
+        await expectLater(
+          harness.client.call(
+            method: 'capabilities',
+            params: invalid.apply(<String, Object?>{
+              'protocolVersion': cockpitWorkerProtocolVersion,
+              'workspaceId': workspaceId,
+              'idempotencyKey': 'capabilities-${invalid.name}',
+            }),
+            deadline: _deadline(),
+          ),
+          throwsA(
+            isA<CockpitJsonRpcRemoteException>().having(
+              (error) => error.error.workerCode,
+              'workerCode',
+              invalid.workerCode,
+            ),
+          ),
+        );
+      });
+
+      test('Supervisor endpoint rejects ${invalid.name}', () async {
+        final endpoint = CockpitSupervisorWorkerEndpoint(
+          workspaceId: workspaceId,
+          events: CockpitWorkerMemoryEventExchange(),
+          resourceAuthority: const _TestResourceAuthority(),
+        );
+        final harness = _PeerHarness(endpoint.handle)..start();
+        addTearDown(harness.close);
+        final deadline = _deadline();
+        final key = 'resource-${invalid.name}';
+        final invocation = CockpitOperationInvocation(
+          kind: 'resource.heartbeat',
+          workspaceId: workspaceId,
+          idempotencyKey: CockpitIdempotencyKey(key),
+          deadline: deadline,
+          input: const <String, Object?>{'grantId': 'grantA'},
+        );
+
+        await expectLater(
+          harness.client.call(
+            method: 'operation',
+            params: invalid.apply(<String, Object?>{
+              'protocolVersion': cockpitWorkerProtocolVersion,
+              'workspaceId': workspaceId,
+              'idempotencyKey': key,
+              'invocation': invocation.toJson(),
+            }),
+            deadline: deadline,
+          ),
+          throwsA(
+            isA<CockpitJsonRpcRemoteException>().having(
+              (error) => error.error.workerCode,
+              'workerCode',
+              invalid.workerCode,
+            ),
+          ),
+        );
+      });
+    }
+  });
+
+  group('bidirectional peer contract corpus', () {
+    for (final direction in const <_ContractDirection>[
+      _ContractDirection.worker(),
+      _ContractDirection.supervisor(),
+    ]) {
+      test('${direction.name} rejects unknown methods', () async {
+        final harness = direction.openRaw();
+        harness.start();
+        addTearDown(harness.close);
+        final response = await harness.send(
+          CockpitJsonRpcRequest(
+            id: 'unknownA',
+            method: 'unknownMethod',
+            params: const <String, Object?>{},
+          ),
+        );
+        expect(response.error?.workerCode, 'methodNotFound');
+      });
+
+      test('${direction.name} rejects duplicate request ids', () async {
+        final harness = direction.open();
+        await harness.start();
+        addTearDown(harness.close);
+        expect(
+          CockpitWorkerPublishEventBatchResult.fromJson(
+            await harness.peer.call(
+              method: 'publishEventBatch',
+              params: _publishParams(
+                key: 'duplicate-first',
+                runId: 'runDuplicate',
+                afterSequence: 0,
+                eventSequence: 1,
+              ),
+              deadline: _deadline(),
+              requestId: 'duplicateA',
+            ),
+          ).highestContiguousSequence,
+          1,
+        );
+        await expectLater(
+          harness.peer.call(
+            method: 'publishEventBatch',
+            params: _publishParams(
+              key: 'duplicate-second',
+              runId: 'runDuplicateOther',
+              afterSequence: 0,
+              eventSequence: 1,
+            ),
+            deadline: _deadline(),
+            requestId: 'duplicateA',
+          ),
+          throwsA(_remoteCode('duplicateRequestId')),
+        );
+      });
+
+      test(
+        '${direction.name} waits for terminal cleanup before timeout',
+        () async {
+          final protocolErrors = <Object>[];
+          final harness = direction.open(
+            decorate: (base) => (request, cancellation) async {
+              if (request.id == 'lateA') {
+                await Future<void>.delayed(const Duration(milliseconds: 80));
+              }
+              return base(request, cancellation);
+            },
+            receiverUtcNow: () =>
+                DateTime.now().toUtc().subtract(const Duration(seconds: 1)),
+            callerProtocolError: (error, _) => protocolErrors.add(error),
+          );
+          await harness.start();
+          addTearDown(harness.close);
+          var completed = false;
+          final call = harness.peer.call(
+            method: 'publishEventBatch',
+            params: _publishParams(
+              key: 'late',
+              runId: 'runLate',
+              afterSequence: 0,
+              eventSequence: 1,
+            ),
+            deadline: DateTime.now().toUtc().add(
+              const Duration(milliseconds: 20),
+            ),
+            requestId: 'lateA',
+          );
+          unawaited(
+            call.then<void>(
+              (_) => completed = true,
+              onError: (_, _) => completed = true,
+            ),
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 40));
+          expect(completed, isFalse);
+          expect(harness.peer.isOutboundCleanupPending, isTrue);
+          expect(
+            () => harness.peer.call(
+              method: 'publishEventBatch',
+              params: _publishParams(
+                key: 'during-cleanup',
+                runId: 'runDuringCleanup',
+                afterSequence: 0,
+                eventSequence: 1,
+              ),
+              deadline: _deadline(),
+            ),
+            throwsA(isA<CockpitJsonRpcPeerCleanupPendingException>()),
+          );
+          await expectLater(call, throwsA(isA<TimeoutException>()));
+          expect(protocolErrors, isEmpty);
+          expect(harness.peer.isOutboundCleanupPending, isFalse);
+          expect(
+            CockpitWorkerPublishEventBatchResult.fromJson(
+              await harness.peer.call(
+                method: 'publishEventBatch',
+                params: _publishParams(
+                  key: 'after-late',
+                  runId: 'runAfterLate',
+                  afterSequence: 0,
+                  eventSequence: 1,
+                ),
+                deadline: _deadline(),
+              ),
+            ).highestContiguousSequence,
+            1,
+          );
+        },
+      );
+
+      test(
+        '${direction.name} closes when terminal cleanup never arrives',
+        () async {
+          final never = Completer<Object?>();
+          final harness = direction.open(
+            decorate: (base) =>
+                (request, cancellation) => request.id == 'neverA'
+                ? never.future
+                : base(request, cancellation),
+            clientCancellationGrace: const Duration(milliseconds: 5),
+            clientForcedAbortGrace: const Duration(milliseconds: 20),
+          );
+          await harness.start();
+          addTearDown(harness.close);
+          final call = harness.peer.call(
+            method: 'publishEventBatch',
+            params: _publishParams(
+              key: 'never-terminal',
+              runId: 'runNeverTerminal',
+              afterSequence: 0,
+              eventSequence: 1,
+            ),
+            deadline: DateTime.now().toUtc().add(
+              const Duration(milliseconds: 10),
+            ),
+            requestId: 'neverA',
+          );
+          await expectLater(call, throwsA(isA<TimeoutException>()));
+          await harness.peer.done;
+          expect(harness.peer.isClosed, isTrue);
+        },
+      );
+
+      test('${direction.name} resolves cancellation races once', () async {
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        final protocolErrors = <Object>[];
+        final harness = direction.open(
+          decorate: (base) => (request, cancellation) async {
+            if (request.id == 'cancelRaceA') {
+              entered.complete();
+              await Future.any<void>(<Future<void>>[
+                release.future,
+                cancellation.whenCancelled,
+              ]);
+              cancellation.throwIfCancelled();
+            }
+            return base(request, cancellation);
+          },
+          callerProtocolError: (error, _) => protocolErrors.add(error),
+        );
+        await harness.start();
+        addTearDown(harness.close);
+        final call = harness.peer.call(
+          method: 'publishEventBatch',
+          params: _publishParams(
+            key: 'cancel-race',
+            runId: 'runCancelRace',
+            afterSequence: 0,
+            eventSequence: 1,
+          ),
+          deadline: _deadline(),
+          requestId: 'cancelRaceA',
+        );
+        await entered.future;
+        expect(
+          harness.receiver.cancelInbound('cancelRaceA'),
+          CockpitRpcCancellationResult.cancelled,
+        );
+        release.complete();
+        await expectLater(call, throwsA(_remoteCode('cancelled')));
+        expect(harness.receiver.activeInboundRequestCount, 0);
+        expect(protocolErrors, isEmpty);
+        expect(
+          CockpitWorkerPublishEventBatchResult.fromJson(
+            await harness.peer.call(
+              method: 'publishEventBatch',
+              params: _publishParams(
+                key: 'after-cancel',
+                runId: 'runAfterCancel',
+                afterSequence: 0,
+                eventSequence: 1,
+              ),
+              deadline: _deadline(),
+            ),
+          ).highestContiguousSequence,
+          1,
+        );
+      });
+
+      test('${direction.name} reports event gaps', () async {
+        final harness = direction.open();
+        await harness.start();
+        addTearDown(harness.close);
+        final first = CockpitWorkerPublishEventBatchResult.fromJson(
+          await harness.peer.call(
+            method: 'publishEventBatch',
+            params: _publishParams(
+              key: 'event-first',
+              runId: 'runGap',
+              afterSequence: 0,
+              eventSequence: 1,
+            ),
+            deadline: _deadline(),
+          ),
+        );
+        expect(first.highestContiguousSequence, 1);
+        expect(first.replayAfterSequence, isNull);
+        final gap = CockpitWorkerPublishEventBatchResult.fromJson(
+          await harness.peer.call(
+            method: 'publishEventBatch',
+            params: _publishParams(
+              key: 'event-gap',
+              runId: 'runGap',
+              afterSequence: 2,
+              eventSequence: 3,
+            ),
+            deadline: _deadline(),
+          ),
+        );
+        expect(gap.highestContiguousSequence, 1);
+        expect(gap.replayAfterSequence, 1);
+      });
+    }
+  });
+
+  test(
+    'worker negotiates capabilities without advertising internal routes',
+    () async {
+      final server = CockpitWorkerServer(
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        supportedFeatures: const <String>['featureA', 'featureB'],
+        operations: const _TestOperationDispatcher(),
+        events: CockpitWorkerMemoryEventExchange(),
+      );
+      final harness = _PeerHarness(server.handle);
+      server.bindPeer(harness.server);
+      harness.start();
+      addTearDown(harness.close);
+      await _initialize(
+        harness.client,
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+      );
+
+      final raw = await harness.client.call(
+        method: 'capabilities',
+        params: const <String, Object?>{
+          'protocolVersion': cockpitWorkerProtocolVersion,
+          'workspaceId': workspaceId,
+          'idempotencyKey': 'capabilities-valid',
+        },
+        deadline: _deadline(),
+      );
+      final result = CockpitWorkerCapabilitiesResult.fromJson(raw);
+      expect(result.operationKinds, const <String>['analyze.workspace']);
+      expect(result.features, const <String>['featureA']);
+      expect(result.operationKinds, isNot(contains('worker.port.bind')));
+    },
+  );
+
+  test('worker rejects operation features that were not negotiated', () async {
+    final server = CockpitWorkerServer(
+      workspaceId: workspaceId,
+      engineVersion: engineVersion,
+      workspaceRoot: workspaceRoot,
+      supportedFeatures: const <String>['featureA', 'featureB'],
+      operations: const _TestOperationDispatcher(),
+      events: CockpitWorkerMemoryEventExchange(),
+    );
+    final harness = _PeerHarness(server.handle);
+    server.bindPeer(harness.server);
+    harness.start();
+    addTearDown(harness.close);
+    await _initialize(
+      harness.client,
+      workspaceId: workspaceId,
+      engineVersion: engineVersion,
+      workspaceRoot: workspaceRoot,
+    );
+    final deadline = _deadline();
+    const key = 'missing-feature';
+
+    await expectLater(
+      harness.client.call(
+        method: 'operation',
+        params: <String, Object?>{
+          'protocolVersion': cockpitWorkerProtocolVersion,
+          'workspaceId': workspaceId,
+          'idempotencyKey': key,
+          'invocation': CockpitOperationInvocation(
+            kind: 'analyze.workspace',
+            workspaceId: workspaceId,
+            idempotencyKey: CockpitIdempotencyKey(key),
+            deadline: deadline,
+            requiredFeatures: const <String>['featureB'],
+          ).toJson(),
+        },
+        deadline: deadline,
+      ),
+      throwsA(_remoteCode('requiredFeatureMissing')),
+    );
+  });
+
+  test(
+    'leased read stays read-only and excludes a same-session mutation',
+    () async {
+      final backend = _ReadMutationBackend();
+      final resolver = _ReadMutationResourceResolver();
+      final authority = _ExclusiveSessionResourceAuthority();
+      final adapters = CockpitWorkspaceApplicationAdapters(
+        workspaceId: workspaceId,
+        backend: backend,
+        resourceResolver: resolver,
+      ).create();
+      for (final kind in const <String>{
+        'app.get',
+        'target.get',
+        'session.remote.get',
+        'session.remote.status',
+        'snapshot.remote.read',
+        'session.development.get',
+        'ui.inspect',
+        'surface.inspect',
+        'logs.read',
+        'network.read',
+        'errors.read',
+        'session.logs.read',
+      }) {
+        expect(
+          adapters.singleWhere((adapter) => adapter.kind == kind).mutationClass,
+          CockpitMutationClass.readOnly,
+          reason: kind,
+        );
+      }
+      expect(
+        adapters
+            .singleWhere((adapter) => adapter.kind == 'command.run')
+            .mutationClass,
+        CockpitMutationClass.mutating,
+      );
+      final registry = CockpitWorkspaceOperationRegistry(
+        workspaceId: workspaceId,
+        workspaceRoot: workspaceRoot,
+        adapters: adapters,
+        resourceAuthority: authority,
+        operationJournal: CockpitInMemoryWorkerOperationJournal(),
+        terminateUnsafeWorker: () async {},
+      );
+      final server = CockpitWorkerServer(
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        supportedFeatures: const <String>[],
+        operations: registry,
+        events: CockpitWorkerMemoryEventExchange(),
+      );
+      final harness = _PeerHarness(server.handle);
+      server.bindPeer(harness.server);
+      harness.start();
+      addTearDown(harness.close);
+      await _initialize(
+        harness.client,
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        supportedFeatures: const <String>[],
+      );
+
+      final read = _callOperation(
+        harness.client,
+        _applicationInvocation('session.remote.status', 'leased-read'),
+      );
+      await backend.readEntered.future;
+      final mutation = _callOperation(
+        harness.client,
+        _applicationInvocation('command.run', 'leased-mutation'),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(backend.mutationEntered.isCompleted, isFalse);
+
+      backend.releaseRead.complete();
+      final results = await Future.wait<CockpitOperationResult>(
+        <Future<CockpitOperationResult>>[read, mutation],
+      );
+      expect(
+        results.map((result) => result.outcome),
+        everyElement(CockpitOperationOutcome.succeeded),
+      );
+      expect(backend.mutationEntered.isCompleted, isTrue);
+      expect(authority.sessionAcquisitions, <String>[
+        'session_resource_A',
+        'session_resource_A',
+      ]);
+
+      final registryRead = await _callOperation(
+        harness.client,
+        _applicationInvocation(
+          'app.list',
+          'local-app-list',
+          input: const <String, Object?>{},
+        ),
+      );
+      final localCompare = await _callOperation(
+        harness.client,
+        _applicationInvocation(
+          'development.probe.compare',
+          'local-probe-compare',
+        ),
+      );
+      expect(registryRead.outcome, CockpitOperationOutcome.succeeded);
+      expect(localCompare.outcome, CockpitOperationOutcome.succeeded);
+      expect(resolver.resolvedKinds, <String>[
+        'session.remote.status',
+        'command.run',
+      ]);
+      expect(backend.grantCountByKind['app.list'], 0);
+      expect(backend.grantCountByKind['development.probe.compare'], 0);
+    },
+  );
+
+  test('development probe collection is a leased journaled mutation', () async {
+    final backend = _ProbeBackend();
+    final resolver = _ProbeResourceResolver();
+    final authority = _RecordingResourceAuthority();
+    final journal = CockpitInMemoryWorkerOperationJournal();
+    final adapters = CockpitWorkspaceApplicationAdapters(
+      workspaceId: workspaceId,
+      backend: backend,
+      resourceResolver: resolver,
+    ).create();
+    final probeAdapter = adapters.singleWhere(
+      (adapter) => adapter.kind == 'development.probe.collect',
+    );
+    expect(probeAdapter.mutationClass, CockpitMutationClass.mutating);
+    expect(probeAdapter.resourceKinds, const <String>['workspace.probes']);
+    final registry = CockpitWorkspaceOperationRegistry(
+      workspaceId: workspaceId,
+      workspaceRoot: workspaceRoot,
+      adapters: adapters,
+      resourceAuthority: authority,
+      operationJournal: journal,
+      terminateUnsafeWorker: () async {},
+    );
+    final server = CockpitWorkerServer(
+      workspaceId: workspaceId,
+      engineVersion: engineVersion,
+      workspaceRoot: workspaceRoot,
+      supportedFeatures: const <String>[],
+      operations: registry,
+      events: CockpitWorkerMemoryEventExchange(),
+    );
+    final harness = _PeerHarness(server.handle);
+    server.bindPeer(harness.server);
+    harness.start();
+    addTearDown(harness.close);
+    await _initialize(
+      harness.client,
+      workspaceId: workspaceId,
+      engineVersion: engineVersion,
+      workspaceRoot: workspaceRoot,
+      supportedFeatures: const <String>[],
+    );
+    final invocation = _probeInvocation('probe-completed');
+
+    final first = await _callOperation(harness.client, invocation);
+    final replay = await _callOperation(harness.client, invocation);
+
+    expect(first.outcome, CockpitOperationOutcome.succeeded);
+    expect(replay.toJson(), first.toJson());
+    expect(backend.recordCount, 1);
+    expect(resolver.resolveCount, 1);
+    expect(
+      authority.requests.map((request) => request.resourceKind),
+      <CockpitLeaseResourceKind>[
+        CockpitLeaseResourceKind.device,
+        CockpitLeaseResourceKind.session,
+      ],
+    );
+    expect(authority.releaseCount, 2);
+  });
+
+  test('recovered running probe collection is not recorded again', () async {
+    final backend = _ProbeBackend();
+    final resolver = _ProbeResourceResolver();
+    final authority = _RecordingResourceAuthority();
+    final journal = CockpitInMemoryWorkerOperationJournal();
+    final invocation = _probeInvocation('probe-running');
+    final submittedAt = DateTime.now().toUtc();
+    await journal.admit(invocation: invocation, submittedAt: submittedAt);
+    await journal.markRunning(
+      idempotencyKey: 'probe-running',
+      startedAt: submittedAt,
+    );
+    await journal.recover(now: submittedAt.add(const Duration(seconds: 1)));
+    final registry = CockpitWorkspaceOperationRegistry(
+      workspaceId: workspaceId,
+      workspaceRoot: workspaceRoot,
+      adapters: CockpitWorkspaceApplicationAdapters(
+        workspaceId: workspaceId,
+        backend: backend,
+        resourceResolver: resolver,
+      ).create(),
+      resourceAuthority: authority,
+      operationJournal: journal,
+      terminateUnsafeWorker: () async {},
+    );
+    final server = CockpitWorkerServer(
+      workspaceId: workspaceId,
+      engineVersion: engineVersion,
+      workspaceRoot: workspaceRoot,
+      supportedFeatures: const <String>[],
+      operations: registry,
+      events: CockpitWorkerMemoryEventExchange(),
+    );
+    final harness = _PeerHarness(server.handle);
+    server.bindPeer(harness.server);
+    harness.start();
+    addTearDown(harness.close);
+    await _initialize(
+      harness.client,
+      workspaceId: workspaceId,
+      engineVersion: engineVersion,
+      workspaceRoot: workspaceRoot,
+      supportedFeatures: const <String>[],
+    );
+
+    final result = await _callOperation(harness.client, invocation);
+
+    expect(result.outcome, CockpitOperationOutcome.failed);
+    expect(result.failure?.primary.code, 'operationInterrupted');
+    expect(backend.recordCount, 0);
+    expect(resolver.resolveCount, 0);
+    expect(authority.requests, isEmpty);
+  });
+
+  test(
+    'dispatcher re-admits case.run with the same run and a new attempt',
+    () async {
+      final fixture = await _CaseRecoveryFixture.create();
+      addTearDown(fixture.dispose);
+      final invocation = _caseRunInvocation('case-running');
+      final submittedAt = DateTime.now().toUtc();
+      final original = await fixture.caseStore.reserve(
+        idempotencyKey: 'case-running',
+        requestFingerprint: _caseRequestFingerprint,
+        caseId: 'caseA',
+        proposedRunId: 'run_original',
+        proposedAttemptId: 'attempt_original',
+        now: submittedAt,
+      );
+      await fixture.caseStore.markRunning(
+        idempotencyKey: 'case-running',
+        runId: original.runId,
+        attemptId: original.attemptId,
+        now: submittedAt,
+      );
+      final admission = await fixture.journal.admit(
+        invocation: invocation,
+        submittedAt: submittedAt,
+      );
+      await fixture.journal.markRunning(
+        idempotencyKey: 'case-running',
+        startedAt: submittedAt,
+      );
+
+      expect(
+        await fixture.caseStore.recover(
+          now: submittedAt.add(const Duration(seconds: 1)),
+        ),
+        1,
+      );
+      await fixture.journal.recover(
+        now: submittedAt.add(const Duration(seconds: 1)),
+      );
+      final adapter = _RecoverableCaseAdapter(fixture.caseStore);
+      final harness = await fixture.open(adapter);
+      addTearDown(harness.close);
+
+      final result = await _callOperation(harness.client, invocation);
+      final replay = await _callOperation(harness.client, invocation);
+      final record = await fixture.readCaseRecord();
+      final attempts = record['attempts']! as List<Object?>;
+
+      expect(result.operationId, admission.operationId);
+      expect(result.outcome, CockpitOperationOutcome.succeeded);
+      expect(result.output?['runId'], original.runId);
+      expect(result.output?['attemptId'], isNot(original.attemptId));
+      expect(replay.toJson(), result.toJson());
+      expect(adapter.driverExecutions, 1);
+      expect(attempts, hasLength(2));
+      expect(
+        (attempts.first! as Map<String, Object?>)['status'],
+        CockpitWorkerCaseAttemptStatus.interrupted.name,
+      );
+      expect(
+        (attempts.last! as Map<String, Object?>)['status'],
+        CockpitWorkerCaseAttemptStatus.completed.name,
+      );
+    },
+  );
+
+  test(
+    'dispatcher replays completed case output from a stale journal',
+    () async {
+      final fixture = await _CaseRecoveryFixture.create();
+      addTearDown(fixture.dispose);
+      final invocation = _caseRunInvocation('case-completed-window');
+      final submittedAt = DateTime.now().toUtc();
+      final original = await fixture.caseStore.reserve(
+        idempotencyKey: 'case-completed-window',
+        requestFingerprint: _caseRequestFingerprint,
+        caseId: 'caseA',
+        proposedRunId: 'run_completed',
+        proposedAttemptId: 'attempt_completed',
+        now: submittedAt,
+      );
+      await fixture.caseStore.markRunning(
+        idempotencyKey: 'case-completed-window',
+        runId: original.runId,
+        attemptId: original.attemptId,
+        now: submittedAt,
+      );
+      final completedOutput = <String, Object?>{
+        'runId': original.runId,
+        'attemptId': original.attemptId,
+        'driverResult': 'completed-before-journal',
+      };
+      await fixture.caseStore.markCompleted(
+        idempotencyKey: 'case-completed-window',
+        runId: original.runId,
+        attemptId: original.attemptId,
+        output: completedOutput,
+        now: submittedAt,
+      );
+      final admission = await fixture.journal.admit(
+        invocation: invocation,
+        submittedAt: submittedAt,
+      );
+      await fixture.journal.markRunning(
+        idempotencyKey: 'case-completed-window',
+        startedAt: submittedAt,
+      );
+      await fixture.caseStore.recover(
+        now: submittedAt.add(const Duration(seconds: 1)),
+      );
+      await fixture.journal.recover(
+        now: submittedAt.add(const Duration(seconds: 1)),
+      );
+      final adapter = _RecoverableCaseAdapter(fixture.caseStore);
+      final harness = await fixture.open(adapter);
+      addTearDown(harness.close);
+
+      final result = await _callOperation(harness.client, invocation);
+      final replay = await _callOperation(harness.client, invocation);
+
+      expect(result.operationId, admission.operationId);
+      expect(result.output, completedOutput);
+      expect(replay.toJson(), result.toJson());
+      expect(adapter.driverExecutions, 0);
+      expect((await fixture.readCaseRecord())['attempts'], hasLength(1));
+    },
+  );
+
+  test(
+    'heartbeat failure waits for cooperative execution before lease release',
+    () async {
+      var executionStopped = false;
+      var unsafeTerminationCount = 0;
+      final authority = _HeartbeatFailureAuthority(
+        executionStopped: () => executionStopped,
+      );
+      final registry = CockpitWorkspaceOperationRegistry(
+        workspaceId: workspaceId,
+        workspaceRoot: workspaceRoot,
+        adapters: <CockpitWorkspaceOperationAdapter>[
+          _heartbeatOperationAdapter((context) async {
+            await context.cancellation.whenCancelled;
+            executionStopped = true;
+            return const <String, Object?>{'stopped': true};
+          }),
+        ],
+        resourceAuthority: authority,
+        operationJournal: CockpitInMemoryWorkerOperationJournal(),
+        terminateUnsafeWorker: () async => unsafeTerminationCount += 1,
+        cancellationGrace: const Duration(milliseconds: 50),
+        forcedAbortGrace: const Duration(milliseconds: 50),
+      );
+      final server = CockpitWorkerServer(
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        supportedFeatures: const <String>[],
+        operations: registry,
+        events: CockpitWorkerMemoryEventExchange(),
+      );
+      final harness = _PeerHarness(server.handle);
+      server.bindPeer(harness.server);
+      harness.start();
+      addTearDown(harness.close);
+      await _initialize(
+        harness.client,
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        supportedFeatures: const <String>[],
+      );
+
+      final deadline = _deadline();
+      final result = CockpitWorkerOperationResult.fromJson(
+        await harness.client.call(
+          method: 'operation',
+          params: _operationParams('cooperative-heartbeat', deadline),
+          deadline: deadline,
+        ),
+      ).result;
+
+      expect(result.outcome, CockpitOperationOutcome.failed);
+      expect(result.failure!.primary.code, 'resourceHeartbeatFailed');
+      expect(executionStopped, isTrue);
+      expect(authority.releaseCount, 1);
+      expect(authority.releasedBeforeExecutionStopped, isFalse);
+      expect(unsafeTerminationCount, 0);
+    },
+  );
+
+  test(
+    'heartbeat failure terminates an unsafe worker without releasing lease',
+    () async {
+      final execution = Completer<Map<String, Object?>>();
+      final unsafeTermination = Completer<void>();
+      final authority = _HeartbeatFailureAuthority(
+        executionStopped: () => false,
+      );
+      late final _PeerHarness harness;
+      final registry = CockpitWorkspaceOperationRegistry(
+        workspaceId: workspaceId,
+        workspaceRoot: workspaceRoot,
+        adapters: <CockpitWorkspaceOperationAdapter>[
+          _heartbeatOperationAdapter((_) => execution.future),
+        ],
+        resourceAuthority: authority,
+        operationJournal: CockpitInMemoryWorkerOperationJournal(),
+        terminateUnsafeWorker: () async {
+          if (!unsafeTermination.isCompleted) unsafeTermination.complete();
+          await harness.server.close();
+        },
+        cancellationGrace: const Duration(milliseconds: 10),
+        forcedAbortGrace: const Duration(milliseconds: 10),
+      );
+      final server = CockpitWorkerServer(
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        supportedFeatures: const <String>[],
+        operations: registry,
+        events: CockpitWorkerMemoryEventExchange(),
+      );
+      harness = _PeerHarness(server.handle);
+      server.bindPeer(harness.server);
+      harness.start();
+      addTearDown(harness.close);
+      await _initialize(
+        harness.client,
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        supportedFeatures: const <String>[],
+      );
+
+      final deadline = _deadline();
+      await expectLater(
+        harness.client.call(
+          method: 'operation',
+          params: _operationParams('unsafe-heartbeat', deadline),
+          deadline: deadline,
+        ),
+        throwsA(isA<CockpitJsonRpcPeerClosedException>()),
+      );
+      await unsafeTermination.future.timeout(const Duration(seconds: 2));
+      expect(authority.releaseCount, 0);
+    },
+  );
+}
+
+Future<void> _initialize(
+  CockpitJsonRpcPeer peer, {
+  required String workspaceId,
+  required String engineVersion,
+  required String workspaceRoot,
+  List<String> supportedFeatures = const <String>['featureA'],
+}) async {
+  final raw = await peer.call(
+    method: 'initialize',
+    params: <String, Object?>{
+      'protocolVersion': cockpitWorkerProtocolVersion,
+      'workspaceId': workspaceId,
+      'idempotencyKey': 'initialize',
+      'engineVersion': engineVersion,
+      'workspaceRoot': workspaceRoot,
+      'supportedFeatures': supportedFeatures,
+    },
+    deadline: _deadline(),
+  );
+  expect(
+    CockpitWorkerInitializeResult.fromJson(raw).negotiatedFeatures,
+    supportedFeatures,
+  );
+}
+
+CockpitOperationInvocation _probeInvocation(String key) =>
+    CockpitOperationInvocation(
+      kind: 'development.probe.collect',
+      workspaceId: 'workspaceA',
+      idempotencyKey: CockpitIdempotencyKey(key),
+      deadline: _deadline(),
+      input: const <String, Object?>{'sessionId': 'sessionA'},
+    );
+
+CockpitOperationInvocation _applicationInvocation(
+  String kind,
+  String key, {
+  Map<String, Object?> input = const <String, Object?>{'sessionId': 'sessionA'},
+}) => CockpitOperationInvocation(
+  kind: kind,
+  workspaceId: 'workspaceA',
+  idempotencyKey: CockpitIdempotencyKey(key),
+  deadline: _deadline(),
+  input: input,
+);
+
+Future<CockpitOperationResult> _callOperation(
+  CockpitJsonRpcPeer peer,
+  CockpitOperationInvocation invocation,
+) async {
+  final deadline = invocation.deadline!;
+  final raw = await peer.call(
+    method: 'operation',
+    params: <String, Object?>{
+      'protocolVersion': cockpitWorkerProtocolVersion,
+      'workspaceId': invocation.workspaceId,
+      'idempotencyKey': invocation.idempotencyKey!.value,
+      'invocation': invocation.toJson(),
+    },
+    deadline: deadline,
+  );
+  return CockpitWorkerOperationResult.fromJson(raw).result;
+}
+
+Map<String, Object?> _operationParams(String key, DateTime deadline) {
+  return <String, Object?>{
+    'protocolVersion': cockpitWorkerProtocolVersion,
+    'workspaceId': 'workspaceA',
+    'idempotencyKey': key,
+    'invocation': CockpitOperationInvocation(
+      kind: 'mutate.test',
+      workspaceId: 'workspaceA',
+      idempotencyKey: CockpitIdempotencyKey(key),
+      deadline: deadline,
+    ).toJson(),
+  };
+}
+
+CockpitWorkspaceOperationAdapter _heartbeatOperationAdapter(
+  Future<Map<String, Object?>> Function(CockpitWorkspaceOperationContext)
+  execute,
+) => CockpitWorkspaceOperationAdapter(
+  kind: 'mutate.test',
+  mutationClass: CockpitMutationClass.mutating,
+  resourceKinds: const <String>['device.mutation'],
+  prepare: (context, _) => CockpitPreparedWorkspaceOperation(
+    resources: <CockpitWorkerResourceRequest>[
+      CockpitWorkerResourceRequest(
+        resourceKind: CockpitLeaseResourceKind.device,
+        resourceId: 'deviceA',
+        ttl: const Duration(seconds: 1),
+      ),
+    ],
+    execute: (_) => execute(context),
+  ),
+);
+
+DateTime _deadline() => DateTime.now().toUtc().add(const Duration(seconds: 5));
+
+Map<String, Object?> _publishParams({
+  required String key,
+  required String runId,
+  required int afterSequence,
+  required int eventSequence,
+}) => <String, Object?>{
+  'protocolVersion': cockpitWorkerProtocolVersion,
+  'workspaceId': 'workspaceA',
+  'idempotencyKey': key,
+  'runId': runId,
+  'afterSequence': afterSequence,
+  'events': <Object?>[
+    CockpitRunEvent(
+      eventId: 'event$eventSequence',
+      sequence: eventSequence,
+      timestamp: DateTime.utc(2026, 7, 22),
+      kind: 'run.progress',
+      projectId: 'projectA',
+      workspaceId: 'workspaceA',
+      runId: runId,
+      caseId: 'caseA',
+    ).toJson(),
+  ],
+};
+
+Matcher _remoteCode(String code) => isA<CockpitJsonRpcRemoteException>().having(
+  (error) => error.error.workerCode,
+  'workerCode',
+  code,
+);
+
+final List<_InvalidEnvelopeCase> _invalidEnvelopeCorpus =
+    <_InvalidEnvelopeCase>[
+      _InvalidEnvelopeCase(
+        'protocol-version',
+        'upgradeRequired',
+        (params) => <String, Object?>{
+          ...params,
+          'protocolVersion': 'cockpit.worker/v999',
+        },
+      ),
+      _InvalidEnvelopeCase(
+        'workspace-spoofing',
+        'workspaceMismatch',
+        (params) => <String, Object?>{...params, 'workspaceId': 'workspaceB'},
+      ),
+      _InvalidEnvelopeCase(
+        'unknown-field',
+        'invalidRequest',
+        (params) => <String, Object?>{...params, 'unexpected': true},
+      ),
+    ];
+
+typedef _EnvelopeMutation =
+    Map<String, Object?> Function(Map<String, Object?> params);
+
+final class _InvalidEnvelopeCase {
+  const _InvalidEnvelopeCase(this.name, this.workerCode, this.apply);
+
+  final String name;
+  final String workerCode;
+  final _EnvelopeMutation apply;
+}
+
+typedef _RequestHandlerDecorator =
+    CockpitJsonRpcRequestHandler Function(CockpitJsonRpcRequestHandler base);
+
+final class _ContractDirection {
+  const _ContractDirection.worker() : name = 'worker-bound', worker = true;
+  const _ContractDirection.supervisor()
+    : name = 'Supervisor-bound',
+      worker = false;
+
+  final String name;
+  final bool worker;
+
+  _ContractHarness open({
+    _RequestHandlerDecorator? decorate,
+    DateTime Function()? receiverUtcNow,
+    CockpitJsonRpcProtocolErrorHandler? callerProtocolError,
+    Duration clientCancellationGrace = const Duration(milliseconds: 250),
+    Duration clientForcedAbortGrace = const Duration(seconds: 2),
+  }) {
+    final events = CockpitWorkerMemoryEventExchange();
+    CockpitWorkerServer? server;
+    final CockpitJsonRpcRequestHandler base;
+    if (worker) {
+      server = CockpitWorkerServer(
+        workspaceId: 'workspaceA',
+        engineVersion: 'engineA',
+        workspaceRoot: '/workspace/a',
+        supportedFeatures: const <String>['featureA'],
+        operations: const _TestOperationDispatcher(),
+        events: events,
+      );
+      base = server.handle;
+    } else {
+      base = CockpitSupervisorWorkerEndpoint(
+        workspaceId: 'workspaceA',
+        events: events,
+        resourceAuthority: const _TestResourceAuthority(),
+      ).handle;
+    }
+    final harness = _PeerHarness(
+      decorate?.call(base) ?? base,
+      serverUtcNow: receiverUtcNow,
+      clientProtocolError: callerProtocolError,
+      clientCancellationGrace: clientCancellationGrace,
+      clientForcedAbortGrace: clientForcedAbortGrace,
+    );
+    server?.bindPeer(harness.server);
+    return _ContractHarness(harness: harness, initializeWorker: worker);
+  }
+
+  _RawPeerHarness openRaw() {
+    final events = CockpitWorkerMemoryEventExchange();
+    CockpitWorkerServer? server;
+    final CockpitJsonRpcRequestHandler handler;
+    if (worker) {
+      server = CockpitWorkerServer(
+        workspaceId: 'workspaceA',
+        engineVersion: 'engineA',
+        workspaceRoot: '/workspace/a',
+        supportedFeatures: const <String>['featureA'],
+        operations: const _TestOperationDispatcher(),
+        events: events,
+      );
+      handler = server.handle;
+    } else {
+      handler = CockpitSupervisorWorkerEndpoint(
+        workspaceId: 'workspaceA',
+        events: events,
+        resourceAuthority: const _TestResourceAuthority(),
+      ).handle;
+    }
+    final harness = _RawPeerHarness(handler);
+    server?.bindPeer(harness.peer);
+    return harness;
+  }
+}
+
+final class _ContractHarness {
+  const _ContractHarness({
+    required this.harness,
+    required this.initializeWorker,
+  });
+
+  final _PeerHarness harness;
+  final bool initializeWorker;
+
+  CockpitJsonRpcPeer get peer => harness.client;
+  CockpitJsonRpcPeer get receiver => harness.server;
+
+  Future<void> start() async {
+    harness.start();
+    if (initializeWorker) {
+      await _initialize(
+        peer,
+        workspaceId: 'workspaceA',
+        engineVersion: 'engineA',
+        workspaceRoot: '/workspace/a',
+      );
+    }
+  }
+
+  Future<void> close() => harness.close();
+}
+
+final class _RawPeerHarness {
+  _RawPeerHarness(CockpitJsonRpcRequestHandler handler)
+    : _input = StreamController<List<int>>(),
+      _output = StreamController<List<int>>() {
+    peer = CockpitJsonRpcPeer(
+      input: _input.stream,
+      output: _output.sink,
+      requestHandler: handler,
+    );
+    _subscription = _output.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) {
+          final response = CockpitJsonRpcResponse.fromJson(
+            Map<String, Object?>.from(
+              jsonDecode(line) as Map<Object?, Object?>,
+            ),
+          );
+          final pending = _responses.remove(response.id);
+          pending?.complete(response);
+        });
+  }
+
+  final StreamController<List<int>> _input;
+  final StreamController<List<int>> _output;
+  final Map<String, Completer<CockpitJsonRpcResponse>> _responses =
+      <String, Completer<CockpitJsonRpcResponse>>{};
+  late final CockpitJsonRpcPeer peer;
+  late final StreamSubscription<String> _subscription;
+
+  void start() => peer.start();
+
+  Future<CockpitJsonRpcResponse> send(CockpitJsonRpcRequest request) {
+    final completer = Completer<CockpitJsonRpcResponse>();
+    _responses[request.id] = completer;
+    _input.add(utf8.encode('${jsonEncode(request.toJson())}\n'));
+    return completer.future;
+  }
+
+  Future<void> close() async {
+    await peer.close(closeOutput: false);
+    await _input.close();
+    await _output.close();
+    await _subscription.cancel();
+  }
+}
+
+final class _PeerHarness {
+  factory _PeerHarness(
+    CockpitJsonRpcRequestHandler serverHandler, {
+    DateTime Function()? serverUtcNow,
+    CockpitJsonRpcProtocolErrorHandler? clientProtocolError,
+    Duration clientCancellationGrace = const Duration(milliseconds: 250),
+    Duration clientForcedAbortGrace = const Duration(seconds: 2),
+  }) {
+    final clientInput = StreamController<List<int>>();
+    final serverInput = StreamController<List<int>>();
+    return _PeerHarness._(
+      client: CockpitJsonRpcPeer(
+        input: clientInput.stream,
+        output: serverInput.sink,
+        requestHandler: _unexpectedRequest,
+        onProtocolError: clientProtocolError,
+        cancellationGrace: clientCancellationGrace,
+        forcedAbortGrace: clientForcedAbortGrace,
+      ),
+      server: CockpitJsonRpcPeer(
+        input: serverInput.stream,
+        output: clientInput.sink,
+        requestHandler: serverHandler,
+        utcNow: serverUtcNow,
+      ),
+    );
+  }
+
+  const _PeerHarness._({required this.client, required this.server});
+
+  final CockpitJsonRpcPeer client;
+  final CockpitJsonRpcPeer server;
+
+  void start() {
+    client.start();
+    server.start();
+  }
+
+  Future<void> close() async {
+    await client.close();
+    await server.close(closeOutput: false);
+  }
+}
+
+Future<Object?> _unexpectedRequest(
+  CockpitJsonRpcRequest _,
+  CockpitRpcCancellation _,
+) => throw StateError('The client peer does not accept requests in this test.');
+
+final class _TestOperationDispatcher
+    implements CockpitWorkerOperationDispatcher {
+  const _TestOperationDispatcher();
+
+  @override
+  List<String> get operationKinds => const <String>['analyze.workspace'];
+
+  @override
+  List<String> get resourceKinds => const <String>['workspace.tooling'];
+
+  @override
+  Future<CockpitOperationResult> execute(
+    CockpitOperationInvocation invocation, {
+    required String requestId,
+    required CockpitRpcCancellation cancellation,
+  }) => throw UnimplementedError();
+}
+
+final class _TestResourceAuthority
+    implements CockpitSupervisorWorkerResourceAuthority {
+  const _TestResourceAuthority();
+
+  @override
+  Future<CockpitOperationResult> execute(
+    CockpitOperationInvocation invocation,
+  ) => throw UnimplementedError();
+}
+
+const String _caseRequestFingerprint =
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+
+CockpitOperationInvocation _caseRunInvocation(String key) =>
+    CockpitOperationInvocation(
+      kind: 'case.run',
+      workspaceId: 'workspaceA',
+      idempotencyKey: CockpitIdempotencyKey(key),
+      deadline: _deadline(),
+      input: const <String, Object?>{'caseId': 'caseA'},
+    );
+
+final class _RecoverableCaseAdapter {
+  _RecoverableCaseAdapter(this.store);
+
+  final CockpitWorkerCaseRunStore store;
+  var prepareCount = 0;
+  var driverExecutions = 0;
+
+  CockpitWorkspaceOperationAdapter create() => CockpitWorkspaceOperationAdapter(
+    kind: 'case.run',
+    mutationClass: CockpitMutationClass.mutating,
+    resourceKinds: const <String>['workspace.runs'],
+    prepare: (context, input) async {
+      expect(input, const <String, Object?>{'caseId': 'caseA'});
+      prepareCount += 1;
+      final reservation = await store.reserve(
+        idempotencyKey: context.idempotencyKey,
+        requestFingerprint: _caseRequestFingerprint,
+        caseId: 'caseA',
+        proposedRunId: 'run_proposed_$prepareCount',
+        proposedAttemptId: 'attempt_recovered_$prepareCount',
+        now: DateTime.now().toUtc(),
+      );
+      if (reservation.replayed) {
+        return CockpitPreparedWorkspaceOperation(
+          resources: const <CockpitWorkerResourceRequest>[],
+          isIdempotentReplay: true,
+          execute: (_) async => reservation.completedOutput!,
+        );
+      }
+      return CockpitPreparedWorkspaceOperation(
+        resources: <CockpitWorkerResourceRequest>[
+          CockpitWorkerResourceRequest(
+            resourceKind: CockpitLeaseResourceKind.workspaceMutation,
+            resourceId: context.workspaceId,
+          ),
+        ],
+        execute: (_) async {
+          await store.markRunning(
+            idempotencyKey: context.idempotencyKey,
+            runId: reservation.runId,
+            attemptId: reservation.attemptId,
+            now: DateTime.now().toUtc(),
+          );
+          driverExecutions += 1;
+          final output = <String, Object?>{
+            'runId': reservation.runId,
+            'attemptId': reservation.attemptId,
+            'driverResult': 'execution-$driverExecutions',
+          };
+          await store.markCompleted(
+            idempotencyKey: context.idempotencyKey,
+            runId: reservation.runId,
+            attemptId: reservation.attemptId,
+            output: output,
+            now: DateTime.now().toUtc(),
+          );
+          return output;
+        },
+      );
+    },
+  );
+}
+
+final class _CaseRecoveryFixture {
+  const _CaseRecoveryFixture({
+    required this.temporary,
+    required this.root,
+    required this.caseStore,
+    required this.journal,
+  });
+
+  final Directory temporary;
+  final String root;
+  final CockpitWorkerCaseRunStore caseStore;
+  final CockpitFileWorkerOperationJournal journal;
+
+  static Future<_CaseRecoveryFixture> create() async {
+    final temporary = await Directory.systemTemp.createTemp(
+      'cockpit-dispatcher-case-recovery-',
+    );
+    final root = await temporary.resolveSymbolicLinks();
+    const hardener = _NoopPermissionHardener();
+    const syncer = _NoopDirectorySyncer();
+    return _CaseRecoveryFixture(
+      temporary: temporary,
+      root: root,
+      caseStore: CockpitWorkerCaseRunStore.file(
+        workspaceId: 'workspaceA',
+        path: p.join(root, 'case_runs'),
+        permissionHardener: hardener,
+        directorySyncer: syncer,
+      ),
+      journal: CockpitFileWorkerOperationJournal(
+        path: p.join(root, 'operations'),
+        permissionHardener: hardener,
+        directorySyncer: syncer,
+        recoveryPolicies: const <String, CockpitWorkerOperationRecoveryPolicy>{
+          'case.run': CockpitWorkerOperationRecoveryPolicy.retryPrepared,
+        },
+      ),
+    );
+  }
+
+  Future<_PeerHarness> open(_RecoverableCaseAdapter adapter) async {
+    final registry = CockpitWorkspaceOperationRegistry(
+      workspaceId: 'workspaceA',
+      workspaceRoot: root,
+      adapters: <CockpitWorkspaceOperationAdapter>[adapter.create()],
+      resourceAuthority: _RecordingResourceAuthority(),
+      operationJournal: journal,
+      terminateUnsafeWorker: () async {},
+    );
+    final server = CockpitWorkerServer(
+      workspaceId: 'workspaceA',
+      engineVersion: 'engineA',
+      workspaceRoot: root,
+      supportedFeatures: const <String>[],
+      operations: registry,
+      events: CockpitWorkerMemoryEventExchange(),
+    );
+    final harness = _PeerHarness(server.handle);
+    server.bindPeer(harness.server);
+    harness.start();
+    await _initialize(
+      harness.client,
+      workspaceId: 'workspaceA',
+      engineVersion: 'engineA',
+      workspaceRoot: root,
+      supportedFeatures: const <String>[],
+    );
+    return harness;
+  }
+
+  Future<Map<String, Object?>> readCaseRecord() async {
+    final records = await Directory(p.join(root, 'case_runs'))
+        .list(recursive: true, followLinks: false)
+        .where(
+          (entity) =>
+              entity is File && p.basename(entity.path) == 'record.json',
+        )
+        .cast<File>()
+        .toList();
+    expect(records, hasLength(1));
+    return Map<String, Object?>.from(
+      jsonDecode(await records.single.readAsString())! as Map,
+    );
+  }
+
+  Future<void> dispose() => temporary.delete(recursive: true);
+}
+
+final class _NoopPermissionHardener implements CockpitPermissionHardener {
+  const _NoopPermissionHardener();
+
+  @override
+  CockpitPermissionPolicy get policy => CockpitPermissionPolicy.posixOwnerOnly;
+
+  @override
+  Future<void> hardenDirectory(Directory directory) async {}
+
+  @override
+  Future<void> hardenFile(File file) async {}
+}
+
+final class _NoopDirectorySyncer implements CockpitDirectorySyncer {
+  const _NoopDirectorySyncer();
+
+  @override
+  Future<void> sync(String directoryPath) async {}
+}
+
+final class _ProbeBackend implements CockpitWorkerApplicationBackend {
+  int recordCount = 0;
+
+  @override
+  Future<Map<String, Object?>> execute({
+    required String kind,
+    required Map<String, Object?> input,
+    required CockpitWorkspaceOperationContext context,
+    required List<CockpitWorkerResourceGrant> grants,
+  }) async {
+    expect(kind, 'development.probe.collect');
+    expect(input, const <String, Object?>{'sessionId': 'sessionA'});
+    expect(context.idempotencyKey, isNotEmpty);
+    expect(grants, hasLength(2));
+    recordCount += 1;
+    return <String, Object?>{'probeId': 'probe_$recordCount'};
+  }
+}
+
+final class _ReadMutationBackend implements CockpitWorkerApplicationBackend {
+  final Completer<void> readEntered = Completer<void>();
+  final Completer<void> releaseRead = Completer<void>();
+  final Completer<void> mutationEntered = Completer<void>();
+  final Map<String, int> grantCountByKind = <String, int>{};
+
+  @override
+  Future<Map<String, Object?>> execute({
+    required String kind,
+    required Map<String, Object?> input,
+    required CockpitWorkspaceOperationContext context,
+    required List<CockpitWorkerResourceGrant> grants,
+  }) async {
+    grantCountByKind[kind] = grants.length;
+    if (kind == 'session.remote.status') {
+      expect(
+        grants.where(
+          (grant) =>
+              grant.resourceKind == CockpitLeaseResourceKind.session &&
+              grant.resourceId == 'session_resource_A',
+        ),
+        hasLength(1),
+      );
+      readEntered.complete();
+      await releaseRead.future;
+    } else if (kind == 'command.run') {
+      expect(
+        grants.where(
+          (grant) =>
+              grant.resourceKind == CockpitLeaseResourceKind.session &&
+              grant.resourceId == 'session_resource_A',
+        ),
+        hasLength(1),
+      );
+      mutationEntered.complete();
+    } else {
+      expect(grants, isEmpty);
+    }
+    return <String, Object?>{'kind': kind};
+  }
+}
+
+final class _ReadMutationResourceResolver
+    implements CockpitWorkerApplicationResourceResolver {
+  final List<String> resolvedKinds = <String>[];
+
+  @override
+  Future<CockpitWorkerApplicationResourcePlan> resolveApplicationResourcePlan({
+    required String kind,
+    required Map<String, Object?> input,
+  }) async {
+    resolvedKinds.add(kind);
+    return CockpitWorkerApplicationResourcePlan(
+      primaryResourceId: 'session_resource_A',
+      deviceResourceId: 'device_resource_A',
+    );
+  }
+}
+
+final class _ExclusiveSessionResourceAuthority
+    implements CockpitWorkerResourceAuthorityClient {
+  final List<String> sessionAcquisitions = <String>[];
+  final Map<String, Completer<void>> _activeSessions =
+      <String, Completer<void>>{};
+  final Map<String, Completer<void>> _releasesByGrant =
+      <String, Completer<void>>{};
+  var _sequence = 0;
+
+  @override
+  Future<CockpitWorkerResourceGrant> acquire(
+    CockpitWorkerResourceRequest request, {
+    required String workspaceId,
+    required String holderId,
+    required String idempotencyKey,
+    required DateTime deadline,
+  }) async {
+    if (request.resourceKind == CockpitLeaseResourceKind.session) {
+      while (true) {
+        final active = _activeSessions[request.resourceId];
+        if (active == null) break;
+        await active.future;
+      }
+      final release = Completer<void>();
+      _activeSessions[request.resourceId] = release;
+      sessionAcquisitions.add(request.resourceId);
+      _sequence += 1;
+      final grantId = 'exclusive_grant_$_sequence';
+      _releasesByGrant[grantId] = release;
+      return CockpitWorkerResourceGrant(
+        grantId: grantId,
+        leaseId: 'exclusive_lease_$_sequence',
+        workspaceId: workspaceId,
+        holderId: holderId,
+        resourceKind: request.resourceKind,
+        resourceId: request.resourceId,
+        expiresAt: deadline,
+      );
+    }
+    _sequence += 1;
+    return CockpitWorkerResourceGrant(
+      grantId: 'shared_grant_$_sequence',
+      leaseId: 'shared_lease_$_sequence',
+      workspaceId: workspaceId,
+      holderId: holderId,
+      resourceKind: request.resourceKind,
+      resourceId: request.resourceId,
+      expiresAt: deadline,
+    );
+  }
+
+  @override
+  Future<void> heartbeat(CockpitWorkerResourceGrant grant) async {}
+
+  @override
+  Future<void> release(
+    CockpitWorkerResourceGrant grant, {
+    required bool cancel,
+  }) async {
+    final release = _releasesByGrant.remove(grant.grantId);
+    if (release == null) return;
+    _activeSessions.remove(grant.resourceId);
+    release.complete();
+  }
+}
+
+final class _ProbeResourceResolver
+    implements CockpitWorkerApplicationResourceResolver {
+  int resolveCount = 0;
+
+  @override
+  Future<CockpitWorkerApplicationResourcePlan> resolveApplicationResourcePlan({
+    required String kind,
+    required Map<String, Object?> input,
+  }) async {
+    expect(kind, 'development.probe.collect');
+    expect(input['sessionId'], 'sessionA');
+    resolveCount += 1;
+    return CockpitWorkerApplicationResourcePlan(
+      primaryResourceId: 'session_resource_A',
+      deviceResourceId: 'device_resource_A',
+    );
+  }
+}
+
+final class _RecordingResourceAuthority
+    implements CockpitWorkerResourceAuthorityClient {
+  final List<CockpitWorkerResourceRequest> requests =
+      <CockpitWorkerResourceRequest>[];
+  int releaseCount = 0;
+
+  @override
+  Future<CockpitWorkerResourceGrant> acquire(
+    CockpitWorkerResourceRequest request, {
+    required String workspaceId,
+    required String holderId,
+    required String idempotencyKey,
+    required DateTime deadline,
+  }) async {
+    requests.add(request);
+    final sequence = requests.length;
+    return CockpitWorkerResourceGrant(
+      grantId: 'grant_$sequence',
+      leaseId: 'lease_$sequence',
+      workspaceId: workspaceId,
+      holderId: holderId,
+      resourceKind: request.resourceKind,
+      resourceId: request.resourceId,
+      expiresAt: deadline,
+    );
+  }
+
+  @override
+  Future<void> heartbeat(CockpitWorkerResourceGrant grant) async {}
+
+  @override
+  Future<void> release(
+    CockpitWorkerResourceGrant grant, {
+    required bool cancel,
+  }) async {
+    releaseCount += 1;
+  }
+}
+
+final class _HeartbeatFailureAuthority
+    implements CockpitWorkerResourceAuthorityClient {
+  _HeartbeatFailureAuthority({required bool Function() executionStopped})
+    : _executionStopped = executionStopped;
+
+  final bool Function() _executionStopped;
+  var releaseCount = 0;
+  var releasedBeforeExecutionStopped = false;
+
+  @override
+  Future<CockpitWorkerResourceGrant> acquire(
+    CockpitWorkerResourceRequest request, {
+    required String workspaceId,
+    required String holderId,
+    required String idempotencyKey,
+    required DateTime deadline,
+  }) async => CockpitWorkerResourceGrant(
+    grantId: 'grantA',
+    leaseId: 'leaseA',
+    workspaceId: workspaceId,
+    holderId: holderId,
+    resourceKind: request.resourceKind,
+    resourceId: request.resourceId,
+    expiresAt: DateTime.now().toUtc().add(const Duration(seconds: 2)),
+  );
+
+  @override
+  Future<void> heartbeat(CockpitWorkerResourceGrant grant) async {
+    throw StateError('heartbeat failed');
+  }
+
+  @override
+  Future<void> release(
+    CockpitWorkerResourceGrant grant, {
+    required bool cancel,
+  }) async {
+    releaseCount += 1;
+    releasedBeforeExecutionStopped = !_executionStopped();
+  }
+}

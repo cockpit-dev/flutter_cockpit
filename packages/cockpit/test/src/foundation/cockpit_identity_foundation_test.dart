@@ -177,6 +177,86 @@ void main() {
       expect(await stores.first.read(), 40);
     });
 
+    test(
+      'cleans a stale temp once before concurrent same-key writes',
+      () async {
+        final temporary = await Directory.systemTemp.createTemp(
+          'cockpit-temp-recovery-',
+        );
+        addTearDown(() => temporary.delete(recursive: true));
+        final canonicalRoot = await temporary.resolveSymbolicLinks();
+        final path = p.join(canonicalRoot, 'counter.json');
+        final store = _counterStore(path);
+        await store.transact<void>(
+          (value) => CockpitLockedJsonUpdate.write(value, null),
+        );
+        final stale = await File(
+          p.join(
+            canonicalRoot,
+            '.counter.json.123.${List<String>.filled(24, 'a').join()}.tmp',
+          ),
+        ).writeAsString('partial');
+
+        await Future.wait(<Future<void>>[
+          for (var index = 0; index < 2; index += 1)
+            store.transact<void>(
+              (value) => CockpitLockedJsonUpdate.write(value + 1, null),
+            ),
+        ]);
+
+        expect(await store.read(), 2);
+        expect(await stale.exists(), isFalse);
+      },
+    );
+
+    test('does not inspect or delete a live temp before its lock', () async {
+      final temporary = await Directory.systemTemp.createTemp(
+        'cockpit-live-temp-',
+      );
+      addTearDown(() => temporary.delete(recursive: true));
+      final canonicalRoot = await temporary.resolveSymbolicLinks();
+      final path = p.join(canonicalRoot, 'counter.json');
+      final store = _counterStore(path);
+      await store.transact<void>(
+        (value) => CockpitLockedJsonUpdate.write(value + 1, null),
+      );
+      final live = File(
+        p.join(
+          canonicalRoot,
+          '.counter.json.456.${List<String>.filled(24, 'b').join()}.tmp',
+        ),
+      );
+      final script = await File(
+        p.join(canonicalRoot, 'hold_lock.dart'),
+      ).writeAsString(_liveTempProcessSource);
+      final holder = await Process.start(Platform.resolvedExecutable, <String>[
+        script.path,
+        '$path.lock',
+        live.path,
+      ]);
+      addTearDown(() => holder.kill());
+      expect(
+        await holder.stdout
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .first
+            .timeout(const Duration(seconds: 5)),
+        'ready',
+      );
+      var completed = false;
+      final read = store.read().whenComplete(() => completed = true);
+      await Future<void>.delayed(const Duration(milliseconds: 25));
+
+      expect(completed, isFalse);
+      expect(await live.exists(), isTrue);
+
+      holder.stdin.writeln('release');
+      await holder.stdin.close();
+      expect(await read, 1);
+      expect(await live.exists(), isFalse);
+      expect(await holder.exitCode, 0);
+    });
+
     test('rejects oversized writes before replacing readable state', () async {
       final temporary = await Directory.systemTemp.createTemp(
         'cockpit-size-limit-',
@@ -569,6 +649,20 @@ String _packageConfigPath() {
     current = parent;
   }
 }
+
+const String _liveTempProcessSource = r'''
+import 'dart:io';
+
+Future<void> main(List<String> arguments) async {
+  final lock = await File(arguments[0]).open(mode: FileMode.append);
+  await lock.lock(FileLock.blockingExclusive);
+  await File(arguments[1]).writeAsString('live');
+  stdout.writeln('ready');
+  await stdin.first;
+  await lock.unlock();
+  await lock.close();
+}
+''';
 
 final class _CounterCodec implements CockpitJsonCodec<int> {
   const _CounterCodec();

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
+import '../infrastructure/cockpit_process_manager.dart';
 import 'cockpit_home.dart';
 
 enum CockpitFilesystemIdentityQuality {
@@ -61,7 +62,7 @@ final class CockpitSystemPosixMetadataProvider
     final arguments = platform == CockpitHostPlatform.macos
         ? <String>['-f', '%d:%i:%u:%p', canonicalPath]
         : <String>['-c', '%d:%i:%u:%a', canonicalPath];
-    final result = await Process.run('stat', arguments);
+    final result = await cockpitRunIsolatedProcess('stat', arguments);
     if (result.exitCode != 0) {
       return null;
     }
@@ -89,7 +90,7 @@ final class CockpitSystemPosixMetadataProvider
     if (platform == CockpitHostPlatform.windows) {
       return null;
     }
-    final result = await Process.run('id', const <String>['-u']);
+    final result = await cockpitRunIsolatedProcess('id', const <String>['-u']);
     return result.exitCode == 0
         ? int.tryParse(result.stdout.toString().trim())
         : null;
@@ -110,7 +111,7 @@ final class CockpitPowerShellWindowsSecurityProvider
 
   @override
   Future<CockpitDirectorySecurity> inspect(String canonicalPath) async {
-    final result = await Process.run('powershell.exe', <String>[
+    final result = await cockpitRunIsolatedProcess('powershell.exe', <String>[
       '-NoLogo',
       '-NoProfile',
       '-NonInteractive',

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import '../infrastructure/cockpit_process_manager.dart';
 import 'cockpit_android_remote_session_launcher.dart';
 import 'cockpit_flutter_launch_configuration.dart';
 import 'cockpit_remote_session_handle.dart';
@@ -214,7 +215,7 @@ final class CockpitLinuxRemoteSessionLauncher
     required Duration timeout,
   }) async {
     final process =
-        await Process.start(
+        await cockpitStartIsolatedProcess(
           executablePath,
           arguments,
           workingDirectory: workingDirectory,

@@ -13,7 +13,10 @@ export 'src/infrastructure/cockpit_sdk_environment.dart';
 export 'src/artifacts/task_run_bundle_writer.dart';
 export 'src/artifacts/cockpit_recording_keyframe_extractor.dart';
 export 'src/artifacts/cockpit_test_attempt_bundle_writer.dart'
-    show CockpitTestAttemptBundleReader, CockpitTestBundleIntegrityException;
+    show
+        CockpitTestAttemptBundleReader,
+        CockpitTestBundleIntegrityException,
+        CockpitTestBundlePrePublicationValidator;
 export 'src/adapters/cockpit_automation_adapter.dart';
 export 'src/adapters/cockpit_active_operation_aborter.dart';
 export 'src/adapters/cockpit_capture_adapter.dart';

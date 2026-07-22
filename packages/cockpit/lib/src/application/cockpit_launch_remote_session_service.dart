@@ -22,6 +22,7 @@ final class CockpitLaunchRemoteSessionRequest {
     this.target,
     this.flavor,
     this.launchTimeout = const Duration(seconds: 120),
+    this.allowSessionPortFallback = true,
     this.persistHandlePath,
     this.launchConfiguration = CockpitFlutterLaunchConfiguration.empty,
   });
@@ -33,6 +34,7 @@ final class CockpitLaunchRemoteSessionRequest {
   final String deviceId;
   final int sessionPort;
   final Duration launchTimeout;
+  final bool allowSessionPortFallback;
   final String? persistHandlePath;
   final CockpitFlutterLaunchConfiguration launchConfiguration;
 }
@@ -89,6 +91,7 @@ final class CockpitLaunchRemoteSessionService {
       platform: request.platform,
       deviceId: request.deviceId,
       preferredPort: request.sessionPort,
+      allowFallbackAllocation: request.allowSessionPortFallback,
       portAllocator: _sessionPortAllocator,
       portAvailabilityChecker: _sessionPortAvailabilityChecker,
     );

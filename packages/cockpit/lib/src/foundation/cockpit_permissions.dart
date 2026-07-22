@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import '../infrastructure/cockpit_process_manager.dart';
+
 enum CockpitPermissionPolicy {
   posixOwnerOnly,
   windowsRestrictedAcl,
@@ -32,7 +34,10 @@ final class CockpitPosixPermissionHardener
   }
 
   Future<void> _chmod(String path, String mode) async {
-    final result = await Process.run('chmod', <String>[mode, path]);
+    final result = await cockpitRunIsolatedProcess('chmod', <String>[
+      mode,
+      path,
+    ]);
     if (result.exitCode != 0) {
       throw FileSystemException(
         'Could not apply mode $mode: ${_bounded(result.stderr)}',
@@ -76,7 +81,7 @@ final class CockpitWindowsAclPermissionHardener
   Future<void> hardenFile(File file) => _apply(file.path, directory: false);
 
   Future<void> _apply(String path, {required bool directory}) async {
-    final result = await Process.run('powershell.exe', <String>[
+    final result = await cockpitRunIsolatedProcess('powershell.exe', <String>[
       '-NoLogo',
       '-NoProfile',
       '-NonInteractive',

@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:path/path.dart' as p;
 
+import '../infrastructure/cockpit_process_manager.dart';
+
 typedef CockpitTimelineVideoProcessRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
 
@@ -35,7 +37,7 @@ final class DefaultCockpitTimelineVideoFallbackBuilder
     implements CockpitTimelineVideoFallbackBuilder {
   const DefaultCockpitTimelineVideoFallbackBuilder({
     String ffmpegExecutable = 'ffmpeg',
-    CockpitTimelineVideoProcessRunner processRunner = Process.run,
+    CockpitTimelineVideoProcessRunner processRunner = cockpitRunIsolatedProcess,
   }) : _ffmpegExecutable = ffmpegExecutable,
        _processRunner = processRunner;
 

@@ -77,7 +77,7 @@ final class CockpitTrustedDevelopmentSafetyPolicy
   CockpitTrustedDevelopmentSafetyPolicy({
     required Iterable<CockpitTestTargetEnvironment> environments,
     Iterable<CockpitTestSafetyEffect> allowedEffects =
-        CockpitTestSafetyEffect.values,
+        const <CockpitTestSafetyEffect>[],
   }) : environments = Set<CockpitTestTargetEnvironment>.unmodifiable(
          environments,
        ),

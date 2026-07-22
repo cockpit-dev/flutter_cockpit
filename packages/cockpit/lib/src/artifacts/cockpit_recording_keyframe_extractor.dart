@@ -5,6 +5,8 @@ import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
+import '../infrastructure/cockpit_process_manager.dart';
+
 typedef CockpitRecordingKeyframeProcessRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
 
@@ -132,7 +134,8 @@ final class DefaultCockpitRecordingKeyframeExtractor
   const DefaultCockpitRecordingKeyframeExtractor({
     String ffprobeExecutable = 'ffprobe',
     String ffmpegExecutable = 'ffmpeg',
-    CockpitRecordingKeyframeProcessRunner processRunner = Process.run,
+    CockpitRecordingKeyframeProcessRunner processRunner =
+        cockpitRunIsolatedProcess,
   }) : _ffprobeExecutable = ffprobeExecutable,
        _ffmpegExecutable = ffmpegExecutable,
        _processRunner = processRunner;
