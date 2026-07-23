@@ -3,20 +3,17 @@ import 'dart:async';
 import 'package:dart_mcp/server.dart';
 
 import '../cockpit_mcp_tool.dart';
-import 'cockpit_mcp_prompt.dart';
-import 'cockpit_mcp_prompt_adapter.dart';
 import 'cockpit_mcp_resource.dart';
 import 'cockpit_mcp_resource_adapter.dart';
 import 'cockpit_mcp_roots_tracker.dart';
 import 'cockpit_mcp_tool_adapter.dart';
 
 final class CockpitMcpProtocolServer extends MCPServer
-    with LoggingSupport, ToolsSupport, ResourcesSupport, PromptsSupport {
+    with LoggingSupport, ToolsSupport, ResourcesSupport {
   CockpitMcpProtocolServer(
     super.channel, {
     required List<CockpitMcpTool> tools,
     List<CockpitMcpResource> resources = const <CockpitMcpResource>[],
-    List<CockpitMcpPrompt> prompts = const <CockpitMcpPrompt>[],
     required CockpitMcpRootsTracker rootsTracker,
     required this.featureConfiguration,
     required this.serverName,
@@ -24,7 +21,6 @@ final class CockpitMcpProtocolServer extends MCPServer
     super.protocolLogSink,
   }) : _tools = List<CockpitMcpTool>.unmodifiable(tools),
        _resources = List<CockpitMcpResource>.unmodifiable(resources),
-       _prompts = List<CockpitMcpPrompt>.unmodifiable(prompts),
        _rootsTracker = rootsTracker,
        super.fromStreamChannel(
          implementation: Implementation(
@@ -64,12 +60,6 @@ final class CockpitMcpProtocolServer extends MCPServer
         );
       }
     }
-    for (final prompt in _enabledPrompts) {
-      addPrompt(
-        CockpitMcpPromptAdapter.protocolPromptFor(prompt),
-        (request) => CockpitMcpPromptAdapter.invoke(prompt, request),
-      );
-    }
     initialized.then((_) async {
       await _rootsTracker.bind(
         clientSupportsRoots: clientCapabilities.roots != null,
@@ -81,7 +71,6 @@ final class CockpitMcpProtocolServer extends MCPServer
 
   final List<CockpitMcpTool> _tools;
   final List<CockpitMcpResource> _resources;
-  final List<CockpitMcpPrompt> _prompts;
   final CockpitMcpRootsTracker _rootsTracker;
   final CockpitMcpFeatureConfiguration featureConfiguration;
   final String serverName;
@@ -93,10 +82,6 @@ final class CockpitMcpProtocolServer extends MCPServer
 
   List<CockpitMcpResource> get _enabledResources => _resources
       .where((resource) => featureConfiguration.isEnabled(resource.definition))
-      .toList(growable: false);
-
-  List<CockpitMcpPrompt> get _enabledPrompts => _prompts
-      .where((prompt) => featureConfiguration.isEnabled(prompt.definition))
       .toList(growable: false);
 
   Future<CallToolResult> _invoke(

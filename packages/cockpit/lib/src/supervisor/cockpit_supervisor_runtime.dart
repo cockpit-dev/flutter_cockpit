@@ -513,10 +513,17 @@ final class CockpitSupervisorRuntime {
     }
     return <CockpitDocumentResource>[
       for (var index = 0; index < raw.length; index++)
-        CockpitDocumentResource.fromJson(
-          raw[index],
-          path: '\$.documents[$index]',
-        ),
+        CockpitDocumentResource.fromJson(switch (raw[index]) {
+          final Map<Object?, Object?> document => <String, Object?>{
+            'documentId': document['documentId'],
+            'workspaceId': document['workspaceId'],
+            'relativePath': document['relativePath'],
+            'sha256': document['sha256'],
+            'modifiedAt': document['modifiedAt'],
+            'cases': document['cases'],
+          },
+          _ => raw[index],
+        }, path: '\$.documents[$index]'),
     ];
   }
 
@@ -1216,26 +1223,33 @@ final class _CockpitProductionCleanupProbeResolver
   CockpitLeaseCleanupProbe resolve(CockpitLeaseResourceKind resourceKind) =>
       resourceKind == CockpitLeaseResourceKind.forwardedPort
       ? const CockpitLoopbackPortCleanupProbe()
-      : const _CockpitQuarantineCleanupProbe();
+      : const _CockpitLogicalResourceCleanupProbe();
 }
 
-final class _CockpitQuarantineCleanupProbe implements CockpitLeaseCleanupProbe {
-  const _CockpitQuarantineCleanupProbe();
+final class _CockpitLogicalResourceCleanupProbe
+    implements CockpitLeaseCleanupProbe {
+  const _CockpitLogicalResourceCleanupProbe();
+
   @override
   Future<CockpitLeaseCleanupResult> cleanupAndVerify(
     CockpitLeaseCleanupContext context,
-  ) async => CockpitLeaseCleanupResult.quarantined(
-    CockpitFailure(
-      primary: CockpitApiError(
-        code: 'cleanupOwnershipUnproven',
-        category: CockpitErrorCategory.resource,
-        message: 'Recovered resource ownership cannot be proven released.',
-        retryable: true,
-        responsibleLayer: CockpitResponsibleLayer.supervisor,
-      ),
-    ),
-  );
+  ) async => context.reason == CockpitLeaseCleanupReason.release
+      ? const CockpitLeaseCleanupResult.restored()
+      : _quarantinedCleanupResult();
 }
+
+CockpitLeaseCleanupResult _quarantinedCleanupResult() =>
+    CockpitLeaseCleanupResult.quarantined(
+      CockpitFailure(
+        primary: CockpitApiError(
+          code: 'cleanupOwnershipUnproven',
+          category: CockpitErrorCategory.resource,
+          message: 'Recovered resource ownership cannot be proven released.',
+          retryable: true,
+          responsibleLayer: CockpitResponsibleLayer.supervisor,
+        ),
+      ),
+    );
 
 CockpitRemovalPolicy _removalPolicy(bool force) =>
     force ? CockpitRemovalPolicy.force : CockpitRemovalPolicy.drain;

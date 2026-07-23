@@ -43,13 +43,9 @@ final class CockpitControlScript {
     if (environment != null) 'environment': environment!.toJson(),
     if (recording != null) 'recording': recording!.toJson(),
     if (commands.isNotEmpty)
-      'commands': commands
-          .map((command) => command.toJson())
-          .toList(growable: false),
+      'commands': commands.map((command) => command.toJson()).toList(),
     if (workflowSteps.isNotEmpty)
-      'steps': workflowSteps
-          .map((step) => step.toJson())
-          .toList(growable: false),
+      'steps': workflowSteps.map((step) => step.toJson()).toList(),
     'failFast': failFast,
   };
 
@@ -62,30 +58,25 @@ final class CockpitControlScript {
       recording != null || workflowSteps.any(_workflowStepRequestsRecording);
 
   CockpitControlScript withPlatform(String platform) {
-    final normalizedPlatform = platform.trim();
-    if (normalizedPlatform.isEmpty) {
-      throw const FormatException(
-        'Control script platform override must be a non-empty string.',
-      );
-    }
-    if (!cockpitControlScriptSupportedPlatforms.contains(normalizedPlatform)) {
+    final normalized = platform.trim();
+    if (!cockpitControlScriptSupportedPlatforms.contains(normalized)) {
       throw FormatException(
-        'Control script platform override must be one of '
+        'Control script platform must be one of '
         '${cockpitControlScriptSupportedPlatforms.join(', ')}.',
       );
     }
-    final currentEnvironment = environment;
+    final current = environment;
     return CockpitControlScript(
       schemaVersion: schemaVersion,
       sessionId: sessionId,
       taskId: taskId,
-      platform: normalizedPlatform,
-      environment: currentEnvironment == null
+      platform: normalized,
+      environment: current == null
           ? null
           : CockpitEnvironment(
-              platform: normalizedPlatform,
-              flutterVersion: currentEnvironment.flutterVersion,
-              dartVersion: currentEnvironment.dartVersion,
+              platform: normalized,
+              flutterVersion: current.flutterVersion,
+              dartVersion: current.dartVersion,
             ),
       recording: recording,
       commands: commands,
@@ -101,35 +92,26 @@ final class CockpitControlScript {
         'Control script environment must be an object.',
       );
     }
-    final schemaVersion = _readSchemaVersion(json['schemaVersion']);
-
     final commandsJson = json['commands'];
-    if (commandsJson != null && commandsJson is! List<Object?>) {
-      throw const FormatException('Control script commands must be a list.');
-    }
-    final commandListJson = commandsJson as List<Object?>?;
     final stepsJson = json['steps'];
-    if (stepsJson != null && stepsJson is! List<Object?>) {
-      throw const FormatException('Control script steps must be a list.');
+    if (commandsJson != null && commandsJson is! List<Object?> ||
+        stepsJson != null && stepsJson is! List<Object?>) {
+      throw const FormatException('Control script commands/steps are invalid.');
     }
-    final stepListJson = stepsJson as List<Object?>?;
-    if (commandListJson == null && stepListJson == null) {
+    final commands = commandsJson as List<Object?>?;
+    final steps = stepsJson as List<Object?>?;
+    if (commands == null && steps == null ||
+        commands != null && commands.isEmpty ||
+        steps != null && steps.isEmpty) {
       throw const FormatException(
-        'Control script must include commands or steps.',
+        'Control script requires non-empty commands or steps.',
       );
     }
-    if (commandListJson != null && commandListJson.isEmpty) {
-      throw const FormatException('Control script commands must not be empty.');
-    }
-    if (stepListJson != null && stepListJson.isEmpty) {
-      throw const FormatException('Control script steps must not be empty.');
-    }
-
     return CockpitControlScript(
-      schemaVersion: schemaVersion,
-      sessionId: _readRequiredString(json, 'sessionId'),
-      taskId: _readRequiredString(json, 'taskId'),
-      platform: _readRequiredString(json, 'platform'),
+      schemaVersion: _readSchemaVersion(json['schemaVersion']),
+      sessionId: _requiredString(json, 'sessionId'),
+      taskId: _requiredString(json, 'taskId'),
+      platform: _requiredString(json, 'platform'),
       environment: environmentJson == null
           ? null
           : CockpitEnvironment.fromJson(
@@ -137,97 +119,64 @@ final class CockpitControlScript {
                 environmentJson as Map<Object?, Object?>,
               ),
             ),
-      recording: _readRecording(json['recording']),
-      commands: commandListJson == null
+      recording: _recording(json['recording']),
+      commands: commands == null
           ? const <CockpitCommand>[]
-          : _readCommands(commandListJson),
-      workflowSteps: stepListJson == null
+          : <CockpitCommand>[
+              for (var index = 0; index < commands.length; index++)
+                CockpitCommand.fromJson(
+                  Map<String, Object?>.from(
+                    commands[index]! as Map<Object?, Object?>,
+                  ),
+                ),
+            ],
+      workflowSteps: steps == null
           ? const <CockpitWorkflowStep>[]
-          : cockpitWorkflowStepsFromJson(stepListJson),
-      failFast: _readOptionalBool(json, 'failFast', defaultValue: true),
+          : cockpitWorkflowStepsFromJson(steps),
+      failFast: _optionalBool(json, 'failFast', true),
     );
   }
-
-  static List<CockpitCommand> _readCommands(List<Object?> json) {
-    return <CockpitCommand>[
-      for (var index = 0; index < json.length; index += 1)
-        _readCommand(json[index], 'commands[$index]'),
-    ];
-  }
-
-  static CockpitCommand _readCommand(Object? value, String path) {
-    if (value is! Map<Object?, Object?>) {
-      throw FormatException(
-        'Control script command at $path must be an object.',
-      );
-    }
-    return CockpitCommand.fromJson(Map<String, Object?>.from(value));
-  }
-
-  static CockpitRecordingRequest? _readRecording(Object? json) {
-    if (json == null) {
-      return null;
-    }
-    if (json is! Map<Object?, Object?>) {
-      throw const FormatException(
-        'Control script recording must be an object.',
-      );
-    }
-    return CockpitRecordingRequest.fromJson(Map<String, Object?>.from(json));
-  }
-
-  static int _readSchemaVersion(Object? value) {
-    if (value == null) {
-      return cockpitControlWorkflowSchemaVersion;
-    }
-    if (value == cockpitControlWorkflowSchemaVersion) {
-      return cockpitControlWorkflowSchemaVersion;
-    }
-    throw FormatException(
-      'Control script schemaVersion must be '
-      '$cockpitControlWorkflowSchemaVersion.',
-    );
-  }
-
-  static bool _readOptionalBool(
-    Map<String, Object?> json,
-    String key, {
-    required bool defaultValue,
-  }) {
-    final value = json[key];
-    if (value == null) {
-      return defaultValue;
-    }
-    if (value is bool) {
-      return value;
-    }
-    throw FormatException('Control script $key must be a boolean.');
-  }
-
-  static String _readRequiredString(Map<String, Object?> json, String key) {
-    final value = json[key];
-    if (value is! String || value.isEmpty) {
-      throw FormatException(
-        'Control script "$key" must be a non-empty string.',
-      );
-    }
-    return value;
-  }
 }
 
-CockpitControlScript cockpitControlScriptFromText(String source) {
-  return CockpitControlScript.fromJson(cockpitScriptMapFromText(source));
+CockpitControlScript cockpitControlScriptFromText(String source) =>
+    CockpitControlScript.fromJson(cockpitScriptMapFromText(source));
+
+int _readSchemaVersion(Object? value) {
+  if (value == null || value == cockpitControlWorkflowSchemaVersion) {
+    return cockpitControlWorkflowSchemaVersion;
+  }
+  throw const FormatException('Control script schemaVersion is unsupported.');
 }
 
-bool _workflowStepRequestsRecording(CockpitWorkflowStep step) {
-  return switch (step) {
-    CockpitStartRecordingWorkflowStep() => true,
-    CockpitStopRecordingWorkflowStep() => false,
-    CockpitCommandWorkflowStep() => false,
-    CockpitIfWorkflowStep() =>
-      step.thenSteps.any(_workflowStepRequestsRecording) ||
-          step.elseSteps.any(_workflowStepRequestsRecording),
-    CockpitLoopWorkflowStep() => step.steps.any(_workflowStepRequestsRecording),
-    CockpitRetryWorkflowStep() => _workflowStepRequestsRecording(step.step),
-  };
+String _requiredString(Map<String, Object?> json, String key) {
+  final value = json[key];
+  if (value is! String || value.isEmpty) {
+    throw FormatException('Control script $key must be a non-empty string.');
+  }
+  return value;
 }
+
+bool _optionalBool(Map<String, Object?> json, String key, bool fallback) {
+  final value = json[key];
+  if (value == null) return fallback;
+  if (value is bool) return value;
+  throw FormatException('Control script $key must be a boolean.');
+}
+
+CockpitRecordingRequest? _recording(Object? value) {
+  if (value == null) return null;
+  if (value is! Map<Object?, Object?>) {
+    throw const FormatException('Control script recording must be an object.');
+  }
+  return CockpitRecordingRequest.fromJson(Map<String, Object?>.from(value));
+}
+
+bool _workflowStepRequestsRecording(CockpitWorkflowStep step) => switch (step) {
+  CockpitStartRecordingWorkflowStep() => true,
+  CockpitStopRecordingWorkflowStep() || CockpitCommandWorkflowStep() => false,
+  CockpitIfWorkflowStep() =>
+    step.thenSteps.any(_workflowStepRequestsRecording) ||
+        step.elseSteps.any(_workflowStepRequestsRecording),
+  CockpitLoopWorkflowStep() => step.steps.any(_workflowStepRequestsRecording),
+  CockpitRetryWorkflowStep() => _workflowStepRequestsRecording(step.step),
+};

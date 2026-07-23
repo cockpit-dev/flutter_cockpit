@@ -11,18 +11,16 @@ Future<void> main(List<String> args) async {
 
   stdout.writeln('Cockpit host tooling example');
   stdout.writeln('');
-  stdout.writeln('Common AI-first commands:');
-  stdout.writeln('  dart run cockpit list-targets');
-  stdout.writeln(
-    '  dart run cockpit launch-app --project-dir . --platform macos',
-  );
-  stdout.writeln('  dart run cockpit read-app --profile minimal');
-  stdout.writeln('  dart run cockpit capture-screenshot --name acceptance');
-  stdout.writeln('  dart run cockpit read-system-capabilities');
-  stdout.writeln('  dart run cockpit serve-mcp');
+  stdout.writeln('Cockpit 2.0 resource commands:');
+  stdout.writeln('  dart run cockpit daemon status');
+  stdout.writeln('  dart run cockpit root list');
+  stdout.writeln('  dart run cockpit workspace list');
+  stdout.writeln('  dart run cockpit operation list');
+  stdout.writeln('  dart run cockpit case list');
+  stdout.writeln('  dart run cockpit_mcp');
   stdout.writeln('');
   stdout.writeln(
     'This example can also proxy arguments into CockpitCommandRunner:',
   );
-  stdout.writeln('  dart run example/main.dart read-system-capabilities');
+  stdout.writeln('  dart run example/main.dart daemon status');
 }

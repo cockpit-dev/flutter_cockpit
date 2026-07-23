@@ -4,8 +4,7 @@
       "command": "dart",
       "args": [
         "run",
-        "cockpit",
-        "serve-mcp"
+        "cockpit_mcp"
       ]
     }
   }

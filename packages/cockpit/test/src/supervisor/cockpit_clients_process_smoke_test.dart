@@ -1,0 +1,296 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:isolate';
+
+import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
+
+void main() {
+  test(
+    'CLI and MCP use the authenticated Supervisor HTTP boundary',
+    () async {
+      final temporary = await Directory.systemTemp.createTemp(
+        'cockpit-clients-smoke-',
+      );
+      final home = await Directory(p.join(temporary.path, 'home')).create();
+      final root = await Directory(p.join(temporary.path, 'projects')).create();
+      final workspace = await Directory(p.join(root.path, 'sample')).create();
+      await File(p.join(workspace.path, 'pubspec.yaml')).writeAsString('''
+name: cockpit_client_smoke
+environment:
+  sdk: '>=3.8.0 <4.0.0'
+''');
+      await File(p.join(workspace.path, 'smoke_case.yaml')).writeAsString('''
+schemaVersion: cockpit.test/v2
+kind: case
+id: smokeCase
+target: {platform: flutter, targetKind: flutterApp, plane: semantic}
+steps:
+  - stepId: goBack
+    action: {type: back}
+''');
+      final packageLibrary = await Isolate.resolvePackageUri(
+        Uri.parse('package:cockpit/cockpit.dart'),
+      );
+      if (packageLibrary == null) throw StateError('Cannot resolve cockpit.');
+      final packageRoot = p.dirname(p.dirname(packageLibrary.toFilePath()));
+      final environment = <String, String>{
+        ...Platform.environment,
+        'COCKPIT_HOME': await home.resolveSymbolicLinks(),
+      };
+
+      addTearDown(() async {
+        await _cli(packageRoot, environment, const <String>[
+          'daemon',
+          'stop',
+          '--mode',
+          'emergency',
+        ], allowFailure: true);
+        if (await temporary.exists()) await temporary.delete(recursive: true);
+      });
+
+      final started = await _cli(packageRoot, environment, const <String>[
+        'daemon',
+        'start',
+      ]);
+      expect(started['running'], isTrue);
+      expect(started['healthy'], isTrue);
+
+      final server = await _cli(packageRoot, environment, const <String>[
+        'server',
+      ]);
+      expect(server['apiVersion'], <String, Object?>{'major': 2, 'minor': 0});
+      expect(server, isNot(contains('bearerToken')));
+
+      final registeredRoot = await _cli(packageRoot, environment, <String>[
+        'root',
+        'add',
+        '--path',
+        root.path,
+      ]);
+      final rootId = registeredRoot['rootId']! as String;
+      final registeredWorkspace = await _cli(packageRoot, environment, <String>[
+        'workspace',
+        'register',
+        '--root-id',
+        rootId,
+        '--path',
+        workspace.path,
+      ]);
+      final workspaceId = registeredWorkspace['workspaceId']! as String;
+
+      final cases = await _cli(packageRoot, environment, <String>[
+        'case',
+        'list',
+        '--workspace-id',
+        workspaceId,
+      ]);
+      expect(
+        (cases['items']! as List<Object?>).cast<Map<String, Object?>>().map(
+          (item) => item['caseId'],
+        ),
+        contains('smokeCase'),
+      );
+
+      final accepted = await _cli(packageRoot, environment, <String>[
+        'case',
+        'run',
+        '--workspace-id',
+        workspaceId,
+        '--case-id',
+        'smokeCase',
+        '--idempotency-key',
+        'smoke-case-run',
+        '--inputs-json',
+        '{}',
+      ]);
+      final runId = accepted['runId']! as String;
+      final run = await _cli(packageRoot, environment, <String>[
+        'run',
+        'get',
+        '--run-id',
+        runId,
+      ]);
+      expect(run['runId'], runId);
+
+      final events = await _cli(packageRoot, environment, <String>[
+        'run',
+        'events',
+        '--run-id',
+        runId,
+        '--after-sequence',
+        '0',
+        '--max-events',
+        '1',
+      ]);
+      expect(events['items'], isNotEmpty);
+
+      final cancellation = await _cli(packageRoot, environment, <String>[
+        'run',
+        'cancel',
+        '--run-id',
+        runId,
+        '--idempotency-key',
+        'smoke-case-cancel',
+      ]);
+      expect(cancellation['runId'], runId);
+
+      final mcp = await _mcp(packageRoot, environment, runId: runId);
+      expect(mcp[0]['result'], isA<Map<String, Object?>>());
+      final resource = mcp[1]['result']! as Map<String, Object?>;
+      final contents = (resource['contents']! as List<Object?>).single;
+      final resourceJson =
+          jsonDecode((contents as Map<String, Object?>)['text']! as String)
+              as Map<String, Object?>;
+      expect(resourceJson['instanceId'], server['instanceId']);
+      final tool = mcp[2]['result']! as Map<String, Object?>;
+      expect(
+        (tool['structuredContent']! as Map<String, Object?>)['runId'],
+        runId,
+      );
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
+}
+
+Future<Map<String, Object?>> _cli(
+  String packageRoot,
+  Map<String, String> environment,
+  List<String> arguments, {
+  bool allowFailure = false,
+}) async {
+  final result = await Process.run(
+    Platform.resolvedExecutable,
+    <String>[p.join(packageRoot, 'bin', 'cockpit.dart'), ...arguments],
+    workingDirectory: packageRoot,
+    environment: environment,
+  ).timeout(const Duration(seconds: 45));
+  if (allowFailure && result.exitCode != 0) return const <String, Object?>{};
+  expect(
+    result.exitCode,
+    0,
+    reason: 'cockpit ${arguments.join(' ')}\n${result.stderr}',
+  );
+  final envelope = Map<String, Object?>.from(
+    jsonDecode('${result.stdout}'.trim()) as Map<Object?, Object?>,
+  );
+  expect(envelope['ok'], isTrue, reason: '${result.stderr}');
+  return Map<String, Object?>.from(envelope['data']! as Map<Object?, Object?>);
+}
+
+Future<List<Map<String, Object?>>> _mcp(
+  String packageRoot,
+  Map<String, String> environment, {
+  required String runId,
+}) async {
+  final process = await Process.start(
+    Platform.resolvedExecutable,
+    <String>[p.join(packageRoot, 'bin', 'cockpit_mcp.dart')],
+    workingDirectory: packageRoot,
+    environment: environment,
+  );
+  final output = <int>[];
+  final errors = StringBuffer();
+  final initialized = Completer<void>();
+  final responsesReceived = Completer<void>();
+  final outputDone = process.stdout.listen((chunk) {
+    output.addAll(chunk);
+    final count = _decodeFrames(output).length;
+    if (count >= 1 && !initialized.isCompleted) initialized.complete();
+    if (count >= 3 && !responsesReceived.isCompleted) {
+      responsesReceived.complete();
+    }
+  }).asFuture<void>();
+  final errorDone = process.stderr
+      .transform(utf8.decoder)
+      .listen(errors.write)
+      .asFuture<void>();
+  process.stdin.add(
+    _frame(<String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 1,
+      'method': 'initialize',
+      'params': <String, Object?>{
+        'protocolVersion': '2025-11-05',
+        'capabilities': <String, Object?>{},
+        'clientInfo': <String, Object?>{
+          'name': 'cockpit-smoke',
+          'version': '2.0.0',
+        },
+      },
+    }),
+  );
+  await initialized.future.timeout(const Duration(seconds: 10));
+  for (final message in <Map<String, Object?>>[
+    <String, Object?>{'jsonrpc': '2.0', 'method': 'notifications/initialized'},
+    <String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 2,
+      'method': 'resources/read',
+      'params': <String, Object?>{'uri': 'cockpit://server'},
+    },
+    <String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 3,
+      'method': 'tools/call',
+      'params': <String, Object?>{
+        'name': 'run_get',
+        'arguments': <String, Object?>{'runId': runId},
+      },
+    },
+  ]) {
+    process.stdin.add(_frame(message));
+  }
+  await responsesReceived.future.timeout(const Duration(seconds: 30));
+  await process.stdin.close();
+  final exitCode = await process.exitCode.timeout(const Duration(seconds: 30));
+  await Future.wait(<Future<void>>[outputDone, errorDone]);
+  expect(exitCode, 0, reason: errors.toString());
+  final responses = _decodeFrames(output);
+  expect(responses, hasLength(3), reason: errors.toString());
+  return responses;
+}
+
+List<int> _frame(Map<String, Object?> message) {
+  final body = utf8.encode(jsonEncode(message));
+  return <int>[
+    ...ascii.encode('Content-Length: ${body.length}\r\n\r\n'),
+    ...body,
+  ];
+}
+
+List<Map<String, Object?>> _decodeFrames(List<int> bytes) {
+  final messages = <Map<String, Object?>>[];
+  var offset = 0;
+  while (offset < bytes.length) {
+    int? headerEnd;
+    for (var index = offset; index <= bytes.length - 4; index++) {
+      if (bytes[index] == 13 &&
+          bytes[index + 1] == 10 &&
+          bytes[index + 2] == 13 &&
+          bytes[index + 3] == 10) {
+        headerEnd = index;
+        break;
+      }
+    }
+    if (headerEnd == null) break;
+    final header = ascii.decode(bytes.sublist(offset, headerEnd));
+    final match = RegExp(
+      r'Content-Length:\s*(\d+)',
+      caseSensitive: false,
+    ).firstMatch(header);
+    if (match == null) throw const FormatException('Missing content length.');
+    final start = headerEnd + 4;
+    final end = start + int.parse(match[1]!);
+    if (end > bytes.length) break;
+    messages.add(
+      Map<String, Object?>.from(
+        jsonDecode(utf8.decode(bytes.sublist(start, end)))
+            as Map<Object?, Object?>,
+      ),
+    );
+    offset = end;
+  }
+  return messages;
+}

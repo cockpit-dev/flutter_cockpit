@@ -1,0 +1,189 @@
+import 'dart:convert';
+
+import '../supervisor/cockpit_supervisor_api_client.dart';
+import 'core/cockpit_mcp_resource.dart';
+import 'core/cockpit_mcp_resource_definition.dart';
+
+typedef CockpitMcpClientProvider =
+    Future<CockpitSupervisorApiClient> Function();
+
+List<CockpitMcpResource> cockpitMcpApiResources(
+  CockpitMcpClientProvider client,
+) => <CockpitMcpResource>[
+  _CockpitApiResource.fixed(
+    client: client,
+    name: 'server',
+    uri: 'cockpit://server',
+    description: 'Cockpit Supervisor server identity and API version.',
+    read: (api, _) async => (await api.server()).toJson(),
+  ),
+  _CockpitApiResource.fixed(
+    client: client,
+    name: 'capabilities',
+    uri: 'cockpit://capabilities',
+    description: 'Negotiated Supervisor capabilities and public surfaces.',
+    read: (api, _) async => (await api.capabilities()).toJson(),
+  ),
+  _CockpitApiResource.fixed(
+    client: client,
+    name: 'roots',
+    uri: 'cockpit://roots',
+    description: 'Registered Cockpit project roots.',
+    read: (api, _) async => <String, Object?>{
+      'items': (await api.roots()).map((item) => item.toJson()).toList(),
+    },
+  ),
+  _CockpitApiResource.fixed(
+    client: client,
+    name: 'workspaces',
+    uri: 'cockpit://workspaces',
+    description: 'Registered Cockpit workspace checkouts.',
+    read: (api, _) async => <String, Object?>{
+      'items': (await api.workspaces()).map((item) => item.toJson()).toList(),
+    },
+  ),
+  _CockpitApiResource.fixed(
+    client: client,
+    name: 'operations',
+    uri: 'cockpit://operations',
+    description: 'Advertised Supervisor and root operations.',
+    read: (api, _) async => <String, Object?>{
+      'items': (await api.operations()).map((item) => item.toJson()).toList(),
+    },
+  ),
+  _CockpitApiResource.template(
+    client: client,
+    name: 'workspace_operations',
+    uriTemplate: 'cockpit://workspaces/{workspaceId}/operations',
+    description: 'Advertised operations for an explicit workspace.',
+    read: (api, uri) async => <String, Object?>{
+      'items': (await api.operations(
+        workspaceId: _identifier(uri, 0, 'workspaceId'),
+      )).map((item) => item.toJson()).toList(),
+    },
+  ),
+  _CockpitApiResource.template(
+    client: client,
+    name: 'workspace_cases',
+    uriTemplate: 'cockpit://workspaces/{workspaceId}/cases',
+    description: 'Indexed cases for an explicit workspace.',
+    read: (api, uri) async => <String, Object?>{
+      'items': (await api.cases(
+        _identifier(uri, 0, 'workspaceId'),
+      )).map((item) => item.toJson()).toList(),
+    },
+  ),
+  _CockpitApiResource.template(
+    client: client,
+    name: 'run',
+    uriTemplate: 'cockpit://runs/{runId}',
+    description: 'A run resource addressed by explicit run id.',
+    read: (api, uri) async =>
+        (await api.run(_identifier(uri, 0, 'runId'))).toJson(),
+  ),
+];
+
+typedef _ResourceRead =
+    Future<Object?> Function(CockpitSupervisorApiClient api, Uri uri);
+
+final class _CockpitApiResource extends CockpitMcpResource {
+  const _CockpitApiResource._({
+    required this.client,
+    required this.definition,
+    required _ResourceRead read,
+  }) : _read = read;
+
+  factory _CockpitApiResource.fixed({
+    required CockpitMcpClientProvider client,
+    required String name,
+    required String uri,
+    required String description,
+    required _ResourceRead read,
+  }) => _CockpitApiResource._(
+    client: client,
+    definition: CockpitMcpResourceDefinition.fixed(
+      name: name,
+      uri: uri,
+      description: description,
+      mimeType: 'application/json',
+    ),
+    read: read,
+  );
+
+  factory _CockpitApiResource.template({
+    required CockpitMcpClientProvider client,
+    required String name,
+    required String uriTemplate,
+    required String description,
+    required _ResourceRead read,
+  }) => _CockpitApiResource._(
+    client: client,
+    definition: CockpitMcpResourceDefinition.template(
+      name: name,
+      uriTemplate: uriTemplate,
+      description: description,
+      mimeType: 'application/json',
+    ),
+    read: read,
+  );
+
+  final CockpitMcpClientProvider client;
+
+  @override
+  final CockpitMcpResourceDefinition definition;
+  final _ResourceRead _read;
+
+  @override
+  Future<CockpitMcpResourceResult?> read(
+    CockpitMcpResourceRequest request,
+  ) async {
+    final uri = request.parsedUri;
+    final fixed = definition.uri;
+    if (fixed != null && request.uri != fixed) return null;
+    if (fixed == null && !_matchesTemplate(uri, definition.name)) return null;
+    final value = await _read(await client(), uri);
+    final text = jsonEncode(value);
+    if (utf8.encode(text).length > cockpitSupervisorMaximumResponseBytes) {
+      throw const CockpitSupervisorClientException(
+        code: 'outputTooLarge',
+        message: 'MCP resource output exceeds 1 MiB.',
+      );
+    }
+    return CockpitMcpResourceResult(
+      contents: <CockpitMcpResourceContents>[
+        CockpitMcpTextResourceContents(
+          uri: request.uri,
+          text: text,
+          mimeType: 'application/json',
+        ),
+      ],
+    );
+  }
+}
+
+bool _matchesTemplate(Uri uri, String name) {
+  if (uri.scheme != 'cockpit') return false;
+  return switch (name) {
+    'workspace_operations' =>
+      uri.host == 'workspaces' &&
+          uri.pathSegments.length == 2 &&
+          uri.pathSegments[1] == 'operations',
+    'workspace_cases' =>
+      uri.host == 'workspaces' &&
+          uri.pathSegments.length == 2 &&
+          uri.pathSegments[1] == 'cases',
+    'run' => uri.host == 'runs' && uri.pathSegments.length == 1,
+    _ => false,
+  };
+}
+
+String _identifier(Uri uri, int index, String name) {
+  if (uri.hasQuery || uri.hasFragment || index >= uri.pathSegments.length) {
+    throw FormatException('Invalid $name resource URI.');
+  }
+  final value = uri.pathSegments[index];
+  if (!RegExp(r'^[A-Za-z][A-Za-z0-9._-]{0,127}$').hasMatch(value)) {
+    throw FormatException('Invalid $name resource URI.');
+  }
+  return value;
+}

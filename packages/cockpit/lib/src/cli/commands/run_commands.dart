@@ -1,0 +1,302 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:args/args.dart';
+import 'package:args/command_runner.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
+import 'package:path/path.dart' as p;
+
+import '../../supervisor/cockpit_supervisor_api_client.dart';
+import '../cockpit_cli_runtime.dart';
+
+final class CockpitCaseCommand extends Command<int> {
+  CockpitCaseCommand(this.runtime) {
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'list',
+        description: 'List indexed cases for a workspace.',
+        configure: (parser) => parser.addOption('workspace-id'),
+        action: (arguments) async {
+          final workspaceId = await runtime.workspaceId(
+            arguments.option('workspace-id'),
+          );
+          runtime.success(<String, Object?>{
+            'items': (await (await runtime.client()).cases(
+              workspaceId,
+            )).map((testCase) => testCase.toJson()).toList(),
+          });
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'validate',
+        description: 'Validate a case document.',
+        configure: (parser) => parser
+          ..addOption('workspace-id')
+          ..addOption('file', mandatory: true)
+          ..addOption('format', allowed: const <String>['json', 'yaml']),
+        action: (arguments) async {
+          final file = File(arguments.option('file')!);
+          if (await file.length() > cockpitSupervisorMaximumResponseBytes) {
+            throw const FormatException('Case document exceeds 1 MiB.');
+          }
+          final workspaceId = await runtime.workspaceId(
+            arguments.option('workspace-id'),
+          );
+          final format = _documentFormat(arguments.option('format'), file.path);
+          final result = await (await runtime.client()).validateCaseDocument(
+            workspaceId,
+            CockpitDocumentValidationRequest(
+              format: format,
+              sourceText: await file.readAsString(),
+              relativePath: p.basename(file.path),
+            ),
+          );
+          runtime.success(result.toJson());
+          return result.valid ? cockpitSuccessExitCode : cockpitDataExitCode;
+        },
+      ),
+    );
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'run',
+        description: 'Run an indexed case with canonical source identity.',
+        configure: (parser) => parser
+          ..addOption('workspace-id')
+          ..addOption('document-id')
+          ..addOption('case-id', mandatory: true)
+          ..addOption('idempotency-key', mandatory: true)
+          ..addOption('inputs-json')
+          ..addOption('inputs-file')
+          ..addOption('target-id'),
+        action: (arguments) async {
+          final workspaceId = await runtime.workspaceId(
+            arguments.option('workspace-id'),
+          );
+          final documents = await (await runtime.client()).documents(
+            workspaceId,
+          );
+          final requestedDocument = arguments.option('document-id');
+          final caseId = arguments.option('case-id')!;
+          final matches = documents.where(
+            (document) =>
+                (requestedDocument == null ||
+                    document.documentId == requestedDocument) &&
+                document.cases.any((testCase) => testCase.caseId == caseId),
+          );
+          if (matches.length != 1) {
+            throw CockpitSupervisorClientException(
+              code: matches.isEmpty ? 'caseNotFound' : 'caseAmbiguous',
+              message: matches.isEmpty
+                  ? 'Indexed case $caseId was not found.'
+                  : 'Case $caseId exists in multiple documents; pass --document-id.',
+            );
+          }
+          final document = matches.single;
+          final accepted = await (await runtime.client()).submitRun(
+            CockpitRunSubmission(
+              workspaceId: workspaceId,
+              source: CockpitIndexedCaseSource(
+                reference: CockpitIndexedCaseReference(
+                  documentId: document.documentId,
+                  caseId: caseId,
+                  documentSha256: document.sha256,
+                ),
+              ),
+              idempotencyKey: CockpitIdempotencyKey(
+                arguments.option('idempotency-key')!,
+              ),
+              inputs: runtime.jsonObject(
+                arguments.option('inputs-json'),
+                arguments.option('inputs-file'),
+              ),
+              targetId: arguments.option('target-id'),
+            ),
+          );
+          runtime.success(accepted.toJson());
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+  }
+
+  final CockpitCliRuntime runtime;
+
+  @override
+  String get name => 'case';
+
+  @override
+  String get description => 'Inspect, validate, and run canonical cases.';
+}
+
+final class CockpitRunCommand extends Command<int> {
+  CockpitRunCommand(this.runtime) {
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'get',
+        description: 'Read a run resource.',
+        configure: (parser) => parser.addOption('run-id', mandatory: true),
+        action: (arguments) async {
+          runtime.success(
+            (await (await runtime.client()).run(
+              arguments.option('run-id')!,
+            )).toJson(),
+          );
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'cancel',
+        description: 'Cancel a run.',
+        configure: (parser) => parser
+          ..addOption('run-id', mandatory: true)
+          ..addOption('idempotency-key', mandatory: true)
+          ..addOption('reason'),
+        action: (arguments) async {
+          final result = await (await runtime.client()).cancelRun(
+            arguments.option('run-id')!,
+            CockpitRunCancellationRequest(
+              idempotencyKey: CockpitIdempotencyKey(
+                arguments.option('idempotency-key')!,
+              ),
+              reason: arguments.option('reason'),
+            ),
+          );
+          runtime.success(result.toJson());
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'events',
+        description: 'Stream bounded run events until terminal or disconnect.',
+        configure: (parser) => parser
+          ..addOption('run-id', mandatory: true)
+          ..addOption('after-sequence', defaultsTo: '0')
+          ..addOption('last-event-id')
+          ..addOption('max-events', defaultsTo: '1000'),
+        action: (arguments) async {
+          final after = _integer(arguments, 'after-sequence', minimum: 0);
+          final maximum = _integer(
+            arguments,
+            'max-events',
+            minimum: 1,
+            maximum: 1000,
+          );
+          final values = <Map<String, Object?>>[];
+          await for (final item in (await runtime.client()).events(
+            arguments.option('run-id')!,
+            afterSequence: after,
+            lastEventId: arguments.option('last-event-id'),
+          )) {
+            values.add(_streamItemJson(item));
+            if (values.length >= maximum) break;
+          }
+          runtime.success(<String, Object?>{'items': values});
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+  }
+
+  final CockpitCliRuntime runtime;
+
+  @override
+  String get name => 'run';
+
+  @override
+  String get description => 'Read, cancel, and observe runs.';
+}
+
+final class CockpitArtifactCommand extends Command<int> {
+  CockpitArtifactCommand(this.runtime) {
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'read',
+        description: 'Read a digest-checked bounded artifact.',
+        configure: (parser) => parser
+          ..addOption('run-id', mandatory: true)
+          ..addOption('artifact-id', mandatory: true)
+          ..addOption('size', mandatory: true)
+          ..addOption('sha256', mandatory: true),
+        action: (arguments) async {
+          final artifact = await (await runtime.client()).readArtifact(
+            runId: arguments.option('run-id')!,
+            artifactId: arguments.option('artifact-id')!,
+            expectedSize: _integer(
+              arguments,
+              'size',
+              minimum: 0,
+              maximum: cockpitSupervisorMaximumResponseBytes,
+            ),
+            expectedSha256: arguments.option('sha256')!,
+          );
+          runtime.success(<String, Object?>{
+            'mediaType': artifact.mediaType,
+            'sizeBytes': artifact.bytes.length,
+            'sha256': artifact.sha256,
+            'dataBase64': base64Encode(artifact.bytes),
+          });
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+  }
+
+  final CockpitCliRuntime runtime;
+
+  @override
+  String get name => 'artifact';
+
+  @override
+  String get description => 'Read verified run artifacts.';
+}
+
+CockpitDocumentFormat _documentFormat(String? requested, String path) {
+  if (requested != null) return CockpitDocumentFormat.values.byName(requested);
+  return switch (p.extension(path).toLowerCase()) {
+    '.json' => CockpitDocumentFormat.json,
+    '.yaml' || '.yml' => CockpitDocumentFormat.yaml,
+    _ => throw const FormatException(
+      'Case format cannot be inferred; pass --format.',
+    ),
+  };
+}
+
+Map<String, Object?> _streamItemJson(CockpitRunStreamItem item) =>
+    switch (item) {
+      CockpitRunStreamEvent() => <String, Object?>{
+        'type': 'event',
+        'event': item.event.toJson(),
+      },
+      CockpitRunStreamGap() => <String, Object?>{
+        'type': 'gap',
+        'boundary': item.boundary.toJson(),
+      },
+      CockpitRunStreamTerminal() => <String, Object?>{
+        'type': 'terminal',
+        'afterSequence': item.afterSequence,
+      },
+      CockpitRunStreamDisconnected() => <String, Object?>{
+        'type': 'disconnected',
+        'afterSequence': item.afterSequence,
+      },
+    };
+
+int _integer(
+  ArgResults arguments,
+  String name, {
+  required int minimum,
+  int? maximum,
+}) {
+  final value = int.tryParse(arguments.option(name)!);
+  if (value == null || value < minimum || maximum != null && value > maximum) {
+    throw FormatException('--$name is invalid.');
+  }
+  return value;
+}

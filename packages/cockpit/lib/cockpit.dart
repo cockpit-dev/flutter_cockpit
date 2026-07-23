@@ -103,11 +103,8 @@ export 'src/application/cockpit_workspace_document.dart';
 export 'src/application/cockpit_workspace_command_result.dart';
 export 'src/validation/cockpit_bundle_artifact_validator.dart';
 export 'src/cli/cockpit_command_runner.dart';
-export 'src/cli/cockpit_flutter_launch_configuration_cli.dart';
 export 'src/mcp/cockpit_mcp_error.dart';
-export 'src/mcp/cockpit_flutter_launch_configuration_mcp.dart';
 export 'src/mcp/cockpit_mcp_server.dart';
-export 'src/mcp/cockpit_mcp_server_runtime.dart';
 export 'src/mcp/cockpit_mcp_tool.dart';
 export 'src/targets/cockpit_target_handle.dart';
 export 'src/targets/cockpit_target_reference_resolver.dart';
@@ -140,7 +137,6 @@ export 'src/devtools/cockpit_live_run_observer.dart';
 export 'src/devtools/cockpit_live_run_state.dart';
 export 'src/devtools/cockpit_live_run_store.dart';
 export 'src/devtools/cockpit_sensitive_data_redactor.dart';
-export 'src/devtools/cockpit_devtools_server.dart';
 export 'src/session/cockpit_android_remote_session_launcher.dart';
 export 'src/session/cockpit_flutter_launch_configuration.dart';
 export 'src/session/cockpit_ios_physical_remote_session_launcher.dart';
@@ -159,6 +155,7 @@ export 'src/runner/cockpit_case_execution_control.dart'
 export 'src/runner/cockpit_case_runner.dart';
 export 'src/supervisor/cockpit_daemon_client.dart';
 export 'src/supervisor/cockpit_daemon_discovery.dart';
+export 'src/supervisor/cockpit_supervisor_api_client.dart';
 export 'src/supervisor/cockpit_daemon_host.dart' show CockpitDaemonShutdownMode;
 export 'src/supervisor/cockpit_supervisor_runtime.dart'
     show
@@ -166,7 +163,6 @@ export 'src/supervisor/cockpit_supervisor_runtime.dart'
         CockpitSupervisorRuntime,
         cockpitSupervisorEngineVersion,
         cockpitSupervisorFeatures;
-export 'src/cli/cockpit_control_script.dart';
 export 'src/test/cockpit_control_workflow_importer.dart';
 export 'src/test/cockpit_test_document_compiler.dart';
 export 'src/test/cockpit_test_safety_policy.dart';
