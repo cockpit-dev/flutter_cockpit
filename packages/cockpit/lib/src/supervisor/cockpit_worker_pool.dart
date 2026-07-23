@@ -237,11 +237,14 @@ final class CockpitWorkerPool {
     required String method,
     required String idempotencyKey,
     required DateTime deadline,
+    String? requestId,
     Map<String, Object?> params = const <String, Object?>{},
   }) {
     workerMethod(method, r'$.method');
     workerId(idempotencyKey, r'$.idempotencyKey');
-    final requestId = 'supervisor-call-${++_internalRequestSequence}';
+    final effectiveRequestId =
+        requestId ?? 'supervisor-call-${++_internalRequestSequence}';
+    workerId(effectiveRequestId, r'$.requestId');
     final result = connectionFor(spec).then(
       (connection) => connection.call(
         method: method,
@@ -252,10 +255,13 @@ final class CockpitWorkerPool {
           'idempotencyKey': idempotencyKey,
         },
         deadline: deadline,
-        requestId: requestId,
+        requestId: effectiveRequestId,
       ),
     );
-    return CockpitWorkspaceWorkerCall(requestId: requestId, result: result);
+    return CockpitWorkspaceWorkerCall(
+      requestId: effectiveRequestId,
+      result: result,
+    );
   }
 
   Future<CockpitWorkerCancelResult> cancel(

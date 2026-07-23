@@ -521,7 +521,7 @@ final class CockpitCaseRunAdapterFactory {
         idempotencyKey: context.idempotencyKey,
         requestFingerprint: _requestFingerprint(submission, compiled),
         caseId: compiled.testCase.id,
-        proposedRunId: _newId('run'),
+        proposedRunId: 'run_${context.requestId}',
         proposedAttemptId: _newId('attempt'),
         now: _utcNow(),
       );

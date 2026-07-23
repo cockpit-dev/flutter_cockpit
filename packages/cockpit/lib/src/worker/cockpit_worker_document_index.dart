@@ -16,6 +16,7 @@ import 'cockpit_workspace_operation_registry.dart';
 
 final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
   CockpitWorkerDocumentIndex({
+    this.workspaceId = 'workspace-local',
     required this.workspaceRoot,
     required this.stateRoot,
     required CockpitPermissionHardener permissionHardener,
@@ -41,6 +42,7 @@ final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
     '.json',
   };
 
+  final String workspaceId;
   final String workspaceRoot;
   final String stateRoot;
   final CockpitTokenGenerator _tokenGenerator;
@@ -128,21 +130,34 @@ final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
       _loaded = wasLoaded;
       rethrow;
     }
-    final summaries =
-        <Map<String, Object?>>[
-          for (final document in _byId.values)
+    final summaries = <Map<String, Object?>>[];
+    for (final document in _byId.values) {
+      final stat = await File(
+        _paths.join(workspaceRoot, document.relativePath),
+      ).stat();
+      summaries.add(<String, Object?>{
+        'documentId': document.documentId,
+        'workspaceId': workspaceId,
+        'relativePath': document.relativePath,
+        'sha256': document.sourceSha256,
+        'sourceSha256': document.sourceSha256,
+        'modifiedAt': stat.modified.toUtc().toIso8601String(),
+        'kind': document.compiled == null ? 'source' : 'case',
+        'cases': <Map<String, Object?>>[
+          if (document.compiled case final compiled?)
             <String, Object?>{
-              'documentId': document.documentId,
-              'sourceSha256': document.sourceSha256,
-              'kind': document.compiled == null ? 'source' : 'case',
-              if (document.compiled != null)
-                'caseId': document.compiled!.testCase.id,
+              'caseId': compiled.testCase.id,
+              'title': ?compiled.testCase.name,
             },
-        ]..sort(
-          (left, right) => (left['documentId']! as String).compareTo(
-            right['documentId']! as String,
-          ),
-        );
+        ],
+        if (document.compiled != null) 'caseId': document.compiled!.testCase.id,
+      });
+    }
+    summaries.sort(
+      (left, right) => (left['documentId']! as String).compareTo(
+        right['documentId']! as String,
+      ),
+    );
     return summaries;
   }
 

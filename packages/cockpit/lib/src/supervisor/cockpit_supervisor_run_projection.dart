@@ -83,6 +83,12 @@ final class CockpitSupervisorEventGapException implements Exception {
 }
 
 typedef CockpitSupervisorMetadataRedactor = Object? Function(Object? value);
+typedef CockpitSupervisorRunAdmissionValidator =
+    Future<void> Function({
+      required String runId,
+      required String projectId,
+      required String caseId,
+    });
 
 abstract interface class CockpitSupervisorRunTruthProjection
     implements CockpitWorkerEventExchange {
@@ -103,6 +109,7 @@ final class CockpitSupervisorRunProjection
     required CockpitDirectorySyncer directorySyncer,
     required CockpitSupervisorRunRetentionIndex retentionIndex,
     CockpitSupervisorMetadataRedactor? redactor,
+    CockpitSupervisorRunAdmissionValidator? admissionValidator,
     this.maximumRetainedEventsPerRun = 4096,
     this.maximumRuns = 10000,
     this.maximumEventOwners = 100000,
@@ -120,6 +127,7 @@ final class CockpitSupervisorRunProjection
        ),
        _retentionIndex = retentionIndex,
        _redactor = redactor ?? ((value) => value),
+       _admissionValidator = admissionValidator,
        _utcNow = utcNow ?? (() => DateTime.now().toUtc()) {
     workerId(workspaceId, r'$.workspaceId');
     if (!p.isAbsolute(stateRoot) || p.normalize(stateRoot) != stateRoot) {
@@ -151,6 +159,7 @@ final class CockpitSupervisorRunProjection
   final CockpitLockedJsonStore<Map<String, Object?>> _store;
   final CockpitSupervisorRunRetentionIndex _retentionIndex;
   final CockpitSupervisorMetadataRedactor _redactor;
+  final CockpitSupervisorRunAdmissionValidator? _admissionValidator;
   final DateTime Function() _utcNow;
 
   @override
@@ -158,6 +167,11 @@ final class CockpitSupervisorRunProjection
     CockpitWorkerPublishEventBatchRequest request,
   ) async {
     _validateRequestIdentity(request.workspaceId, request.runId);
+    await _admissionValidator?.call(
+      runId: request.runId,
+      projectId: request.events.first.projectId,
+      caseId: request.events.first.caseId,
+    );
     final result = await _store.transact<CockpitWorkerPublishEventBatchResult>((
       raw,
     ) {
@@ -458,6 +472,29 @@ final class CockpitSupervisorRunProjection
     );
   }
 
+  Future<({CockpitArtifactResource resource, File file})> requireArtifactFile(
+    String runId,
+    String artifactId,
+  ) async {
+    final resource = await requireArtifact(runId, artifactId);
+    return (
+      resource: resource,
+      file: File(p.join(stateRoot, 'runs', runId, resource.relativePath)),
+    );
+  }
+
+  Future<bool> containsRun(String runId) async {
+    _validateRequestIdentity(workspaceId, runId);
+    final projection = _decodeProjection(
+      await _store.read(),
+      expectedWorkspaceId: workspaceId,
+      maximumRuns: maximumRuns,
+      maximumEventOwners: maximumEventOwners,
+      maximumArtifacts: maximumArtifacts,
+    );
+    return projection.runs.containsKey(runId);
+  }
+
   @override
   Future<void> rebuildRunFromWorkerTruth({
     required String runId,
@@ -473,6 +510,11 @@ final class CockpitSupervisorRunProjection
     )) {
       throw const FormatException('Run rebuild crosses projection authority.');
     }
+    await _admissionValidator?.call(
+      runId: runId,
+      projectId: events.first.projectId,
+      caseId: events.first.caseId,
+    );
     final owner = (
       projectId: events.first.projectId,
       caseId: events.first.caseId,

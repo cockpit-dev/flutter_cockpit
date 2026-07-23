@@ -1,0 +1,1369 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:cockpit_protocol/cockpit_protocol.dart';
+import 'package:crypto/crypto.dart';
+import 'package:path/path.dart' as p;
+
+import '../application/cockpit_create_project_service.dart';
+import '../application/cockpit_list_launch_targets_service.dart';
+import '../application/cockpit_pub_dev_search_service.dart';
+import '../foundation/cockpit_home.dart';
+import '../foundation/cockpit_ids.dart';
+import '../foundation/cockpit_locked_json_store.dart';
+import '../foundation/cockpit_permissions.dart';
+import '../registry/cockpit_registry_models.dart';
+import '../registry/cockpit_workspace_registry.dart';
+import '../system_control/cockpit_system_control_service.dart';
+import '../test/cockpit_test_safety_policy.dart';
+import '../worker/cockpit_worker_protocol_result.dart';
+import '../worker/cockpit_worker_protocol_request.dart';
+import '../worker/cockpit_worker_value_reader.dart';
+import 'cockpit_lease_support.dart';
+import 'cockpit_local_worker_launcher.dart';
+import 'cockpit_loopback_port_cleanup_probe.dart';
+import 'cockpit_supervisor_resource_registry.dart';
+import 'cockpit_supervisor_run_admission_store.dart';
+import 'cockpit_supervisor_run_projection.dart';
+import 'cockpit_supervisor_operation_catalog.dart';
+import 'cockpit_worker_pool.dart';
+import 'cockpit_worker_resource_authority.dart';
+
+const cockpitSupervisorEngineVersion = '2.0.0';
+final cockpitSupervisorFeatures = <CockpitFeatureDescriptor>[
+  CockpitFeatureDescriptor(
+    id: 'standaloneCaseRuns',
+    revision: 1,
+    minimumApiMinor: 0,
+  ),
+  CockpitFeatureDescriptor(
+    id: 'durableRunEvents',
+    revision: 1,
+    minimumApiMinor: 0,
+  ),
+  CockpitFeatureDescriptor(
+    id: 'digestCheckedArtifacts',
+    revision: 1,
+    minimumApiMinor: 0,
+  ),
+];
+
+final class CockpitSupervisorAuthorizationPolicy {
+  CockpitSupervisorAuthorizationPolicy({
+    Iterable<String> allowedDangerousOperations = const <String>[],
+    Iterable<CockpitSafetyEffect> allowedOperationSafetyEffects = const {},
+    Iterable<CockpitTestTargetEnvironment> allowedTargetEnvironments = const {
+      CockpitTestTargetEnvironment.development,
+      CockpitTestTargetEnvironment.test,
+      CockpitTestTargetEnvironment.staging,
+    },
+    Iterable<CockpitTestSafetyEffect> allowedSafetyEffects = const {},
+    Iterable<String> allowedEnvironmentSecretNames = const <String>[],
+  }) : allowedDangerousOperations = Set.unmodifiable(
+         allowedDangerousOperations,
+       ),
+       allowedOperationSafetyEffects = Set.unmodifiable(
+         allowedOperationSafetyEffects,
+       ),
+       allowedTargetEnvironments = Set.unmodifiable(allowedTargetEnvironments),
+       allowedSafetyEffects = Set.unmodifiable(allowedSafetyEffects),
+       allowedEnvironmentSecretNames = Set.unmodifiable(
+         allowedEnvironmentSecretNames,
+       ) {
+    if (this.allowedTargetEnvironments.contains(
+          CockpitTestTargetEnvironment.production,
+        ) ||
+        this.allowedTargetEnvironments.contains(
+          CockpitTestTargetEnvironment.unknown,
+        )) {
+      throw ArgumentError('Production and unknown targets cannot be trusted.');
+    }
+    for (final name in this.allowedEnvironmentSecretNames) {
+      if (!RegExp(r'^[A-Za-z_][A-Za-z0-9_]{0,127}$').hasMatch(name)) {
+        throw ArgumentError.value(name, 'allowedEnvironmentSecretNames');
+      }
+    }
+  }
+
+  final Set<String> allowedDangerousOperations;
+  final Set<CockpitSafetyEffect> allowedOperationSafetyEffects;
+  final Set<CockpitTestTargetEnvironment> allowedTargetEnvironments;
+  final Set<CockpitTestSafetyEffect> allowedSafetyEffects;
+  final Set<String> allowedEnvironmentSecretNames;
+
+  void authorizeOperation(
+    CockpitSupervisorOperationMetadata metadata,
+    CockpitOperationInvocation invocation,
+  ) {
+    final descriptor = metadata.descriptor;
+    if (metadata.requiresExplicitAuthorization &&
+        !allowedDangerousOperations.contains(descriptor.kind)) {
+      throw CockpitApiException(
+        CockpitApiError(
+          code: 'operationNotAuthorized',
+          category: CockpitErrorCategory.environment,
+          message:
+              'Operation ${descriptor.kind} is not explicitly authorized by Supervisor policy.',
+          retryable: false,
+          responsibleLayer: CockpitResponsibleLayer.supervisor,
+        ),
+      );
+    }
+    final deniedEffects = descriptor.safetyEffects
+        .map((effect) => effect.knownValue)
+        .whereType<CockpitSafetyEffect>()
+        .where((effect) => !allowedOperationSafetyEffects.contains(effect))
+        .toList(growable: false);
+    if (deniedEffects.isNotEmpty) {
+      throw CockpitApiException(
+        CockpitApiError(
+          code: CockpitErrorCode.authorizationDenied,
+          category: CockpitErrorCategory.environment,
+          message:
+              'Operation ${descriptor.kind} requests safety effects that are not authorized.',
+          retryable: false,
+          responsibleLayer: CockpitResponsibleLayer.supervisor,
+          redactedDetails: <String, Object?>{
+            'safetyEffects': deniedEffects
+                .map((effect) => effect.name)
+                .toList(),
+          },
+        ),
+      );
+    }
+    final environment = invocation.input['targetEnvironment'];
+    if (environment == null) return;
+    if (environment is! String) {
+      throw const FormatException('targetEnvironment must be a string.');
+    }
+    final targetEnvironment = CockpitTestTargetEnvironment.values
+        .where((value) => value.name == environment)
+        .firstOrNull;
+    if (targetEnvironment == null ||
+        !allowedTargetEnvironments.contains(targetEnvironment)) {
+      throw CockpitApiException(
+        CockpitApiError(
+          code: CockpitErrorCode.authorizationDenied,
+          category: CockpitErrorCategory.environment,
+          message: 'Target environment $environment is not authorized.',
+          retryable: false,
+          responsibleLayer: CockpitResponsibleLayer.supervisor,
+        ),
+      );
+    }
+  }
+}
+
+final class CockpitSupervisorRuntime {
+  CockpitSupervisorRuntime._({
+    required this.resources,
+    required this.workerPool,
+    required this.authorization,
+    required this.permissionHardener,
+    required this.directorySyncer,
+    required CockpitListLaunchTargetsService listLaunchTargets,
+    required CockpitSystemControlService systemControl,
+    required CockpitCreateProjectService createProject,
+    required CockpitPubDevSearchService packageSearch,
+    required this.runAdmissions,
+    required Map<String, CockpitSupervisorRunProjection> projections,
+  }) : _listLaunchTargets = listLaunchTargets,
+       _systemControl = systemControl,
+       _createProject = createProject,
+       _packageSearch = packageSearch,
+       _projections = projections;
+
+  final CockpitSupervisorResourceRegistry resources;
+  final CockpitWorkerPool workerPool;
+  final CockpitSupervisorAuthorizationPolicy authorization;
+  final CockpitPermissionHardener permissionHardener;
+  final CockpitDirectorySyncer directorySyncer;
+  final CockpitListLaunchTargetsService _listLaunchTargets;
+  final CockpitSystemControlService _systemControl;
+  final CockpitCreateProjectService _createProject;
+  final CockpitPubDevSearchService _packageSearch;
+  final CockpitSupervisorRunAdmissionStore runAdmissions;
+  final Map<String, CockpitSupervisorRunProjection> _projections;
+  final Map<String, Future<void>> _workerInitialization = {};
+  final Map<String, _ActiveRun> _activeRuns = {};
+  bool _draining = false;
+
+  static Future<CockpitSupervisorRuntime> initialize({
+    required CockpitHomeResolver homeResolver,
+    required String dartExecutable,
+    required String workerEntrypoint,
+    CockpitSupervisorAuthorizationPolicy? authorization,
+  }) async {
+    final policy = authorization ?? CockpitSupervisorAuthorizationPolicy();
+    final hardener = homeResolver.platform == CockpitHostPlatform.windows
+        ? const CockpitWindowsAclPermissionHardener()
+        : const CockpitPosixPermissionHardener();
+    final syncer = CockpitSystemDirectorySyncer(homeResolver.platform);
+    final cleanup = _CockpitProductionCleanupProbeResolver();
+    final resources = await CockpitSupervisorResourceRegistry.initialize(
+      cleanupProbes: cleanup,
+      homeResolver: homeResolver,
+      permissionHardener: hardener,
+      directorySyncer: syncer,
+    );
+    final runAdmissions = CockpitSupervisorRunAdmissionStore(
+      paths: resources.identity.homePaths,
+      permissionHardener: hardener,
+      directorySyncer: syncer,
+    );
+    final projections = <String, CockpitSupervisorRunProjection>{};
+    final ports = resources.createPortAllocator();
+    late final CockpitLocalWorkerLauncher launcher;
+    launcher = CockpitLocalWorkerLauncher(
+      dartExecutable: dartExecutable,
+      workerEntrypoint: workerEntrypoint,
+      retentionIndex: CockpitScopedSupervisorRunRetentionIndex(
+        resources.identity.references,
+      ),
+      permissionHardener: hardener,
+      directorySyncer: syncer,
+      eventExchangeFactory: (spec) => projections.putIfAbsent(
+        spec.key.workspaceId,
+        () => CockpitSupervisorRunProjection(
+          workspaceId: spec.key.workspaceId,
+          stateRoot: spec.stateRoot,
+          permissionHardener: hardener,
+          directorySyncer: syncer,
+          retentionIndex: CockpitScopedSupervisorRunRetentionIndex(
+            resources.identity.references,
+          ),
+          admissionValidator:
+              ({required runId, required projectId, required caseId}) =>
+                  runAdmissions.validateOwner(
+                    workspaceId: spec.key.workspaceId,
+                    runId: runId,
+                    projectId: projectId,
+                    caseId: caseId,
+                  ),
+        ),
+      ),
+      resourceAuthorityFactory: (spec, bridge) =>
+          CockpitLeaseWorkerResourceAuthority(
+            workspaceId: spec.key.workspaceId,
+            leases: resources.leases,
+            ports: ports,
+            portBridge: bridge,
+          ),
+      environment: <String, String>{
+        'PATH': ?Platform.environment['PATH'],
+        'HOME': ?Platform.environment['HOME'],
+        'USERPROFILE': ?Platform.environment['USERPROFILE'],
+        'SystemRoot': ?Platform.environment['SystemRoot'],
+        for (final name in policy.allowedEnvironmentSecretNames)
+          name: ?Platform.environment[name],
+      },
+      allowedEnvironmentSecretNames: policy.allowedEnvironmentSecretNames,
+    );
+    return CockpitSupervisorRuntime._(
+      resources: resources,
+      workerPool: CockpitWorkerPool(launcher: launcher),
+      authorization: policy,
+      permissionHardener: hardener,
+      directorySyncer: syncer,
+      listLaunchTargets: CockpitListLaunchTargetsService(),
+      systemControl: CockpitSystemControlService(),
+      createProject: CockpitCreateProjectService(),
+      packageSearch: CockpitPubDevSearchService(),
+      runAdmissions: runAdmissions,
+      projections: projections,
+    );
+  }
+
+  CockpitServerInfo serverInfo({
+    required String instanceId,
+    DateTime? startedAt,
+  }) => CockpitServerInfo(
+    instanceId: instanceId,
+    apiVersion: CockpitApiVersion(major: 2, minor: 0),
+    engineVersion: cockpitSupervisorEngineVersion,
+    startedAt: startedAt ?? DateTime.now().toUtc(),
+    features: cockpitSupervisorFeatures,
+  );
+
+  Future<CockpitCapabilityDocument> capabilities() async {
+    final workspaces = await resources.identity.workspaces.list();
+    final operations = <String, CockpitOperationDescriptor>{
+      for (final descriptor
+          in CockpitSupervisorOperationCatalog.supervisorOperations)
+        descriptor.kind: descriptor,
+    };
+    for (final workspace in workspaces.where(
+      (item) => item.state == CockpitWorkspaceState.active,
+    )) {
+      for (final descriptor in await workspaceOperations(
+        workspace.workspaceId,
+      )) {
+        operations[descriptor.kind] = descriptor;
+      }
+    }
+    return CockpitCapabilityDocument(
+      apiVersion: CockpitApiVersion(major: 2, minor: 0),
+      features: cockpitSupervisorFeatures,
+      operations: operations.values.toList()
+        ..sort((a, b) => a.kind.compareTo(b.kind)),
+      resources: _resourceDescriptors,
+    );
+  }
+
+  Future<List<CockpitRootResource>> roots() => resources.identity.roots.list();
+
+  List<CockpitOperationDescriptor> supervisorOperations() =>
+      CockpitSupervisorOperationCatalog.supervisorOperations;
+
+  Future<CockpitOperationResult> executeSupervisorOperation(
+    CockpitOperationInvocation invocation,
+  ) async {
+    _requireAccepting();
+    final metadata = CockpitSupervisorOperationCatalog.require(invocation.kind);
+    final descriptor = metadata.descriptor;
+    if (descriptor.scope == CockpitOperationScope.workspace) {
+      throw _apiError(
+        CockpitErrorCode.unsupportedOperation,
+        CockpitErrorCategory.unsupported,
+        'Workspace operations must use a workspace operation route.',
+      );
+    }
+    if (descriptor.scope == CockpitOperationScope.supervisor &&
+        (invocation.rootId != null || invocation.workspaceId != null)) {
+      throw const FormatException('Supervisor operation scope mismatch.');
+    }
+    if (descriptor.scope == CockpitOperationScope.root &&
+        (invocation.rootId == null || invocation.workspaceId != null)) {
+      throw const FormatException('Root operation scope mismatch.');
+    }
+    if (descriptor.idempotency == CockpitIdempotencyBehavior.required &&
+        invocation.idempotencyKey == null) {
+      throw const FormatException('Operation requires an idempotency key.');
+    }
+    if (invocation.deadline case final deadline?
+        when !deadline.isAfter(DateTime.now().toUtc())) {
+      throw _apiError(
+        'deadlineExceeded',
+        CockpitErrorCategory.cancelled,
+        'Operation deadline has expired.',
+      );
+    }
+    authorization.authorizeOperation(metadata, invocation);
+    final submittedAt = DateTime.now().toUtc();
+    final output = switch (invocation.kind) {
+      'target.list' => await _listTargets(invocation.input),
+      'system.capabilities' => await _systemCapabilities(invocation.input),
+      'system.diagnostics' => await _systemDiagnostics(invocation.input),
+      'project.create' => await _createRootProject(invocation),
+      'package.search' => await _searchPackages(invocation),
+      _ => throw _apiError(
+        CockpitErrorCode.unsupportedOperation,
+        CockpitErrorCategory.unsupported,
+        'Operation ${invocation.kind} is not implemented.',
+      ),
+    };
+    final finishedAt = DateTime.now().toUtc();
+    return CockpitOperationResult(
+      operationId:
+          'operation_${CockpitSecureTokenGenerator().nextToken(byteLength: 16)}',
+      kind: invocation.kind,
+      rootId: invocation.rootId,
+      lifecycle: CockpitOperationLifecycle.completed,
+      outcome: CockpitOperationOutcome.succeeded,
+      submittedAt: submittedAt,
+      startedAt: submittedAt,
+      finishedAt: finishedAt,
+      output: output,
+    );
+  }
+
+  Future<CockpitRootResource> registerRoot(CockpitRootRegistration request) {
+    _requireAccepting();
+    return resources.identity.roots.register(request.path);
+  }
+
+  Future<CockpitRetirementResult> removeRoot(
+    String rootId,
+    CockpitRootRemoval request,
+  ) => resources.identity.roots.remove(
+    rootId,
+    policy: _removalPolicy(request.force),
+    drainTimeout: Duration(milliseconds: request.drainTimeoutMs),
+  );
+
+  Future<List<CockpitWorkspaceResource>> workspaces() =>
+      resources.identity.workspaces.list();
+
+  Future<CockpitWorkspaceResource> registerWorkspace(
+    CockpitWorkspaceRegistration request,
+  ) async {
+    _requireAccepting();
+    final result = await resources.identity.workspaces.register(
+      rootId: request.rootId,
+      path: request.path,
+    );
+    return resources.identity.workspaces.get(result.workspaceId);
+  }
+
+  Future<CockpitWorkspaceResource> rebindWorkspace(
+    String workspaceId,
+    CockpitWorkspaceRebind request,
+  ) async {
+    _requireAccepting();
+    final current = await resources.identity.workspaces.get(workspaceId);
+    await resources.identity.workspaces.explicitRebind(
+      workspaceId: workspaceId,
+      expectedCheckoutId: request.expectedCheckoutId,
+      rootId: current.rootId,
+      path: request.path,
+    );
+    return resources.identity.workspaces.get(workspaceId);
+  }
+
+  Future<CockpitRetirementResult> removeWorkspace(
+    String workspaceId,
+    CockpitWorkspaceRemoval request,
+  ) async {
+    await workerPool.shutdownWorkspace(
+      CockpitWorkspaceWorkerKey(
+        workspaceId: workspaceId,
+        engineVersion: cockpitSupervisorEngineVersion,
+      ),
+      grace: Duration(milliseconds: request.drainTimeoutMs),
+      force: request.force,
+    );
+    return resources.identity.workspaces.unregister(
+      workspaceId,
+      policy: _removalPolicy(request.force),
+      drainTimeout: Duration(milliseconds: request.drainTimeoutMs),
+    );
+  }
+
+  Future<List<CockpitOperationDescriptor>> workspaceOperations(
+    String workspaceId,
+  ) async {
+    final spec = await _workerSpec(workspaceId);
+    await _initializeWorker(spec);
+    final result = CockpitWorkerCapabilitiesResult.fromJson(
+      await workerPool.call(
+        spec,
+        method: 'capabilities',
+        idempotencyKey: 'capabilities-$workspaceId',
+        deadline: _deadline(),
+      ),
+    );
+    return CockpitSupervisorOperationCatalog.workspaceDescriptors(
+      result.operationKinds,
+    );
+  }
+
+  Future<CockpitOperationResult> executeWorkspaceOperation(
+    String workspaceId,
+    CockpitOperationInvocation invocation,
+  ) async {
+    _requireAccepting();
+    if (invocation.workspaceId != workspaceId || invocation.rootId != null) {
+      throw const FormatException('Workspace operation scope mismatch.');
+    }
+    if (invocation.kind == 'case.run') {
+      throw _apiError(
+        CockpitErrorCode.unsupportedOperation,
+        CockpitErrorCategory.unsupported,
+        'case.run must use the dedicated run submission route.',
+      );
+    }
+    final metadata = CockpitSupervisorOperationCatalog.require(invocation.kind);
+    if (metadata.descriptor.scope != CockpitOperationScope.workspace) {
+      throw const FormatException('Workspace operation scope mismatch.');
+    }
+    authorization.authorizeOperation(metadata, invocation);
+    final spec = await _workerSpec(workspaceId);
+    await _initializeWorker(spec);
+    final key =
+        invocation.idempotencyKey?.value ??
+        'readonly-${CockpitSecureTokenGenerator().nextToken(byteLength: 16)}';
+    final result = CockpitWorkerOperationResult.fromJson(
+      await workerPool.call(
+        spec,
+        method: 'operation',
+        idempotencyKey: key,
+        deadline: invocation.deadline ?? _deadline(),
+        params: <String, Object?>{'invocation': invocation.toJson()},
+      ),
+    );
+    return result.result;
+  }
+
+  Future<List<CockpitDocumentResource>> documents(String workspaceId) async {
+    final result = await executeWorkspaceOperation(
+      workspaceId,
+      CockpitOperationInvocation(
+        kind: 'document.index',
+        workspaceId: workspaceId,
+        idempotencyKey: CockpitIdempotencyKey(
+          'document-index-${DateTime.now().microsecondsSinceEpoch}',
+        ),
+        deadline: _deadline(),
+      ),
+    );
+    final raw = result.output?['documents'];
+    if (raw is! List<Object?>) {
+      throw const FormatException('Invalid document index.');
+    }
+    return <CockpitDocumentResource>[
+      for (var index = 0; index < raw.length; index++)
+        CockpitDocumentResource.fromJson(
+          raw[index],
+          path: '\$.documents[$index]',
+        ),
+    ];
+  }
+
+  Future<CockpitDocumentValidationResult> validateDocument(
+    String workspaceId,
+    CockpitDocumentValidationRequest request,
+  ) async {
+    final result = await executeWorkspaceOperation(
+      workspaceId,
+      CockpitOperationInvocation(
+        kind: 'case.validate',
+        workspaceId: workspaceId,
+        deadline: _deadline(),
+        input: request.toJson(),
+      ),
+    );
+    return CockpitDocumentValidationResult.fromJson(result.output);
+  }
+
+  Future<CockpitRunAccepted> submitRun(CockpitRunSubmission submission) async {
+    _requireAccepting();
+    final workspace = await _activeWorkspace(submission.workspaceId);
+    final fingerprint = sha256
+        .convert(utf8.encode(jsonEncode(submission.toJson())))
+        .toString();
+    CockpitSupervisorRunAdmissionResult admitted;
+    try {
+      admitted = await runAdmissions.admit(
+        workspaceId: submission.workspaceId,
+        idempotencyKey: submission.idempotencyKey.value,
+        fingerprint: fingerprint,
+        projectId: workspace.projectId,
+        caseId: _caseId(submission.source),
+        sourceSha256: _sourceSha(submission.source),
+        submittedAt: DateTime.now().toUtc(),
+      );
+    } on CockpitSupervisorRunAdmissionConflict {
+      throw _apiError(
+        'idempotencyConflict',
+        CockpitErrorCategory.invalidInput,
+        'Run idempotency key was reused with different input.',
+      );
+    }
+    final admission = admitted.admission;
+    final run = _ActiveRun(
+      workspaceId: admission.workspaceId,
+      projectId: admission.projectId,
+      runId: admission.runId,
+      caseId: admission.caseId,
+      sourceSha256: admission.sourceSha256,
+      idempotencyKey: admission.idempotencyKey,
+      fingerprint: admission.fingerprint,
+      requestId: admission.requestId,
+      submittedAt: admission.submittedAt,
+    );
+    final active = _activeRuns.putIfAbsent(run.runId, () => run);
+    if (identical(active, run)) {
+      unawaited(_dispatchRun(active, submission));
+    }
+    return active.accepted(
+      replayed: admitted.replayed || !identical(active, run),
+    );
+  }
+
+  Future<void> _dispatchRun(
+    _ActiveRun run,
+    CockpitRunSubmission submission,
+  ) async {
+    CockpitOperationResult? operation;
+    Object? dispatchError;
+    try {
+      final existing = await _projection(
+        run.workspaceId,
+      ).readEvents(run.runId, afterSequence: 0, maximumEvents: 4096);
+      if (_terminalEvent(existing.events) != null) {
+        run.terminal = true;
+        return;
+      }
+      final spec = await _workerSpec(run.workspaceId);
+      await _initializeWorker(spec);
+      final deadline = DateTime.now().toUtc().add(const Duration(hours: 2));
+      final invocation = CockpitOperationInvocation(
+        kind: 'case.run',
+        workspaceId: run.workspaceId,
+        idempotencyKey: submission.idempotencyKey,
+        deadline: deadline,
+        requiredFeatures: submission.requiredFeatures,
+        input: submission.toJson(),
+      );
+      final call = workerPool.startCall(
+        spec,
+        method: 'operation',
+        idempotencyKey: run.idempotencyKey,
+        deadline: deadline,
+        requestId: run.requestId,
+        params: <String, Object?>{'invocation': invocation.toJson()},
+      );
+      if (call.requestId != run.requestId ||
+          run.runId != 'run_${call.requestId}') {
+        throw StateError('Worker request identity diverged from admission.');
+      }
+      operation = CockpitWorkerOperationResult.fromJson(
+        await call.result,
+      ).result;
+    } on Object catch (error) {
+      dispatchError = error;
+    }
+    try {
+      await _ensureTerminalRunTruth(
+        run,
+        operation: operation,
+        dispatchError: dispatchError,
+      );
+    } finally {
+      run.terminal = true;
+    }
+  }
+
+  Future<void> _ensureTerminalRunTruth(
+    _ActiveRun run, {
+    required CockpitOperationResult? operation,
+    required Object? dispatchError,
+  }) async {
+    final projection = _projection(run.workspaceId);
+    final replay = await projection.readEvents(
+      run.runId,
+      afterSequence: 0,
+      maximumEvents: 4096,
+    );
+    if (_terminalEvent(replay.events) != null) return;
+    final operationFailure = operation?.failure;
+    final outcome = operationFailure == null
+        ? CockpitRunOutcome.interrupted
+        : switch (operation!.outcome) {
+            CockpitOperationOutcome.failed => CockpitRunOutcome.failed,
+            CockpitOperationOutcome.blocked => CockpitRunOutcome.blocked,
+            CockpitOperationOutcome.cancelled => CockpitRunOutcome.cancelled,
+            CockpitOperationOutcome.interrupted =>
+              CockpitRunOutcome.interrupted,
+            CockpitOperationOutcome.succeeded ||
+            null => CockpitRunOutcome.interrupted,
+          };
+    final failure =
+        operationFailure ??
+        CockpitFailure(
+          primary: CockpitApiError(
+            code: dispatchError == null
+                ? CockpitErrorCode.internalError
+                : 'workerUnavailable',
+            category: dispatchError == null
+                ? CockpitErrorCategory.internal
+                : CockpitErrorCategory.environment,
+            message: dispatchError == null
+                ? 'Worker completed without publishing terminal run truth.'
+                : 'Worker became unavailable before publishing run events.',
+            retryable: dispatchError != null,
+            responsibleLayer: CockpitResponsibleLayer.supervisor,
+          ),
+        );
+    final sequence = replay.events.lastOrNull?.sequence ?? 0;
+    final eventDigest = sha256
+        .convert(utf8.encode('${run.runId}:${sequence + 1}:terminal'))
+        .toString();
+    final event = CockpitRunEvent(
+      eventId: 'event_${eventDigest.substring(0, 32)}',
+      sequence: sequence + 1,
+      timestamp: DateTime.now().toUtc(),
+      kind: 'run.${outcome.name}',
+      entityKind: CockpitRunEventEntityKind.run,
+      projectId: run.projectId,
+      workspaceId: run.workspaceId,
+      runId: run.runId,
+      caseId: run.caseId,
+      lifecycle: CockpitRunLifecycle.completed,
+      outcome: outcome,
+      stability: CockpitRunStability.unknown,
+      failure: failure,
+    );
+    await projection.publish(
+      CockpitWorkerPublishEventBatchRequest(
+        protocolVersion: cockpitWorkerProtocolVersion,
+        workspaceId: run.workspaceId,
+        requestId: 'supervisor-terminal-${eventDigest.substring(0, 32)}',
+        deadline: DateTime.now().toUtc().add(const Duration(seconds: 30)),
+        idempotencyKey: 'terminal-${eventDigest.substring(0, 32)}',
+        runId: run.runId,
+        afterSequence: sequence,
+        events: <CockpitRunEvent>[event],
+      ),
+    );
+  }
+
+  Future<CockpitRunResource> run(String runId) async {
+    final active = _activeRuns[runId];
+    final admission = await runAdmissions.findRun(runId);
+    if (admission == null) {
+      throw _apiError(
+        CockpitErrorCode.notFound,
+        CockpitErrorCategory.resource,
+        'Run was not found.',
+      );
+    }
+    if (active != null && active.workspaceId != admission.workspaceId) {
+      throw StateError('Active run ownership conflicts with admission truth.');
+    }
+    final owner = admission.workspaceId;
+    await _validateProjectedOwner(runId, owner);
+    final replay = await _projection(
+      owner,
+    ).readEvents(runId, afterSequence: 0, maximumEvents: 4096);
+    final events = replay.events;
+    final terminal = events
+        .where(
+          (event) =>
+              event.entityKind == CockpitRunEventEntityKind.run &&
+              event.lifecycle == CockpitRunLifecycle.completed,
+        )
+        .lastOrNull;
+    final running = events
+        .where(
+          (event) =>
+              event.entityKind == CockpitRunEventEntityKind.run &&
+              event.lifecycle == CockpitRunLifecycle.running,
+        )
+        .lastOrNull;
+    final attempts = events
+        .map((event) => event.attemptId)
+        .whereType<String>()
+        .toSet()
+        .toList();
+    return CockpitRunResource(
+      projectId: admission.projectId,
+      workspaceId: owner,
+      runId: runId,
+      caseId: admission.caseId,
+      sourceSha256: admission.sourceSha256,
+      lifecycle:
+          terminal?.lifecycle ??
+          running?.lifecycle ??
+          CockpitRunLifecycle.queued,
+      outcome: terminal?.outcome,
+      stability: terminal?.stability,
+      submittedAt: admission.submittedAt,
+      startedAt: running?.timestamp,
+      finishedAt: terminal?.timestamp,
+      attemptIds: attempts,
+      activeAttemptId: terminal == null ? attempts.lastOrNull : null,
+      failure: terminal?.failure,
+    );
+  }
+
+  Future<CockpitRunCancellation> cancelRun(
+    String runId,
+    CockpitRunCancellationRequest request,
+  ) async {
+    final active = _activeRuns[runId];
+    if (active == null || active.terminal) {
+      await run(runId);
+      return CockpitRunCancellation(
+        runId: runId,
+        requestedAt: DateTime.now().toUtc(),
+        replayed: true,
+      );
+    }
+    final spec = await _workerSpec(active.workspaceId);
+    final result = await workerPool.cancel(
+      spec,
+      targetRequestId: active.requestId,
+      deadline: _deadline(),
+    );
+    return CockpitRunCancellation(
+      runId: runId,
+      requestedAt: DateTime.now().toUtc(),
+      replayed: result.alreadyTerminal,
+    );
+  }
+
+  Future<CockpitSupervisorEventReplay> events(
+    String runId,
+    int afterSequence,
+  ) async {
+    final workspaceId = await _findRunOwner(runId);
+    return _projection(
+      workspaceId,
+    ).readEvents(runId, afterSequence: afterSequence, maximumEvents: 4096);
+  }
+
+  Future<CockpitArtifactResource> artifact(
+    String runId,
+    String artifactId,
+  ) async {
+    final workspaceId = await _findRunOwner(runId);
+    return _projection(workspaceId).requireArtifact(runId, artifactId);
+  }
+
+  Future<({CockpitArtifactResource resource, File file})> artifactFile(
+    String runId,
+    String artifactId,
+  ) async {
+    final workspaceId = await _findRunOwner(runId);
+    return _projection(workspaceId).requireArtifactFile(runId, artifactId);
+  }
+
+  Future<int> sequenceForEventId(String runId, String eventId) async {
+    final replay = await events(runId, 0);
+    final matches = replay.events.where((event) => event.eventId == eventId);
+    if (matches.isEmpty) {
+      throw CockpitApiException(
+        CockpitApiError(
+          code: CockpitErrorCode.staleReference,
+          category: CockpitErrorCategory.invalidInput,
+          message: 'Last-Event-ID is outside the retained replay window.',
+          retryable: false,
+          responsibleLayer: CockpitResponsibleLayer.supervisor,
+          redactedDetails: <String, Object?>{
+            if (replay.boundary != null)
+              'replayBoundary': replay.boundary!.toJson(),
+          },
+        ),
+      );
+    }
+    return matches.single.sequence;
+  }
+
+  Future<Map<String, Object?>> _listTargets(Map<String, Object?> input) async {
+    _requireKeys(input, const <String>{'timeoutMs'});
+    final timeoutMs = _optionalInteger(
+      input,
+      'timeoutMs',
+      minimum: 1,
+      maximum: 300000,
+    );
+    return (await _listLaunchTargets.list(
+      timeout: timeoutMs == null ? null : Duration(milliseconds: timeoutMs),
+    )).toJson();
+  }
+
+  Future<Map<String, Object?>> _systemCapabilities(
+    Map<String, Object?> input,
+  ) async {
+    _requireKeys(input, const <String>{
+      'platform',
+      'deviceId',
+      'appId',
+      'processId',
+      'metadata',
+    });
+    final platform = _requiredString(input, 'platform');
+    final rawMetadata = input['metadata'];
+    if (rawMetadata != null && rawMetadata is! Map<String, Object?>) {
+      throw const FormatException('metadata must be a JSON object.');
+    }
+    final metadata = rawMetadata == null
+        ? const <String, Object?>{}
+        : Map<String, Object?>.from(rawMetadata as Map<String, Object?>);
+    return (await _systemControl.describe(
+      CockpitSystemControlDescribeRequest(
+        platform: platform,
+        deviceId: _optionalString(input, 'deviceId'),
+        appId: _optionalString(input, 'appId'),
+        processId: _optionalInteger(
+          input,
+          'processId',
+          minimum: 1,
+          maximum: 0x7fffffff,
+        ),
+        metadata: metadata,
+      ),
+    )).toJson();
+  }
+
+  Future<Map<String, Object?>> _systemDiagnostics(
+    Map<String, Object?> input,
+  ) async {
+    _requireKeys(input, const <String>{});
+    final roots = await resources.identity.roots.list();
+    final workspaces = await resources.identity.workspaces.list();
+    return <String, Object?>{
+      'engineVersion': cockpitSupervisorEngineVersion,
+      'draining': _draining,
+      'rootCount': roots.length,
+      'activeRootCount': roots
+          .where((root) => root.state == CockpitRootState.active)
+          .length,
+      'workspaceCount': workspaces.length,
+      'activeWorkspaceCount': workspaces
+          .where((workspace) => workspace.state == CockpitWorkspaceState.active)
+          .length,
+      'activeWorkerCount': workerPool.activeKeys.length,
+      'projectionCount': _projections.length,
+      'permissionPolicy': permissionHardener.policy.name,
+    };
+  }
+
+  Future<Map<String, Object?>> _createRootProject(
+    CockpitOperationInvocation invocation,
+  ) async {
+    final root = await _activeRoot(invocation.rootId!);
+    final input = invocation.input;
+    _requireKeys(input, const <String>{
+      'parentDirectory',
+      'projectName',
+      'template',
+      'organization',
+      'platforms',
+      'timeoutMs',
+    });
+    final requestedParent = _optionalString(input, 'parentDirectory');
+    final parentDirectory = await _confinedRootPath(
+      root.canonicalPath,
+      requestedParent ?? root.canonicalPath,
+    );
+    final projectName = _requiredString(input, 'projectName');
+    if (!RegExp(r'^[a-z][a-z0-9_]{0,127}$').hasMatch(projectName)) {
+      throw const FormatException('projectName is invalid.');
+    }
+    final template = switch (_requiredString(input, 'template')) {
+      'dartCli' || 'dart_cli' => CockpitProjectTemplate.dartCli,
+      'flutterApp' || 'flutter_app' => CockpitProjectTemplate.flutterApp,
+      _ => throw const FormatException('template is invalid.'),
+    };
+    final platforms = _optionalStringList(input, 'platforms', maximum: 16);
+    final timeoutMs = _optionalInteger(
+      input,
+      'timeoutMs',
+      minimum: 1,
+      maximum: 600000,
+    );
+    final result = await _createProject.create(
+      CockpitCreateProjectRequest(
+        parentDirectory: parentDirectory,
+        projectName: projectName,
+        template: template,
+        organization: _optionalString(input, 'organization'),
+        platforms: platforms,
+        allowedRoots: <String>[root.canonicalPath],
+        timeout: Duration(milliseconds: timeoutMs ?? 300000),
+      ),
+    );
+    await _confinedRootPath(root.canonicalPath, result.projectDirectory);
+    return result.toJson();
+  }
+
+  Future<Map<String, Object?>> _searchPackages(
+    CockpitOperationInvocation invocation,
+  ) async {
+    await _activeRoot(invocation.rootId!);
+    final input = invocation.input;
+    _requireKeys(input, const <String>{'query', 'maxResults', 'timeoutMs'});
+    final maxResults = _optionalInteger(
+      input,
+      'maxResults',
+      minimum: 1,
+      maximum: 50,
+    );
+    final timeoutMs = _optionalInteger(
+      input,
+      'timeoutMs',
+      minimum: 1,
+      maximum: 120000,
+    );
+    return (await _packageSearch.search(
+      CockpitPubDevSearchRequest(
+        query: _requiredString(input, 'query'),
+        maxResults: maxResults ?? 5,
+        timeout: Duration(milliseconds: timeoutMs ?? 20000),
+      ),
+    )).toJson();
+  }
+
+  Future<CockpitRootResource> _activeRoot(String rootId) async {
+    final root = await resources.identity.roots.get(rootId);
+    if (root.state != CockpitRootState.active) {
+      throw _apiError(
+        CockpitErrorCode.conflict,
+        CockpitErrorCategory.resource,
+        'Root $rootId is not active.',
+      );
+    }
+    return root;
+  }
+
+  Future<String> _confinedRootPath(String rootPath, String candidate) async {
+    if (!p.isAbsolute(candidate)) {
+      throw const FormatException('Root-scoped paths must be absolute.');
+    }
+    final normalizedRoot = p.normalize(rootPath);
+    final normalizedCandidate = p.normalize(candidate);
+    if (normalizedCandidate != normalizedRoot &&
+        !p.isWithin(normalizedRoot, normalizedCandidate)) {
+      throw _apiError(
+        CockpitErrorCode.conflict,
+        CockpitErrorCategory.resource,
+        'Path is outside the selected root.',
+      );
+    }
+    var existing = normalizedCandidate;
+    final suffix = <String>[];
+    while (!await FileSystemEntity.isDirectory(existing)) {
+      if (await FileSystemEntity.isFile(existing)) {
+        throw const FormatException(
+          'Root-scoped parent path is not a directory.',
+        );
+      }
+      final parent = p.dirname(existing);
+      if (parent == existing) {
+        throw const FormatException('Path has no existing ancestor.');
+      }
+      suffix.insert(0, p.basename(existing));
+      existing = parent;
+    }
+    final resolvedAncestor = p.normalize(
+      await Directory(existing).resolveSymbolicLinks(),
+    );
+    final resolvedCandidate = p.normalize(
+      p.joinAll(<String>[resolvedAncestor, ...suffix]),
+    );
+    if (resolvedCandidate != normalizedRoot &&
+        !p.isWithin(normalizedRoot, resolvedCandidate)) {
+      throw _apiError(
+        CockpitErrorCode.conflict,
+        CockpitErrorCategory.resource,
+        'Path resolves outside the selected root.',
+      );
+    }
+    return resolvedCandidate;
+  }
+
+  Future<void> shutdown({required bool cancel, required bool emergency}) async {
+    _draining = true;
+    if (cancel) {
+      for (final run in _activeRuns.values.toList()) {
+        try {
+          await workerPool.cancel(
+            await _workerSpec(run.workspaceId),
+            targetRequestId: run.requestId,
+            deadline: _deadline(),
+          );
+        } on Object {
+          // Forced pool shutdown below remains the final cleanup boundary.
+        }
+      }
+    }
+    await workerPool.close(
+      grace: emergency ? Duration.zero : const Duration(seconds: 10),
+    );
+  }
+
+  Future<CockpitWorkspaceWorkerSpec> _workerSpec(String workspaceId) async {
+    final workspace = await _activeWorkspace(workspaceId);
+    return CockpitWorkspaceWorkerSpec(
+      key: CockpitWorkspaceWorkerKey(
+        workspaceId: workspaceId,
+        engineVersion: cockpitSupervisorEngineVersion,
+      ),
+      projectId: workspace.projectId,
+      workspaceRoot: workspace.canonicalPath,
+      stateRoot: p.join(
+        resources.identity.homePaths.home,
+        'workspaces',
+        workspaceId,
+      ),
+      supportedFeatures: cockpitSupervisorFeatures.map((item) => item.id),
+      allowedTargetEnvironments: authorization.allowedTargetEnvironments,
+      allowedSafetyEffects: authorization.allowedSafetyEffects,
+    );
+  }
+
+  Future<void> _initializeWorker(CockpitWorkspaceWorkerSpec spec) =>
+      _workerInitialization.putIfAbsent(spec.key.workspaceId, () async {
+        await workerPool.call(
+          spec,
+          method: 'initialize',
+          idempotencyKey: 'initialize-${spec.key.workspaceId}',
+          deadline: _deadline(),
+          params: <String, Object?>{
+            'engineVersion': spec.key.engineVersion,
+            'workspaceRoot': spec.workspaceRoot,
+            'supportedFeatures': spec.supportedFeatures,
+          },
+        );
+      });
+
+  Future<CockpitWorkspaceResource> _activeWorkspace(String workspaceId) async {
+    final workspace = await resources.identity.workspaces.get(workspaceId);
+    final root = await resources.identity.roots.get(workspace.rootId);
+    if (workspace.state != CockpitWorkspaceState.active ||
+        root.state != CockpitRootState.active) {
+      throw const FormatException('Workspace does not grant active authority.');
+    }
+    return workspace;
+  }
+
+  CockpitSupervisorRunProjection _projection(String workspaceId) =>
+      _projections.putIfAbsent(
+        workspaceId,
+        () => CockpitSupervisorRunProjection(
+          workspaceId: workspaceId,
+          stateRoot: p.join(
+            resources.identity.homePaths.home,
+            'workspaces',
+            workspaceId,
+          ),
+          permissionHardener: permissionHardener,
+          directorySyncer: directorySyncer,
+          retentionIndex: CockpitScopedSupervisorRunRetentionIndex(
+            resources.identity.references,
+          ),
+          admissionValidator:
+              ({required runId, required projectId, required caseId}) =>
+                  runAdmissions.validateOwner(
+                    workspaceId: workspaceId,
+                    runId: runId,
+                    projectId: projectId,
+                    caseId: caseId,
+                  ),
+        ),
+      );
+
+  Future<String> _findRunOwner(String runId) async {
+    final admission = await runAdmissions.findRun(runId);
+    if (admission == null) {
+      throw _apiError(
+        CockpitErrorCode.notFound,
+        CockpitErrorCategory.resource,
+        'Run was not found.',
+      );
+    }
+    await _validateProjectedOwner(runId, admission.workspaceId);
+    return admission.workspaceId;
+  }
+
+  Future<void> _validateProjectedOwner(
+    String runId,
+    String admittedOwner,
+  ) async {
+    for (final workspace in await resources.identity.workspaces.list()) {
+      if (await _projection(workspace.workspaceId).containsRun(runId)) {
+        if (workspace.workspaceId != admittedOwner) {
+          throw StateError(
+            'Projected run ownership conflicts with admission truth.',
+          );
+        }
+      }
+    }
+  }
+
+  CockpitRunEvent? _terminalEvent(Iterable<CockpitRunEvent> events) => events
+      .where(
+        (event) =>
+            event.entityKind == CockpitRunEventEntityKind.run &&
+            event.lifecycle == CockpitRunLifecycle.completed,
+      )
+      .lastOrNull;
+
+  void _requireAccepting() {
+    if (_draining) throw const FormatException('Supervisor is draining.');
+  }
+}
+
+final class _ActiveRun {
+  _ActiveRun({
+    required this.workspaceId,
+    required this.projectId,
+    required this.runId,
+    required this.caseId,
+    required this.sourceSha256,
+    required this.idempotencyKey,
+    required this.fingerprint,
+    required this.requestId,
+    required this.submittedAt,
+  });
+  final String workspaceId;
+  final String projectId;
+  final String runId;
+  final String caseId;
+  final String sourceSha256;
+  final String idempotencyKey;
+  final String fingerprint;
+  final String requestId;
+  final DateTime submittedAt;
+  bool terminal = false;
+  CockpitRunAccepted accepted({required bool replayed}) => CockpitRunAccepted(
+    workspaceId: workspaceId,
+    runId: runId,
+    statusUrl: '/api/v2/runs/$runId',
+    eventsUrl: '/api/v2/runs/$runId/events',
+    submittedAt: submittedAt,
+    replayed: replayed,
+  );
+}
+
+final class _CockpitProductionCleanupProbeResolver
+    implements CockpitLeaseCleanupProbeResolver {
+  const _CockpitProductionCleanupProbeResolver();
+  @override
+  CockpitLeaseCleanupProbe resolve(CockpitLeaseResourceKind resourceKind) =>
+      resourceKind == CockpitLeaseResourceKind.forwardedPort
+      ? const CockpitLoopbackPortCleanupProbe()
+      : const _CockpitQuarantineCleanupProbe();
+}
+
+final class _CockpitQuarantineCleanupProbe implements CockpitLeaseCleanupProbe {
+  const _CockpitQuarantineCleanupProbe();
+  @override
+  Future<CockpitLeaseCleanupResult> cleanupAndVerify(
+    CockpitLeaseCleanupContext context,
+  ) async => CockpitLeaseCleanupResult.quarantined(
+    CockpitFailure(
+      primary: CockpitApiError(
+        code: 'cleanupOwnershipUnproven',
+        category: CockpitErrorCategory.resource,
+        message: 'Recovered resource ownership cannot be proven released.',
+        retryable: true,
+        responsibleLayer: CockpitResponsibleLayer.supervisor,
+      ),
+    ),
+  );
+}
+
+CockpitRemovalPolicy _removalPolicy(bool force) =>
+    force ? CockpitRemovalPolicy.force : CockpitRemovalPolicy.drain;
+DateTime _deadline() => DateTime.now().toUtc().add(const Duration(seconds: 30));
+
+String _caseId(CockpitCaseSubmissionSource source) => switch (source) {
+  CockpitInlineCaseSource() => source.testCase.id,
+  CockpitIndexedCaseSource() => source.reference.caseId,
+};
+String _sourceSha(CockpitCaseSubmissionSource source) => switch (source) {
+  CockpitInlineCaseSource() => source.sourceSha256,
+  CockpitIndexedCaseSource() => source.reference.documentSha256,
+};
+
+void _requireKeys(Map<String, Object?> input, Set<String> allowed) {
+  final unknown = input.keys.where((key) => !allowed.contains(key)).toList();
+  if (unknown.isNotEmpty) {
+    throw FormatException('Unknown operation input field ${unknown.first}.');
+  }
+}
+
+String _requiredString(Map<String, Object?> input, String key) {
+  final value = _optionalString(input, key);
+  if (value == null) throw FormatException('$key is required.');
+  return value;
+}
+
+String? _optionalString(Map<String, Object?> input, String key) {
+  final value = input[key];
+  if (value == null) return null;
+  if (value is! String || value.trim().isEmpty || value.length > 32768) {
+    throw FormatException('$key must be a non-empty bounded string.');
+  }
+  return value;
+}
+
+int? _optionalInteger(
+  Map<String, Object?> input,
+  String key, {
+  required int minimum,
+  required int maximum,
+}) {
+  final value = input[key];
+  if (value == null) return null;
+  if (value is! int || value < minimum || value > maximum) {
+    throw FormatException('$key must be between $minimum and $maximum.');
+  }
+  return value;
+}
+
+List<String> _optionalStringList(
+  Map<String, Object?> input,
+  String key, {
+  required int maximum,
+}) {
+  final value = input[key];
+  if (value == null) return const <String>[];
+  if (value is! List<Object?> || value.length > maximum) {
+    throw FormatException('$key must be a bounded string list.');
+  }
+  final result = <String>[];
+  for (final item in value) {
+    if (item is! String || item.trim().isEmpty || item.length > 128) {
+      throw FormatException('$key must contain non-empty bounded strings.');
+    }
+    result.add(item);
+  }
+  if (result.toSet().length != result.length) {
+    throw FormatException('$key must not contain duplicates.');
+  }
+  return List<String>.unmodifiable(result);
+}
+
+CockpitApiException _apiError(
+  String code,
+  CockpitErrorCategory category,
+  String message,
+) => CockpitApiException(
+  CockpitApiError(
+    code: code,
+    category: category,
+    message: message,
+    retryable: false,
+    responsibleLayer: CockpitResponsibleLayer.supervisor,
+  ),
+);
+
+final _resourceDescriptors = <CockpitResourceDescriptor>[
+  CockpitResourceDescriptor(
+    kind: 'supervisor.roots',
+    scope: CockpitOperationScope.supervisor,
+    uriTemplate: '/api/v2/roots',
+    mediaType: 'application/json',
+  ),
+  CockpitResourceDescriptor(
+    kind: 'supervisor.workspaces',
+    scope: CockpitOperationScope.supervisor,
+    uriTemplate: '/api/v2/workspaces',
+    mediaType: 'application/json',
+  ),
+  CockpitResourceDescriptor(
+    kind: 'workspace.documents',
+    scope: CockpitOperationScope.workspace,
+    uriTemplate: '/api/v2/workspaces/{workspaceId}/documents',
+    mediaType: 'application/json',
+  ),
+  CockpitResourceDescriptor(
+    kind: 'workspace.cases',
+    scope: CockpitOperationScope.workspace,
+    uriTemplate: '/api/v2/workspaces/{workspaceId}/cases',
+    mediaType: 'application/json',
+  ),
+  CockpitResourceDescriptor(
+    kind: 'workspace.runs',
+    scope: CockpitOperationScope.workspace,
+    uriTemplate: '/api/v2/workspaces/{workspaceId}/runs',
+    mediaType: 'application/json',
+  ),
+  CockpitResourceDescriptor(
+    kind: 'run.events',
+    scope: CockpitOperationScope.workspace,
+    uriTemplate: '/api/v2/runs/{runId}/events',
+    mediaType: 'text/event-stream',
+  ),
+  CockpitResourceDescriptor(
+    kind: 'run.artifacts',
+    scope: CockpitOperationScope.workspace,
+    uriTemplate: '/api/v2/runs/{runId}/artifacts/{artifactId}',
+    mediaType: 'application/octet-stream',
+  ),
+];

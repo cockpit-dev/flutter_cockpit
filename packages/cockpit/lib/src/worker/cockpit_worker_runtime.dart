@@ -198,6 +198,7 @@ final class CockpitWorkerRuntime {
       developmentSessionAborter: developmentRuntime.forceStop,
     );
     final documents = CockpitWorkerDocumentIndex(
+      workspaceId: configuration.workspaceId,
       workspaceRoot: roots.workspaceRoot,
       stateRoot: roots.stateRoot,
       permissionHardener: _permissionHardener,

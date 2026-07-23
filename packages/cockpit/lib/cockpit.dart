@@ -157,6 +157,15 @@ export 'src/runner/cockpit_workflow_step.dart';
 export 'src/runner/cockpit_case_execution_control.dart'
     show CockpitCaseExecutionControl;
 export 'src/runner/cockpit_case_runner.dart';
+export 'src/supervisor/cockpit_daemon_client.dart';
+export 'src/supervisor/cockpit_daemon_discovery.dart';
+export 'src/supervisor/cockpit_daemon_host.dart' show CockpitDaemonShutdownMode;
+export 'src/supervisor/cockpit_supervisor_runtime.dart'
+    show
+        CockpitSupervisorAuthorizationPolicy,
+        CockpitSupervisorRuntime,
+        cockpitSupervisorEngineVersion,
+        cockpitSupervisorFeatures;
 export 'src/cli/cockpit_control_script.dart';
 export 'src/test/cockpit_control_workflow_importer.dart';
 export 'src/test/cockpit_test_document_compiler.dart';

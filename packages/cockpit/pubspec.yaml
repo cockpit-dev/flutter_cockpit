@@ -15,6 +15,7 @@ executables:
   cockpit:
   cockpit_mcp:
   cockpit_worker:
+  cockpitd:
 
 environment:
   sdk: '>=3.8.0 <4.0.0'

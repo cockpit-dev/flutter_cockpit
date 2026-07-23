@@ -94,6 +94,10 @@ final class CockpitHomePaths {
 
   final String home;
 
+  String get daemonDiscovery => p.join(home, 'daemon.json');
+  String get daemonLock => p.join(home, 'daemon.lock');
+  String get daemonEnsureLock => p.join(home, 'daemon.ensure.lock');
+  String get daemonLog => p.join(home, 'daemon.log');
   String get registryDirectory => p.join(home, 'registry');
   String get identityRegistry => p.join(registryDirectory, 'identity.json');
   String get rootsRegistry => p.join(registryDirectory, 'roots.json');
