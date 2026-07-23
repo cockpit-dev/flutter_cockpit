@@ -8,8 +8,10 @@ import 'cockpit_json_rpc_peer.dart';
 import 'cockpit_worker_document_index.dart';
 import 'cockpit_worker_operation_journal.dart';
 import 'cockpit_worker_operation_router.dart';
+import 'cockpit_worker_resource_grant.dart';
 import 'cockpit_worker_runtime_registry.dart';
 import 'cockpit_worker_value_reader.dart';
+import 'cockpit_workspace_operation_registry.dart';
 
 final class CockpitWorkerTargetRegistrationDispatcher
     implements CockpitWorkerInternalOperationDispatcher {
@@ -39,6 +41,22 @@ final class CockpitWorkerTargetRegistrationDispatcher
 
   @override
   Set<String> get internalOperationKinds => const <String>{registerKind};
+
+  CockpitWorkspaceOperationAdapter workspaceAdapter() =>
+      CockpitWorkspaceOperationAdapter(
+        kind: 'target.register',
+        mutationClass: CockpitMutationClass.mutating,
+        resourceKinds: const <String>['workspace.targets'],
+        prepare: (context, input) async {
+          final registration = await _registration(input);
+          return CockpitPreparedWorkspaceOperation(
+            resources: const <CockpitWorkerResourceRequest>[],
+            execute: (_) async => <String, Object?>{
+              'targetId': await _registrar.registerTarget(registration),
+            },
+          );
+        },
+      );
 
   @override
   Future<CockpitOperationResult> executeInternal(
@@ -133,6 +151,7 @@ final class CockpitWorkerTargetRegistrationDispatcher
         'deviceId',
         'entrypointDocumentId',
         'flavor',
+        'wdaUrl',
         'targetKind',
         'mode',
         'environment',
@@ -169,6 +188,9 @@ final class CockpitWorkerTargetRegistrationDispatcher
       flavor: input['flavor'] == null
           ? null
           : workerString(input['flavor'], r'$.input.flavor', maximum: 128),
+      wdaUrl: input['wdaUrl'] == null
+          ? null
+          : workerString(input['wdaUrl'], r'$.input.wdaUrl', maximum: 2048),
       targetKind: _enumeration(
         input['targetKind'],
         CockpitTargetKind.values,

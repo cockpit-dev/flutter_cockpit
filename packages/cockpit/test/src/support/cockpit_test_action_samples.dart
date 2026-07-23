@@ -125,6 +125,10 @@ Map<String, Object?> _sampleActionJson(CockpitTestActionKind kind) {
         'text': 'Ready',
         'matchMode': 'exact',
       },
+      CockpitTestActionKind.system => <String, Object?>{
+        'name': 'activateWindow',
+        'parameters': const <String, Object?>{},
+      },
       CockpitTestActionKind.captureScreenshot => <String, Object?>{
         'artifactName': 'acceptanceScreenshot',
         'captureOptions': <String, Object?>{

@@ -698,6 +698,9 @@ CockpitTestActionTemplate _action(
           );
     case CockpitTestActionKind.assertText:
       take(CockpitTestActionField.text);
+    case CockpitTestActionKind.system:
+      take(CockpitTestActionField.systemName, 'action');
+      take(CockpitTestActionField.systemParameters, 'parameters');
     case CockpitTestActionKind.captureScreenshot:
       final request = command.screenshotRequest;
       final captureOptions = <String, Object?>{};
@@ -1059,6 +1062,9 @@ CockpitTestLocatorTemplate _locator(
   for (final signal in source.signals) {
     final strategy = switch (signal.kind) {
       CockpitLocatorKind.cockpitId => CockpitTestLocatorStrategy.testId,
+      CockpitLocatorKind.nativeId => CockpitTestLocatorStrategy.nativeId,
+      CockpitLocatorKind.testId => CockpitTestLocatorStrategy.testId,
+      CockpitLocatorKind.role => CockpitTestLocatorStrategy.role,
       CockpitLocatorKind.text => CockpitTestLocatorStrategy.text,
       CockpitLocatorKind.tooltip => CockpitTestLocatorStrategy.label,
       CockpitLocatorKind.type => CockpitTestLocatorStrategy.type,
@@ -1066,7 +1072,9 @@ CockpitTestLocatorTemplate _locator(
       CockpitLocatorKind.semanticId ||
       CockpitLocatorKind.key ||
       CockpitLocatorKind.route ||
-      CockpitLocatorKind.registrationId => throw _migrationError(
+      CockpitLocatorKind.registrationId ||
+      CockpitLocatorKind.coordinate ||
+      CockpitLocatorKind.visual => throw _migrationError(
         'Locator ${signal.kind.name} at $path requires manual migration.',
       ),
     };

@@ -10,6 +10,7 @@ import '../foundation/cockpit_locked_json_store.dart';
 import '../foundation/cockpit_permissions.dart';
 import '../test/cockpit_test_safety_policy.dart';
 import 'cockpit_case_run_adapter.dart';
+import 'cockpit_suite_run_adapter.dart';
 import 'cockpit_worker_case_completion.dart';
 import 'cockpit_worker_case_run_store.dart';
 import 'cockpit_json_rpc_peer.dart';
@@ -28,6 +29,7 @@ import 'cockpit_worker_process_manager.dart';
 import 'cockpit_worker_runtime_registry.dart';
 import 'cockpit_worker_run_event_store.dart';
 import 'cockpit_worker_secret_resolver.dart';
+import 'cockpit_worker_suite_run_store.dart';
 import 'cockpit_worker_server.dart';
 import 'cockpit_worker_target_registration_dispatcher.dart';
 import 'cockpit_worker_value_reader.dart';
@@ -173,6 +175,7 @@ final class CockpitWorkerRuntime {
       directorySyncer: _directorySyncer,
       recoveryPolicies: const <String, CockpitWorkerOperationRecoveryPolicy>{
         'case.run': CockpitWorkerOperationRecoveryPolicy.retryPrepared,
+        'suite.run': CockpitWorkerOperationRecoveryPolicy.retryPrepared,
       },
     );
     final developmentRuntime = CockpitWorkerDevelopmentSessionRuntime(
@@ -312,8 +315,40 @@ final class CockpitWorkerRuntime {
                 committedBundleRoot: committedBundleRoot,
               ),
     );
+    final suiteAdapters = CockpitSuiteRunAdapterFactory(
+      workspaceId: configuration.workspaceId,
+      projectId: configuration.projectId,
+      engineVersion: configuration.engineVersion,
+      runStateRoot: roots.stateRoot,
+      documents: documents,
+      sessions: registry,
+      resourceAuthority: resourceAuthority,
+      secretResolver: secretResolver,
+      safetyPolicy: CockpitTrustedDevelopmentSafetyPolicy(
+        environments: configuration.allowedTargetEnvironments,
+        allowedEffects: configuration.allowedSafetyEffects,
+      ),
+      redactor: _logger.redactor,
+      eventStore: eventStore,
+      runStore: CockpitWorkerSuiteRunStore(
+        workspaceId: configuration.workspaceId,
+        path: p.join(roots.stateRoot, 'suite_runs', 'runs.json'),
+        permissionHardener: _permissionHardener,
+        directorySyncer: _directorySyncer,
+      ),
+      artifactPublisher: artifactPublisher,
+    );
+    final targetRegistration = CockpitWorkerTargetRegistrationDispatcher(
+      workspaceId: configuration.workspaceId,
+      workspaceRoot: roots.workspaceRoot,
+      registrar: registry,
+      documents: documents,
+      operationJournal: operationJournal,
+      terminateUnsafeWorker: peer.close,
+    );
     final adapters = <CockpitWorkspaceOperationAdapter>[
       documents.operationAdapter(),
+      targetRegistration.workspaceAdapter(),
       ...CockpitWorkspaceToolingAdapters(
         workspaceId: configuration.workspaceId,
         workspaceRoot: roots.workspaceRoot,
@@ -327,6 +362,7 @@ final class CockpitWorkerRuntime {
       ).create(),
       caseAdapters.validationAdapter(),
       caseAdapters.runAdapter(),
+      suiteAdapters.runAdapter(),
     ];
     final operations = CockpitWorkspaceOperationRegistry(
       workspaceId: configuration.workspaceId,
@@ -341,14 +377,7 @@ final class CockpitWorkerRuntime {
       workspaceOperations: operations,
       internalDispatchers: <CockpitWorkerInternalOperationDispatcher>[
         portHandoff,
-        CockpitWorkerTargetRegistrationDispatcher(
-          workspaceId: configuration.workspaceId,
-          workspaceRoot: roots.workspaceRoot,
-          registrar: registry,
-          documents: documents,
-          operationJournal: operationJournal,
-          terminateUnsafeWorker: peer.close,
-        ),
+        targetRegistration,
       ],
     );
     Future<void> shutdownRuntime() async {

@@ -466,12 +466,12 @@ final class CockpitWorkerPublishArtifactBatchRequest
     required super.idempotencyKey,
     required this.projectId,
     required this.runId,
-    required this.caseId,
+    this.caseId,
     required Iterable<CockpitArtifactResource> artifacts,
   }) : artifacts = List<CockpitArtifactResource>.unmodifiable(artifacts) {
     workerId(projectId, r'$.projectId');
     workerId(runId, r'$.runId');
-    workerId(caseId, r'$.caseId');
+    if (caseId != null) workerId(caseId, r'$.caseId');
     if (this.artifacts.isEmpty || this.artifacts.length > 256) {
       throw const FormatException(
         'Artifact publication batch size is invalid.',
@@ -486,12 +486,17 @@ final class CockpitWorkerPublishArtifactBatchRequest
           'Artifact publication ownership is inconsistent.',
         );
       }
+      if ((artifact.attemptId == null) != (caseId == null)) {
+        throw const FormatException(
+          'Artifact publication case and attempt ownership disagree.',
+        );
+      }
     }
   }
 
   final String projectId;
   final String runId;
-  final String caseId;
+  final String? caseId;
   final List<CockpitArtifactResource> artifacts;
 
   @override
@@ -502,17 +507,16 @@ final class CockpitWorkerPublishArtifactBatchRequest
     ...metadataJson(),
     'projectId': projectId,
     'runId': runId,
-    'caseId': caseId,
+    if (caseId != null) 'caseId': caseId,
     'artifacts': artifacts.map((artifact) => artifact.toJson()).toList(),
   };
 
   factory CockpitWorkerPublishArtifactBatchRequest.fromJson(Object? value) {
-    final json = _requestObject(value, const <String>{
-      'projectId',
-      'runId',
-      'caseId',
-      'artifacts',
-    });
+    final json = _requestObject(
+      value,
+      const <String>{'projectId', 'runId', 'caseId', 'artifacts'},
+      optional: const <String>{'caseId'},
+    );
     final rawArtifacts = workerList(
       json['artifacts'],
       r'$.artifacts',
@@ -527,7 +531,9 @@ final class CockpitWorkerPublishArtifactBatchRequest
       idempotencyKey: metadata.idempotencyKey,
       projectId: workerId(json['projectId'], r'$.projectId'),
       runId: workerId(json['runId'], r'$.runId'),
-      caseId: workerId(json['caseId'], r'$.caseId'),
+      caseId: json['caseId'] == null
+          ? null
+          : workerId(json['caseId'], r'$.caseId'),
       artifacts: <CockpitArtifactResource>[
         for (var index = 0; index < rawArtifacts.length; index += 1)
           CockpitArtifactResource.fromJson(
@@ -547,10 +553,25 @@ const Set<String> _metadataKeys = <String>{
   'idempotencyKey',
 };
 
-Map<String, Object?> _requestObject(Object? value, Set<String> methodKeys) {
+Map<String, Object?> _requestObject(
+  Object? value,
+  Set<String> methodKeys, {
+  Set<String> optional = const <String>{},
+}) {
   final json = workerObject(value, r'$');
   final keys = <String>{..._metadataKeys, ...methodKeys};
-  workerKeys(json, keys, r'$', required: keys);
+  if (!methodKeys.containsAll(optional)) {
+    throw StateError('Optional worker request keys are not method keys.');
+  }
+  workerKeys(
+    json,
+    keys,
+    r'$',
+    required: <String>{
+      ..._metadataKeys,
+      ...methodKeys.where((key) => !optional.contains(key)),
+    },
+  );
   return json;
 }
 

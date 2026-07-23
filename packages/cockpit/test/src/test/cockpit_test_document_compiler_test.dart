@@ -11,15 +11,15 @@ void main() {
     final yaml = compiler.compile(_caseSource());
     expect(yaml.isSuccess, isTrue, reason: _diagnostics(yaml));
 
-    final canonical = jsonEncode(yaml.requireCompiled().testCase.toJson());
+    final canonical = jsonEncode(yaml.requireCase().testCase.toJson());
     final json = compiler.compile(canonical);
     expect(json.isSuccess, isTrue, reason: _diagnostics(json));
     expect(
-      json.requireCompiled().testCase.toJson(),
-      yaml.requireCompiled().testCase.toJson(),
+      json.requireCase().testCase.toJson(),
+      yaml.requireCase().testCase.toJson(),
     );
     expect(
-      yaml.requireCompiled().locationFor(r'$.steps[0].action.type'),
+      yaml.requireCase().locationFor(r'$.steps[0].action.type'),
       isNotNull,
     );
   });
@@ -28,7 +28,7 @@ void main() {
     final result = compiler.compile(_caseSource(includeDottedFragment: true));
     expect(result.isSuccess, isTrue, reason: _diagnostics(result));
 
-    final plan = CockpitTestVariableBinder().bind(result.requireCompiled());
+    final plan = CockpitTestVariableBinder().bind(result.requireCase());
     expect(plan.steps, hasLength(2));
     expect(plan.steps.map((node) => node.executionId), <String>[
       'main/firstCall@auth.login/fragmentTap',

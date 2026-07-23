@@ -10,7 +10,7 @@ Map<String, Object?> buildFoundationOpenApi() => <String, Object?>{
     'title': 'Cockpit Supervisor API',
     'version': '2.0.0',
     'description':
-        'Authenticated loopback API for Cockpit 2.0 discovery, workspaces, typed operations, standalone cases, durable events, and immutable artifacts.',
+        'Authenticated loopback API for Cockpit 2.0 discovery, workspaces, typed operations, case and suite runs, durable events, immutable artifacts, and aggregate reports.',
   },
   'servers': <Object?>[
     <String, Object?>{
@@ -98,9 +98,6 @@ Map<String, Object?> buildFoundationOpenApi() => <String, Object?>{
   'x-cockpit-json-maximum-nodes': cockpitFoundationJsonMaximumNodes,
   'x-cockpit-cors': 'deny',
   'x-cockpit-deferred-capabilities': <String>[
-    'suite',
-    'matrix',
-    'aggregateReport',
     'nativeBlackBoxDriver',
     'aiExploration',
   ],

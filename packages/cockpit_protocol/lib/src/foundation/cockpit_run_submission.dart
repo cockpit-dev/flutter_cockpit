@@ -1,14 +1,50 @@
 import '../test/cockpit_test_case.dart';
+import '../test/cockpit_test_suite.dart';
 import 'cockpit_decode_policy.dart';
 import 'cockpit_document.dart';
 import 'cockpit_foundation_value_reader.dart';
 import 'cockpit_idempotency.dart';
+import 'cockpit_run.dart';
 
-sealed class CockpitCaseSubmissionSource {
-  const CockpitCaseSubmissionSource();
+sealed class CockpitRunSubmissionSource {
+  const CockpitRunSubmissionSource();
 
   String get kind;
 
+  CockpitRunDocumentKind get documentKind;
+
+  String get documentId;
+
+  String get sourceSha256;
+
+  Map<String, Object?> toJson();
+
+  static CockpitRunSubmissionSource fromJson(
+    Object? value, {
+    String path = r'$',
+  }) {
+    final json = CockpitFoundationValueReader.object(value, path);
+    if (json.containsKey('case') ||
+        json['reference'] is Map<Object?, Object?> &&
+            (json['reference']! as Map<Object?, Object?>).containsKey(
+              'caseId',
+            )) {
+      return CockpitCaseSubmissionSource.fromJson(value, path: path);
+    }
+    return CockpitSuiteSubmissionSource.fromJson(value, path: path);
+  }
+}
+
+sealed class CockpitCaseSubmissionSource extends CockpitRunSubmissionSource {
+  const CockpitCaseSubmissionSource();
+
+  @override
+  String get kind;
+
+  @override
+  CockpitRunDocumentKind get documentKind => CockpitRunDocumentKind.testCase;
+
+  @override
   Map<String, Object?> toJson();
 
   static CockpitCaseSubmissionSource fromJson(
@@ -40,7 +76,11 @@ final class CockpitInlineCaseSource extends CockpitCaseSubmissionSource {
   String get kind => 'inline';
 
   final CockpitTestCase testCase;
+  @override
   final String sourceSha256;
+
+  @override
+  String get documentId => testCase.id;
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
@@ -82,6 +122,12 @@ final class CockpitIndexedCaseSource extends CockpitCaseSubmissionSource {
   final CockpitIndexedCaseReference reference;
 
   @override
+  String get documentId => reference.caseId;
+
+  @override
+  String get sourceSha256 => reference.documentSha256;
+
+  @override
   Map<String, Object?> toJson() => <String, Object?>{
     'kind': kind,
     'reference': reference.toJson(),
@@ -103,6 +149,121 @@ final class CockpitIndexedCaseSource extends CockpitCaseSubmissionSource {
     }
     return CockpitIndexedCaseSource(
       reference: CockpitIndexedCaseReference.fromJson(
+        json['reference'],
+        path: '$path.reference',
+      ),
+    );
+  }
+}
+
+sealed class CockpitSuiteSubmissionSource extends CockpitRunSubmissionSource {
+  const CockpitSuiteSubmissionSource();
+
+  @override
+  CockpitRunDocumentKind get documentKind => CockpitRunDocumentKind.suite;
+
+  static CockpitSuiteSubmissionSource fromJson(
+    Object? value, {
+    String path = r'$',
+  }) {
+    final json = CockpitFoundationValueReader.object(value, path);
+    final kind = CockpitFoundationValueReader.string(
+      json['kind'],
+      '$path.kind',
+    );
+    return switch (kind) {
+      'inline' => CockpitInlineSuiteSource.fromJson(value, path: path),
+      'indexed' => CockpitIndexedSuiteSource.fromJson(value, path: path),
+      _ => throw FormatException(
+        'Unsupported suite source kind at $path.kind.',
+      ),
+    };
+  }
+}
+
+final class CockpitInlineSuiteSource extends CockpitSuiteSubmissionSource {
+  CockpitInlineSuiteSource({required this.suite, required this.sourceSha256}) {
+    CockpitFoundationValueReader.sha256(sourceSha256, r'$.sourceSha256');
+  }
+
+  @override
+  String get kind => 'inline';
+
+  final CockpitTestSuite suite;
+
+  @override
+  final String sourceSha256;
+
+  @override
+  String get documentId => suite.id;
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    'kind': kind,
+    'suite': suite.toJson(),
+    'sourceSha256': sourceSha256,
+  };
+
+  factory CockpitInlineSuiteSource.fromJson(
+    Object? value, {
+    String path = r'$',
+  }) {
+    final json = CockpitFoundationValueReader.object(value, path);
+    CockpitFoundationValueReader.keys(
+      json,
+      const <String>{'kind', 'suite', 'sourceSha256'},
+      path,
+      required: const <String>{'kind', 'suite', 'sourceSha256'},
+    );
+    if (json['kind'] != 'inline') {
+      throw FormatException('Expected inline suite source at $path.kind.');
+    }
+    return CockpitInlineSuiteSource(
+      suite: CockpitTestSuite.fromJson(json['suite'], path: '$path.suite'),
+      sourceSha256: CockpitFoundationValueReader.sha256(
+        json['sourceSha256'],
+        '$path.sourceSha256',
+      ),
+    );
+  }
+}
+
+final class CockpitIndexedSuiteSource extends CockpitSuiteSubmissionSource {
+  CockpitIndexedSuiteSource({required this.reference});
+
+  @override
+  String get kind => 'indexed';
+
+  final CockpitIndexedSuiteReference reference;
+
+  @override
+  String get documentId => reference.suiteId;
+
+  @override
+  String get sourceSha256 => reference.documentSha256;
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    'kind': kind,
+    'reference': reference.toJson(),
+  };
+
+  factory CockpitIndexedSuiteSource.fromJson(
+    Object? value, {
+    String path = r'$',
+  }) {
+    final json = CockpitFoundationValueReader.object(value, path);
+    CockpitFoundationValueReader.keys(
+      json,
+      const <String>{'kind', 'reference'},
+      path,
+      required: const <String>{'kind', 'reference'},
+    );
+    if (json['kind'] != 'indexed') {
+      throw FormatException('Expected indexed suite source at $path.kind.');
+    }
+    return CockpitIndexedSuiteSource(
+      reference: CockpitIndexedSuiteReference.fromJson(
         json['reference'],
         path: '$path.reference',
       ),
@@ -134,7 +295,7 @@ final class CockpitRunSubmission {
   }
 
   final String workspaceId;
-  final CockpitCaseSubmissionSource source;
+  final CockpitRunSubmissionSource source;
   final CockpitIdempotencyKey idempotencyKey;
   final Map<String, Object?> inputs;
   final String? targetId;
@@ -175,7 +336,7 @@ final class CockpitRunSubmission {
         json['workspaceId'],
         '$path.workspaceId',
       ),
-      source: CockpitCaseSubmissionSource.fromJson(
+      source: CockpitRunSubmissionSource.fromJson(
         json['source'],
         path: '$path.source',
       ),

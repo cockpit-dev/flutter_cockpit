@@ -337,6 +337,11 @@ Map<String, Object?> _actionJson(CockpitTestActionKind kind) {
       'text': '^Ready',
       'matchMode': 'regex',
     },
+    CockpitTestActionKind.system => <String, Object?>{
+      'type': kind.name,
+      'name': 'activateWindow',
+      'parameters': const <String, Object?>{},
+    },
     CockpitTestActionKind.captureScreenshot => <String, Object?>{
       'type': kind.name,
       'artifactName': 'acceptanceScreenshot',

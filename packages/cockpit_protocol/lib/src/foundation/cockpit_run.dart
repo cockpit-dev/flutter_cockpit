@@ -2,11 +2,21 @@ import 'cockpit_api_error.dart';
 import 'cockpit_decode_policy.dart';
 import 'cockpit_foundation_value_reader.dart';
 
-enum CockpitRunLifecycle { queued, running, completed }
+enum CockpitRunLifecycle { queued, running, finalizing, completed }
 
-enum CockpitRunOutcome { passed, failed, blocked, cancelled, interrupted }
+enum CockpitRunOutcome {
+  passed,
+  failed,
+  blocked,
+  skipped,
+  cancelled,
+  interrupted,
+  internalError,
+}
 
 enum CockpitRunStability { stable, flaky, unknown }
+
+enum CockpitRunDocumentKind { testCase, suite }
 
 abstract final class CockpitRunStateMachine {
   static bool canTransition(CockpitRunLifecycle from, CockpitRunLifecycle to) {
@@ -17,7 +27,10 @@ abstract final class CockpitRunStateMachine {
       CockpitRunLifecycle.queued =>
         to == CockpitRunLifecycle.running ||
             to == CockpitRunLifecycle.completed,
-      CockpitRunLifecycle.running => to == CockpitRunLifecycle.completed,
+      CockpitRunLifecycle.running =>
+        to == CockpitRunLifecycle.finalizing ||
+            to == CockpitRunLifecycle.completed,
+      CockpitRunLifecycle.finalizing => to == CockpitRunLifecycle.completed,
       CockpitRunLifecycle.completed => false,
     };
   }
@@ -28,7 +41,8 @@ final class CockpitRunResource {
     required this.projectId,
     required this.workspaceId,
     required this.runId,
-    required this.caseId,
+    required this.documentKind,
+    required this.documentId,
     required this.sourceSha256,
     required this.lifecycle,
     required this.submittedAt,
@@ -36,15 +50,16 @@ final class CockpitRunResource {
     this.stability,
     this.startedAt,
     this.finishedAt,
-    Iterable<String> attemptIds = const <String>[],
-    this.activeAttemptId,
+    Iterable<String> caseIds = const <String>[],
+    Iterable<String> activeAttemptIds = const <String>[],
     this.failure,
-  }) : attemptIds = List<String>.unmodifiable(attemptIds) {
+  }) : caseIds = List<String>.unmodifiable(caseIds),
+       activeAttemptIds = List<String>.unmodifiable(activeAttemptIds) {
     for (final entry in <String, String>{
       'projectId': projectId,
       'workspaceId': workspaceId,
       'runId': runId,
-      'caseId': caseId,
+      'documentId': documentId,
     }.entries) {
       CockpitFoundationValueReader.id(entry.value, '\$.${entry.key}');
     }
@@ -56,15 +71,23 @@ final class CockpitRunResource {
     if (finishedAt != null) {
       CockpitFoundationValueReader.utcDateTime(finishedAt!, r'$.finishedAt');
     }
-    final attempts = <String>{};
-    for (final attemptId in this.attemptIds) {
-      CockpitFoundationValueReader.id(attemptId, r'$.attemptIds[]');
-      if (!attempts.add(attemptId)) {
-        throw FormatException('Duplicate attempt $attemptId.');
+    final cases = <String>{};
+    for (final caseId in this.caseIds) {
+      CockpitFoundationValueReader.id(caseId, r'$.caseIds[]');
+      if (!cases.add(caseId)) {
+        throw FormatException('Duplicate case $caseId.');
       }
     }
-    if (activeAttemptId != null && !attempts.contains(activeAttemptId)) {
-      throw const FormatException('Active attempt is not in attemptIds.');
+    final attempts = <String>{};
+    for (final attemptId in this.activeAttemptIds) {
+      CockpitFoundationValueReader.id(attemptId, r'$.activeAttemptIds[]');
+      if (!attempts.add(attemptId)) {
+        throw FormatException('Duplicate active attempt $attemptId.');
+      }
+    }
+    if (documentKind == CockpitRunDocumentKind.testCase &&
+        (this.caseIds.length != 1 || this.caseIds.single != documentId)) {
+      throw const FormatException('Standalone run case identity is invalid.');
     }
     _validateRunState(this);
     if (failure != null &&
@@ -78,7 +101,8 @@ final class CockpitRunResource {
   final String projectId;
   final String workspaceId;
   final String runId;
-  final String caseId;
+  final CockpitRunDocumentKind documentKind;
+  final String documentId;
   final String sourceSha256;
   final CockpitRunLifecycle lifecycle;
   final CockpitRunOutcome? outcome;
@@ -86,15 +110,18 @@ final class CockpitRunResource {
   final DateTime submittedAt;
   final DateTime? startedAt;
   final DateTime? finishedAt;
-  final List<String> attemptIds;
-  final String? activeAttemptId;
+  final List<String> caseIds;
+  final List<String> activeAttemptIds;
   final CockpitFailure? failure;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'projectId': projectId,
     'workspaceId': workspaceId,
     'runId': runId,
-    'caseId': caseId,
+    'documentKind': documentKind == CockpitRunDocumentKind.testCase
+        ? 'case'
+        : documentKind.name,
+    'documentId': documentId,
     'sourceSha256': sourceSha256,
     'lifecycle': lifecycle.name,
     if (outcome != null) 'outcome': outcome!.name,
@@ -102,8 +129,8 @@ final class CockpitRunResource {
     'submittedAt': submittedAt.toIso8601String(),
     if (startedAt != null) 'startedAt': startedAt!.toIso8601String(),
     if (finishedAt != null) 'finishedAt': finishedAt!.toIso8601String(),
-    'attemptIds': attemptIds,
-    if (activeAttemptId != null) 'activeAttemptId': activeAttemptId,
+    'caseIds': caseIds,
+    'activeAttemptIds': activeAttemptIds,
     if (failure != null) 'failure': failure!.toJson(),
   };
 
@@ -119,7 +146,8 @@ final class CockpitRunResource {
         'projectId',
         'workspaceId',
         'runId',
-        'caseId',
+        'documentKind',
+        'documentId',
         'sourceSha256',
         'lifecycle',
         'outcome',
@@ -127,8 +155,8 @@ final class CockpitRunResource {
         'submittedAt',
         'startedAt',
         'finishedAt',
-        'attemptIds',
-        'activeAttemptId',
+        'caseIds',
+        'activeAttemptIds',
         'failure',
       },
       path,
@@ -136,11 +164,13 @@ final class CockpitRunResource {
         'projectId',
         'workspaceId',
         'runId',
-        'caseId',
+        'documentKind',
+        'documentId',
         'sourceSha256',
         'lifecycle',
         'submittedAt',
-        'attemptIds',
+        'caseIds',
+        'activeAttemptIds',
       },
       policy: decodePolicy,
     );
@@ -154,7 +184,14 @@ final class CockpitRunResource {
         '$path.workspaceId',
       ),
       runId: CockpitFoundationValueReader.id(json['runId'], '$path.runId'),
-      caseId: CockpitFoundationValueReader.id(json['caseId'], '$path.caseId'),
+      documentKind: _runDocumentKind(
+        json['documentKind'],
+        '$path.documentKind',
+      ),
+      documentId: CockpitFoundationValueReader.id(
+        json['documentId'],
+        '$path.documentId',
+      ),
       sourceSha256: CockpitFoundationValueReader.sha256(
         json['sourceSha256'],
         '$path.sourceSha256',
@@ -190,16 +227,14 @@ final class CockpitRunResource {
               json['finishedAt'],
               '$path.finishedAt',
             ),
-      attemptIds: CockpitFoundationValueReader.ids(
-        json['attemptIds'],
-        '$path.attemptIds',
+      caseIds: CockpitFoundationValueReader.ids(
+        json['caseIds'],
+        '$path.caseIds',
       ),
-      activeAttemptId: json['activeAttemptId'] == null
-          ? null
-          : CockpitFoundationValueReader.id(
-              json['activeAttemptId'],
-              '$path.activeAttemptId',
-            ),
+      activeAttemptIds: CockpitFoundationValueReader.ids(
+        json['activeAttemptIds'],
+        '$path.activeAttemptIds',
+      ),
       failure: json['failure'] == null
           ? null
           : CockpitFailure.fromJson(
@@ -308,8 +343,10 @@ void _validateRunState(CockpitRunResource run) {
     throw const FormatException('Run lifecycle is inconsistent.');
   }
   if (run.lifecycle == CockpitRunLifecycle.queued && run.startedAt != null ||
-      run.lifecycle == CockpitRunLifecycle.running && run.startedAt == null ||
-      completed && run.activeAttemptId != null) {
+      (run.lifecycle == CockpitRunLifecycle.running ||
+              run.lifecycle == CockpitRunLifecycle.finalizing) &&
+          run.startedAt == null ||
+      completed && run.activeAttemptIds.isNotEmpty) {
     throw const FormatException('Run active state is inconsistent.');
   }
   final passed = run.outcome == CockpitRunOutcome.passed;
@@ -317,9 +354,15 @@ void _validateRunState(CockpitRunResource run) {
       (passed && run.failure != null)) {
     throw const FormatException('Run outcome and failure disagree.');
   }
-  if (passed && run.attemptIds.isEmpty) {
-    throw const FormatException('A passed run requires a completed attempt.');
+  if (passed && run.caseIds.isEmpty) {
+    throw const FormatException('A passed run requires a completed case.');
   }
+}
+
+CockpitRunDocumentKind _runDocumentKind(Object? value, String path) {
+  final name = CockpitFoundationValueReader.string(value, path);
+  if (name == 'case') return CockpitRunDocumentKind.testCase;
+  return _enum(name, CockpitRunDocumentKind.values, path);
 }
 
 T _enum<T extends Enum>(Object? value, List<T> values, String path) {

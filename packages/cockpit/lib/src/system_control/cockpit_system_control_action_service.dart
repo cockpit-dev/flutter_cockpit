@@ -10,6 +10,7 @@ import '../capture/cockpit_linux_capture_adapter.dart';
 import '../capture/cockpit_macos_capture_adapter.dart';
 import '../capture/cockpit_simctl_capture_adapter.dart';
 import '../capture/cockpit_windows_capture_adapter.dart';
+import '../capture/cockpit_wda_capture_adapter.dart';
 import '../infrastructure/cockpit_process_manager.dart';
 import '../recording/cockpit_adb_recording_adapter.dart';
 import '../recording/cockpit_linux_recording_adapter.dart';
@@ -127,13 +128,13 @@ final class CockpitSystemControlActionService {
     );
 
     if (request.action == CockpitSystemControlAction.captureScreenshot) {
-      return _captureScreenshot(request, profile, capability);
+      return _captureScreenshot(effectiveRequest, profile, capability);
     }
     if (request.action == CockpitSystemControlAction.startRecording) {
-      return _startRecording(request, profile, capability);
+      return _startRecording(effectiveRequest, profile, capability);
     }
     if (request.action == CockpitSystemControlAction.stopRecording) {
-      return _stopRecording(request, profile, capability);
+      return _stopRecording(effectiveRequest, profile, capability);
     }
     if (request.action == CockpitSystemControlAction.preparePermissions) {
       return _preparePermissions(effectiveRequest, profile, capability);
@@ -1393,9 +1394,16 @@ CockpitCaptureAdapter? _defaultCaptureAdapterFor(
   final deviceId = request.deviceId;
   final appId = request.appId;
   final windowAppId = _windowAppIdFor(request);
+  final wdaBaseUri = _wdaBaseUri(request.metadata);
   return switch (request.platform.trim().toLowerCase()) {
     'android' when deviceId != null && deviceId.isNotEmpty =>
       CockpitAdbCaptureAdapter(deviceId: deviceId),
+    'ios'
+        when deviceId != null &&
+            deviceId.isNotEmpty &&
+            !_looksLikeIosSimulatorDeviceId(deviceId) &&
+            wdaBaseUri != null =>
+      CockpitWdaCaptureAdapter(baseUri: wdaBaseUri),
     'ios' when deviceId != null && deviceId.isNotEmpty =>
       CockpitSimctlCaptureAdapter(deviceId: deviceId),
     'macos' when appId != null && appId.isNotEmpty =>
@@ -1413,6 +1421,20 @@ CockpitCaptureAdapter? _defaultCaptureAdapterFor(
     _ => null,
   };
 }
+
+Uri? _wdaBaseUri(Map<String, Object?> metadata) {
+  if (metadata['wdaReachable'] != true) return null;
+  final value = metadata['wdaUrl'];
+  if (value is! String) return null;
+  final uri = Uri.tryParse(value.trim());
+  return uri != null && uri.hasScheme && uri.host.isNotEmpty ? uri : null;
+}
+
+bool _looksLikeIosSimulatorDeviceId(String deviceId) =>
+    deviceId.toLowerCase() == 'booted' ||
+    RegExp(
+      r'^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$',
+    ).hasMatch(deviceId);
 
 CockpitCaptureAdapter? _hostWindowCaptureAdapterFor(
   CockpitSystemControlActionRequest request,

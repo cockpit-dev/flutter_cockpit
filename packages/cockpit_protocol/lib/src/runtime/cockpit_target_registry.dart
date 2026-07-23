@@ -408,6 +408,11 @@ final class CockpitTargetRegistry {
       CockpitLocatorKind.route => target.routeName == value,
       CockpitLocatorKind.registrationId => target.registrationId == value,
       CockpitLocatorKind.path => _matchesPath(target.path, value),
+      CockpitLocatorKind.nativeId ||
+      CockpitLocatorKind.testId ||
+      CockpitLocatorKind.role ||
+      CockpitLocatorKind.coordinate ||
+      CockpitLocatorKind.visual => false,
     };
   }
 
@@ -809,7 +814,12 @@ final class CockpitTargetRegistry {
         ),
         CockpitLocatorKind.route => ancestor.routeName == signal.value,
         CockpitLocatorKind.path => _matchesPath(ancestor.path, signal.value),
-        CockpitLocatorKind.registrationId => false,
+        CockpitLocatorKind.registrationId ||
+        CockpitLocatorKind.nativeId ||
+        CockpitLocatorKind.testId ||
+        CockpitLocatorKind.role ||
+        CockpitLocatorKind.coordinate ||
+        CockpitLocatorKind.visual => false,
       };
       if (!matched) {
         return false;

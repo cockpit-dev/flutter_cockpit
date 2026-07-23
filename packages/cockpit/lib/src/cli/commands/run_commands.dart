@@ -131,6 +131,145 @@ final class CockpitCaseCommand extends Command<int> {
   String get description => 'Inspect, validate, and run canonical cases.';
 }
 
+final class CockpitSuiteCommand extends Command<int> {
+  CockpitSuiteCommand(this.runtime) {
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'list',
+        description: 'List indexed suites for a workspace.',
+        configure: (parser) => parser.addOption('workspace-id'),
+        action: (arguments) async {
+          final workspaceId = await runtime.workspaceId(
+            arguments.option('workspace-id'),
+          );
+          final items = (await (await runtime.client()).documents(workspaceId))
+              .where(
+                (document) => document.kind == CockpitIndexedDocumentKind.suite,
+              )
+              .map((document) => document.toJson())
+              .toList(growable: false);
+          runtime.success(<String, Object?>{'items': items});
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'validate',
+        description: 'Validate a suite document.',
+        configure: (parser) => parser
+          ..addOption('workspace-id')
+          ..addOption('file', mandatory: true)
+          ..addOption('format', allowed: const <String>['json', 'yaml']),
+        action: (arguments) async {
+          final file = File(arguments.option('file')!);
+          if (await file.length() > cockpitSupervisorMaximumResponseBytes) {
+            throw const FormatException('Suite document exceeds 1 MiB.');
+          }
+          final workspaceId = await runtime.workspaceId(
+            arguments.option('workspace-id'),
+          );
+          final result = await (await runtime.client()).validateCaseDocument(
+            workspaceId,
+            CockpitDocumentValidationRequest(
+              format: _documentFormat(arguments.option('format'), file.path),
+              sourceText: await file.readAsString(),
+              relativePath: p.basename(file.path),
+            ),
+          );
+          runtime.success(result.toJson());
+          return result.valid ? cockpitSuccessExitCode : cockpitDataExitCode;
+        },
+      ),
+    );
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'run',
+        description: 'Run an indexed suite as one durable campaign.',
+        configure: (parser) => parser
+          ..addOption('workspace-id')
+          ..addOption('document-id')
+          ..addOption('suite-id', mandatory: true)
+          ..addOption('idempotency-key', mandatory: true)
+          ..addOption('inputs-json')
+          ..addOption('inputs-file')
+          ..addOption('target-id'),
+        action: (arguments) async {
+          final workspaceId = await runtime.workspaceId(
+            arguments.option('workspace-id'),
+          );
+          final suiteId = arguments.option('suite-id')!;
+          final requestedDocument = arguments.option('document-id');
+          final documents =
+              (await (await runtime.client()).documents(workspaceId))
+                  .where(
+                    (document) =>
+                        document.kind == CockpitIndexedDocumentKind.suite &&
+                        document.authoredId == suiteId &&
+                        (requestedDocument == null ||
+                            document.documentId == requestedDocument),
+                  )
+                  .toList(growable: false);
+          if (documents.length != 1) {
+            throw CockpitSupervisorClientException(
+              code: documents.isEmpty ? 'suiteNotFound' : 'suiteAmbiguous',
+              message: documents.isEmpty
+                  ? 'Indexed suite $suiteId was not found.'
+                  : 'Suite $suiteId exists in multiple documents; pass --document-id.',
+            );
+          }
+          final document = documents.single;
+          final accepted = await (await runtime.client()).submitRun(
+            CockpitRunSubmission(
+              workspaceId: workspaceId,
+              source: CockpitIndexedSuiteSource(
+                reference: CockpitIndexedSuiteReference(
+                  documentId: document.documentId,
+                  suiteId: suiteId,
+                  documentSha256: document.sha256,
+                ),
+              ),
+              idempotencyKey: CockpitIdempotencyKey(
+                arguments.option('idempotency-key')!,
+              ),
+              inputs: runtime.jsonObject(
+                arguments.option('inputs-json'),
+                arguments.option('inputs-file'),
+              ),
+              targetId: arguments.option('target-id'),
+            ),
+          );
+          runtime.success(accepted.toJson());
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'report',
+        description: 'Read the finalized canonical suite report.',
+        configure: (parser) => parser.addOption('run-id', mandatory: true),
+        action: (arguments) async {
+          runtime.success(
+            (await (await runtime.client()).report(
+              arguments.option('run-id')!,
+            )).toJson(),
+          );
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+  }
+
+  final CockpitCliRuntime runtime;
+
+  @override
+  String get name => 'suite';
+
+  @override
+  String get description => 'Inspect, validate, run, and report suites.';
+}
+
 final class CockpitRunCommand extends Command<int> {
   CockpitRunCommand(this.runtime) {
     addSubcommand(

@@ -4,6 +4,7 @@ import 'cockpit_foundation_value_reader.dart';
 import 'cockpit_idempotency.dart';
 
 enum CockpitLeaseResourceKind {
+  run,
   device,
   session,
   browserContext,

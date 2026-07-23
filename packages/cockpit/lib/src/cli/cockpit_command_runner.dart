@@ -32,7 +32,9 @@ final class CockpitCommandRunner {
       ..addCommand(CockpitRootCommand(this.runtime))
       ..addCommand(CockpitWorkspaceCommand(this.runtime))
       ..addCommand(CockpitOperationCommand(this.runtime))
+      ..addCommand(CockpitTargetCommand(this.runtime))
       ..addCommand(CockpitCaseCommand(this.runtime))
+      ..addCommand(CockpitSuiteCommand(this.runtime))
       ..addCommand(CockpitRunCommand(this.runtime))
       ..addCommand(CockpitArtifactCommand(this.runtime));
   }

@@ -36,12 +36,15 @@ final class CockpitWorkerProtocolSchema {
             'afterSequence': _integerSchema(0, 2147483647),
             'events': _array(_objectSchema, 1, 256),
           }),
-          'publishArtifactBatch': _requestSchema(<String, Object?>{
-            'projectId': _idSchema,
-            'runId': _idSchema,
-            'caseId': _idSchema,
-            'artifacts': _array(_objectSchema, 1, 256),
-          }),
+          'publishArtifactBatch': _requestSchema(
+            <String, Object?>{
+              'projectId': _idSchema,
+              'runId': _idSchema,
+              'caseId': _idSchema,
+              'artifacts': _array(_objectSchema, 1, 256),
+            },
+            optional: const <String>{'caseId'},
+          ),
         },
       );
 
@@ -150,17 +153,29 @@ const Map<String, Object?> _dateTimeSchema = <String, Object?>{
 };
 const Map<String, Object?> _objectSchema = <String, Object?>{'type': 'object'};
 
-Map<String, Object?> _requestSchema(Map<String, Object?> methodProperties) =>
-    _strictObject(<String, Object?>{
-      'protocolVersion': const <String, Object?>{
-        'const': cockpitWorkerProtocolVersion,
-      },
-      'workspaceId': _idSchema,
-      'requestId': _idSchema,
-      'deadline': _dateTimeSchema,
-      'idempotencyKey': _idSchema,
-      ...methodProperties,
-    });
+Map<String, Object?> _requestSchema(
+  Map<String, Object?> methodProperties, {
+  Set<String> optional = const <String>{},
+}) => _strictObject(
+  <String, Object?>{
+    'protocolVersion': const <String, Object?>{
+      'const': cockpitWorkerProtocolVersion,
+    },
+    'workspaceId': _idSchema,
+    'requestId': _idSchema,
+    'deadline': _dateTimeSchema,
+    'idempotencyKey': _idSchema,
+    ...methodProperties,
+  },
+  required: <String>{
+    'protocolVersion',
+    'workspaceId',
+    'requestId',
+    'deadline',
+    'idempotencyKey',
+    ...methodProperties.keys.where((key) => !optional.contains(key)),
+  },
+);
 
 Map<String, Object?> _strictObject(
   Map<String, Object?> properties, {

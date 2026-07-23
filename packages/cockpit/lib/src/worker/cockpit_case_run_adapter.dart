@@ -8,13 +8,13 @@ import 'package:path/path.dart' as p;
 
 import '../foundation/cockpit_ids.dart';
 import '../application/cockpit_application_service_exception.dart';
-import '../remote/cockpit_remote_automation_adapter.dart';
-import '../remote/cockpit_remote_capture_adapter.dart';
-import '../remote/cockpit_remote_recording_adapter.dart';
-import '../remote/cockpit_remote_session_client.dart';
+import '../adapters/cockpit_automation_adapter.dart';
+import '../adapters/cockpit_capture_adapter.dart';
+import '../adapters/cockpit_recording_adapter.dart';
 import '../runner/cockpit_case_execution_control.dart';
 import '../runner/cockpit_case_runner.dart';
 import '../test/cockpit_test_document_compiler.dart';
+import '../test/cockpit_test_action_lowerer.dart';
 import '../test/cockpit_test_execution_plan.dart';
 import '../test/cockpit_test_safety_policy.dart';
 import '../test/cockpit_test_secret_resolver.dart';
@@ -40,7 +40,11 @@ final class CockpitWorkerHealthySession {
     required this.deviceResourceId,
     required this.resourceId,
     required this.environment,
-    required this.client,
+    required this.automationAdapter,
+    required this.healthCheck,
+    this.captureAdapter,
+    this.recordingAdapter,
+    this.lowerer = const CockpitTestActionLowerer(),
     this.forceAbort,
   });
 
@@ -49,7 +53,11 @@ final class CockpitWorkerHealthySession {
   final String deviceResourceId;
   final String resourceId;
   final CockpitTestTargetEnvironment environment;
-  final CockpitRemoteSessionClient client;
+  final CockpitAutomationAdapter automationAdapter;
+  final CockpitCaptureAdapter? captureAdapter;
+  final CockpitRecordingAdapter? recordingAdapter;
+  final CockpitTestActionLowerer lowerer;
+  final Future<bool> Function() healthCheck;
   final Future<void> Function()? forceAbort;
 }
 
@@ -490,6 +498,10 @@ final class CockpitCaseRunAdapterFactory {
     resourceKinds: const <String>['workspace.runs'],
     prepare: (context, input) async {
       final submission = CockpitRunSubmission.fromJson(input);
+      final source = submission.source;
+      if (source is! CockpitCaseSubmissionSource) {
+        throw const FormatException('Case run requires a case source.');
+      }
       if (submission.workspaceId != workspaceId) {
         throw const FormatException('Case run workspace mismatch.');
       }
@@ -512,7 +524,7 @@ final class CockpitCaseRunAdapterFactory {
           },
         );
       }
-      final compiled = await _compiled(submission.source);
+      final compiled = await _compiled(source);
       final plan = CockpitTestVariableBinder().bind(
         compiled,
         inputs: submission.inputs,
@@ -547,7 +559,6 @@ final class CockpitCaseRunAdapterFactory {
           CockpitWorkerEventDraft(
             kind: 'run.queued',
             entityKind: CockpitRunEventEntityKind.run,
-            caseId: compiled.testCase.id,
             lifecycle: CockpitRunLifecycle.queued,
           ),
         );
@@ -649,7 +660,7 @@ final class CockpitCaseRunAdapterFactory {
     return CockpitDocumentValidationResult(
       valid: compiled != null,
       sourceSha256: sourceHash,
-      testCase: compiled?.testCase,
+      document: compiled?.document,
       diagnostics: result.diagnostics,
       sourceMap: compiled == null
           ? const <CockpitTestSourceMapEntry>[]
@@ -707,9 +718,9 @@ final class CockpitCaseRunAdapterFactory {
           throw const FormatException('Case run resource grant is invalid.');
         }
       }
-      if (!await session.client.ping() || !await session.client.ready()) {
+      if (!await session.healthCheck()) {
         throw const FormatException(
-          'Worker-owned Flutter session is unhealthy.',
+          'Worker-owned automation session is unhealthy.',
         );
       }
       await _appendEvent(
@@ -717,7 +728,6 @@ final class CockpitCaseRunAdapterFactory {
         CockpitWorkerEventDraft(
           kind: 'run.running',
           entityKind: CockpitRunEventEntityKind.run,
-          caseId: compiled.testCase.id,
           lifecycle: CockpitRunLifecycle.running,
           targetId: session.targetId,
           requestedPlane: compiled.testCase.target.plane,
@@ -768,11 +778,10 @@ final class CockpitCaseRunAdapterFactory {
         utcNow: _utcNow,
       );
       final runner = CockpitCaseRunner(
-        automationAdapter: CockpitRemoteAutomationAdapter(
-          client: session.client,
-        ),
-        captureAdapter: CockpitRemoteCaptureAdapter(client: session.client),
-        recordingAdapter: CockpitRemoteRecordingAdapter(client: session.client),
+        automationAdapter: session.automationAdapter,
+        captureAdapter: session.captureAdapter,
+        recordingAdapter: session.recordingAdapter,
+        lowerer: session.lowerer,
         secretResolver: _secretResolver,
         safetyPolicy: _safetyPolicy,
         bundlePrePublicationValidator: redactionScanner.validateForPublication,
@@ -968,8 +977,6 @@ final class CockpitCaseRunAdapterFactory {
       CockpitWorkerEventDraft(
         kind: 'run.$kind',
         entityKind: CockpitRunEventEntityKind.run,
-        caseId: caseId,
-        attemptId: attemptId,
         lifecycle: CockpitRunLifecycle.completed,
         outcome: outcome,
         stability: CockpitRunStability.unknown,
@@ -1055,8 +1062,10 @@ final class CockpitCaseRunAdapterFactory {
         CockpitWorkerEventDraft(
           kind: '$entity.completed',
           entityKind: entityKind,
-          caseId: caseId,
-          attemptId: attemptId,
+          caseId: entityKind == CockpitRunEventEntityKind.run ? null : caseId,
+          attemptId: entityKind == CockpitRunEventEntityKind.run
+              ? null
+              : attemptId,
           lifecycle: entityKind == CockpitRunEventEntityKind.run
               ? CockpitRunLifecycle.completed
               : null,
@@ -1146,7 +1155,10 @@ final class CockpitCaseRunAdapterFactory {
         CockpitTestOutcome.passed => CockpitRunOutcome.passed,
         CockpitTestOutcome.failed => CockpitRunOutcome.failed,
         CockpitTestOutcome.blocked => CockpitRunOutcome.blocked,
+        CockpitTestOutcome.skipped => CockpitRunOutcome.skipped,
         CockpitTestOutcome.cancelled => CockpitRunOutcome.cancelled,
+        CockpitTestOutcome.interrupted => CockpitRunOutcome.interrupted,
+        CockpitTestOutcome.internalError => CockpitRunOutcome.internalError,
       };
 
   CockpitRunStability _runStability(CockpitTestStability stability) =>

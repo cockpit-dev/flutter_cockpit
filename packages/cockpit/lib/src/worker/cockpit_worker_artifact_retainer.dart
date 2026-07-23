@@ -358,8 +358,13 @@ final class CockpitWorkerArtifactRetainer {
     required String ownerKind,
     required String ownerId,
   }) {
-    final runAuthorityRoot = p.join(stateRoot, 'runs', ownerId, 'cases');
-    if (ownerKind != 'run' || !p.isWithin(runAuthorityRoot, committedRoot)) {
+    final runRoot = p.join(stateRoot, 'runs', ownerId);
+    final caseAuthorityRoot = p.join(runRoot, 'cases');
+    final reportAuthorityRoot = p.join(runRoot, 'report');
+    final confined =
+        p.isWithin(caseAuthorityRoot, committedRoot) ||
+        p.equals(reportAuthorityRoot, committedRoot);
+    if (ownerKind != 'run' || !confined) {
       throw const FileSystemException(
         'Committed bundle root is outside its run owner authority.',
       );

@@ -908,8 +908,9 @@ CockpitWorkerCaseCompletionIntent _completionIntent(
         (event) =>
             event.workspaceId != workspaceId ||
             event.runId != runId ||
-            event.caseId != caseId ||
-            event.attemptId != attemptId,
+            (event.entityKind == CockpitRunEventEntityKind.run
+                ? event.caseId != null || event.attemptId != null
+                : event.caseId != caseId || event.attemptId != attemptId),
       ) ||
       events
               .where(

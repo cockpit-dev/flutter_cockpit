@@ -29,6 +29,7 @@ enum CockpitCommandType {
   waitFor,
   assertVisible,
   assertText,
+  system,
   captureScreenshot,
   collectSnapshot;
 

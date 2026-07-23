@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:cockpit_protocol/cockpit_protocol.dart';
+
 import '../supervisor/cockpit_supervisor_api_client.dart';
 import 'core/cockpit_mcp_resource.dart';
 import 'core/cockpit_mcp_resource_definition.dart';
@@ -64,6 +66,20 @@ List<CockpitMcpResource> cockpitMcpApiResources(
   ),
   _CockpitApiResource.template(
     client: client,
+    name: 'workspace_suites',
+    uriTemplate: 'cockpit://workspaces/{workspaceId}/suites',
+    description: 'Indexed suites for an explicit workspace.',
+    read: (api, uri) async => <String, Object?>{
+      'items': (await api.documents(_identifier(uri, 0, 'workspaceId')))
+          .where(
+            (document) => document.kind == CockpitIndexedDocumentKind.suite,
+          )
+          .map((document) => document.toJson())
+          .toList(growable: false),
+    },
+  ),
+  _CockpitApiResource.template(
+    client: client,
     name: 'workspace_cases',
     uriTemplate: 'cockpit://workspaces/{workspaceId}/cases',
     description: 'Indexed cases for an explicit workspace.',
@@ -72,6 +88,14 @@ List<CockpitMcpResource> cockpitMcpApiResources(
         _identifier(uri, 0, 'workspaceId'),
       )).map((item) => item.toJson()).toList(),
     },
+  ),
+  _CockpitApiResource.template(
+    client: client,
+    name: 'run_report',
+    uriTemplate: 'cockpit://runs/{runId}/report',
+    description: 'Finalized canonical suite report for a run.',
+    read: (api, uri) async =>
+        (await api.report(_identifier(uri, 0, 'runId'))).toJson(),
   ),
   _CockpitApiResource.template(
     client: client,
@@ -172,7 +196,15 @@ bool _matchesTemplate(Uri uri, String name) {
       uri.host == 'workspaces' &&
           uri.pathSegments.length == 2 &&
           uri.pathSegments[1] == 'cases',
+    'workspace_suites' =>
+      uri.host == 'workspaces' &&
+          uri.pathSegments.length == 2 &&
+          uri.pathSegments[1] == 'suites',
     'run' => uri.host == 'runs' && uri.pathSegments.length == 1,
+    'run_report' =>
+      uri.host == 'runs' &&
+          uri.pathSegments.length == 2 &&
+          uri.pathSegments[1] == 'report',
     _ => false,
   };
 }

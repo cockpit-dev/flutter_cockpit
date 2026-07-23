@@ -127,15 +127,18 @@ final class CockpitSystemControlService {
         const CockpitSystemControlRegistry(),
     CockpitIosWdaEndpointProbe iosWdaEndpointProbe = cockpitProbeIosWdaEndpoint,
     CockpitAndroidDeviceStateProbe? androidDeviceStateProbe,
+    Map<String, String>? environment,
   }) : _processManager = processManager ?? const LocalCockpitProcessManager(),
        _registry = registry,
        _iosWdaEndpointProbe = iosWdaEndpointProbe,
-       _androidDeviceStateProbe = androidDeviceStateProbe;
+       _androidDeviceStateProbe = androidDeviceStateProbe,
+       _environment = environment ?? Platform.environment;
 
   final CockpitProcessManager _processManager;
   final CockpitSystemControlRegistry _registry;
   final CockpitIosWdaEndpointProbe _iosWdaEndpointProbe;
   final CockpitAndroidDeviceStateProbe? _androidDeviceStateProbe;
+  final Map<String, String> _environment;
 
   Future<CockpitSystemControlDescribeResult> describe(
     CockpitSystemControlDescribeRequest request,
@@ -164,13 +167,17 @@ final class CockpitSystemControlService {
     if (request.platform.trim().toLowerCase() == 'android') {
       return _resolveAndroidMetadata(metadata, request.deviceId);
     }
-    if (request.platform.trim().toLowerCase() != 'ios' ||
-        !_looksLikeIosSimulatorDeviceId(request.deviceId)) {
+    if (request.platform.trim().toLowerCase() != 'ios') {
       return metadata;
     }
-    final wdaUrl = metadata['wdaUrl'];
+    var wdaUrl = metadata['wdaUrl'];
     if (wdaUrl is! String || wdaUrl.trim().isEmpty) {
-      return _discoverLocalWdaMetadata(metadata);
+      final configured = _environment['FLUTTER_COCKPIT_IOS_WDA_URL']?.trim();
+      if (configured == null || configured.isEmpty) {
+        return _discoverLocalWdaMetadata(metadata);
+      }
+      metadata['wdaUrl'] = configured;
+      wdaUrl = configured;
     }
     return _resolveExplicitWdaMetadata(metadata, wdaUrl.trim());
   }
@@ -251,18 +258,6 @@ final class CockpitSystemControlService {
       metadata['wdaFailureReason'] = 'wdaEndpointUnreachable';
     }
     return metadata;
-  }
-
-  bool _looksLikeIosSimulatorDeviceId(String? deviceId) {
-    if (deviceId == null || deviceId.isEmpty) {
-      return false;
-    }
-    if (deviceId.toLowerCase() == 'booted') {
-      return true;
-    }
-    return RegExp(
-      r'^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$',
-    ).hasMatch(deviceId);
   }
 }
 

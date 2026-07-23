@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/cockpit-dev/flutter_cockpit/packages/cockpit_protocol/schema/cockpit.foundation.v2.schema.json",
   "title": "Cockpit 2.0 foundation API contracts",
-  "description": "Strict platform-neutral contracts for Cockpit Supervisor clients, resources, operations, standalone runs, events, artifacts, and leases.",
+  "description": "Strict platform-neutral contracts for Cockpit Supervisor clients, resources, operations, case and suite runs, events, artifacts, reports, and leases.",
   "oneOf": [
     {
       "$ref": "#/$defs/ServerInfo"
@@ -2366,6 +2366,24 @@
         "modifiedAt": {
           "$ref": "#/$defs/UtcTimestamp"
         },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "source",
+            "case",
+            "suite",
+            "project"
+          ],
+          "minLength": 1
+        },
+        "authoredId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
         "cases": {
           "type": "array",
           "items": {
@@ -2380,6 +2398,7 @@
         "relativePath",
         "sha256",
         "modifiedAt",
+        "kind",
         "cases"
       ],
       "additionalProperties": false
@@ -2400,6 +2419,26 @@
       "required": [
         "documentId",
         "caseId",
+        "documentSha256"
+      ],
+      "additionalProperties": false
+    },
+    "IndexedSuiteReference": {
+      "type": "object",
+      "properties": {
+        "documentId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "suiteId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "documentSha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      },
+      "required": [
+        "documentId",
+        "suiteId",
         "documentSha256"
       ],
       "additionalProperties": false
@@ -2439,8 +2478,8 @@
         "sourceSha256": {
           "$ref": "#/$defs/Sha256"
         },
-        "case": {
-          "$ref": "cockpit.test.v2.schema.json#/$defs/case"
+        "document": {
+          "$ref": "cockpit.test.v2.schema.json"
         },
         "diagnostics": {
           "type": "array",
@@ -2473,13 +2512,13 @@
           },
           "then": {
             "required": [
-              "case"
+              "document"
             ]
           },
           "else": {
             "not": {
               "required": [
-                "case"
+                "document"
               ]
             },
             "properties": {
@@ -3057,6 +3096,66 @@
         }
       ]
     },
+    "InlineSuiteSource": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "inline",
+          "minLength": 1
+        },
+        "suite": {
+          "$ref": "cockpit.test.v2.schema.json#/$defs/suite"
+        },
+        "sourceSha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      },
+      "required": [
+        "kind",
+        "suite",
+        "sourceSha256"
+      ],
+      "additionalProperties": false
+    },
+    "IndexedSuiteSource": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "indexed",
+          "minLength": 1
+        },
+        "reference": {
+          "$ref": "#/$defs/IndexedSuiteReference"
+        }
+      },
+      "required": [
+        "kind",
+        "reference"
+      ],
+      "additionalProperties": false
+    },
+    "SuiteSubmissionSource": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/InlineSuiteSource"
+        },
+        {
+          "$ref": "#/$defs/IndexedSuiteSource"
+        }
+      ]
+    },
+    "RunSubmissionSource": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CaseSubmissionSource"
+        },
+        {
+          "$ref": "#/$defs/SuiteSubmissionSource"
+        }
+      ]
+    },
     "RunSubmission": {
       "type": "object",
       "properties": {
@@ -3064,7 +3163,7 @@
           "$ref": "#/$defs/Identifier"
         },
         "source": {
-          "$ref": "#/$defs/CaseSubmissionSource"
+          "$ref": "#/$defs/RunSubmissionSource"
         },
         "idempotencyKey": {
           "$ref": "#/$defs/IdempotencyKey"
@@ -3173,7 +3272,15 @@
         "runId": {
           "$ref": "#/$defs/Identifier"
         },
-        "caseId": {
+        "documentKind": {
+          "type": "string",
+          "enum": [
+            "case",
+            "suite"
+          ],
+          "minLength": 1
+        },
+        "documentId": {
           "$ref": "#/$defs/Identifier"
         },
         "sourceSha256": {
@@ -3184,6 +3291,7 @@
           "enum": [
             "queued",
             "running",
+            "finalizing",
             "completed"
           ],
           "minLength": 1
@@ -3194,8 +3302,10 @@
             "passed",
             "failed",
             "blocked",
+            "skipped",
             "cancelled",
-            "interrupted"
+            "interrupted",
+            "internalError"
           ],
           "minLength": 1
         },
@@ -3217,15 +3327,19 @@
         "finishedAt": {
           "$ref": "#/$defs/UtcTimestamp"
         },
-        "attemptIds": {
+        "caseIds": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/Identifier"
           },
           "uniqueItems": true
         },
-        "activeAttemptId": {
-          "$ref": "#/$defs/Identifier"
+        "activeAttemptIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
         },
         "failure": {
           "$ref": "#/$defs/Failure"
@@ -3235,11 +3349,13 @@
         "projectId",
         "workspaceId",
         "runId",
-        "caseId",
+        "documentKind",
+        "documentId",
         "sourceSha256",
         "lifecycle",
         "submittedAt",
-        "attemptIds"
+        "caseIds",
+        "activeAttemptIds"
       ],
       "additionalProperties": false,
       "allOf": [
@@ -3361,7 +3477,7 @@
           },
           "then": {
             "properties": {
-              "attemptIds": {
+              "caseIds": {
                 "minItems": 1
               }
             }
@@ -3377,9 +3493,11 @@
           },
           "then": {
             "not": {
-              "required": [
-                "activeAttemptId"
-              ]
+              "properties": {
+                "activeAttemptIds": {
+                  "maxItems": 0
+                }
+              }
             }
           }
         }
@@ -3410,8 +3528,10 @@
             "passed",
             "failed",
             "blocked",
+            "skipped",
             "cancelled",
-            "interrupted"
+            "interrupted",
+            "internalError"
           ],
           "minLength": 1
         },
@@ -3461,9 +3581,11 @@
           "type": "string",
           "enum": [
             "run",
+            "suite",
             "case",
             "attempt",
             "step",
+            "report",
             "artifact"
           ],
           "minLength": 1
@@ -3504,6 +3626,7 @@
           "enum": [
             "queued",
             "running",
+            "finalizing",
             "completed"
           ],
           "minLength": 1
@@ -3514,8 +3637,10 @@
             "passed",
             "failed",
             "blocked",
+            "skipped",
             "cancelled",
-            "interrupted"
+            "interrupted",
+            "internalError"
           ],
           "minLength": 1
         },
@@ -3584,8 +3709,7 @@
         "entityKind",
         "projectId",
         "workspaceId",
-        "runId",
-        "caseId"
+        "runId"
       ],
       "additionalProperties": false,
       "allOf": [
@@ -4002,6 +4126,7 @@
         "resourceKind": {
           "type": "string",
           "enum": [
+            "run",
             "device",
             "session",
             "browserContext",
@@ -4059,6 +4184,7 @@
         "resourceKind": {
           "type": "string",
           "enum": [
+            "run",
             "device",
             "session",
             "browserContext",

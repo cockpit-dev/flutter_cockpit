@@ -37,6 +37,7 @@ final cockpitSupervisorFeatures = <CockpitFeatureDescriptor>[
     revision: 1,
     minimumApiMinor: 0,
   ),
+  CockpitFeatureDescriptor(id: 'suiteRuns', revision: 1, minimumApiMinor: 0),
   CockpitFeatureDescriptor(
     id: 'durableRunEvents',
     revision: 1,
@@ -466,11 +467,11 @@ final class CockpitSupervisorRuntime {
     if (invocation.workspaceId != workspaceId || invocation.rootId != null) {
       throw const FormatException('Workspace operation scope mismatch.');
     }
-    if (invocation.kind == 'case.run') {
+    if (invocation.kind == 'case.run' || invocation.kind == 'suite.run') {
       throw _apiError(
         CockpitErrorCode.unsupportedOperation,
         CockpitErrorCategory.unsupported,
-        'case.run must use the dedicated run submission route.',
+        '${invocation.kind} must use the dedicated run submission route.',
       );
     }
     final metadata = CockpitSupervisorOperationCatalog.require(invocation.kind);
@@ -520,6 +521,9 @@ final class CockpitSupervisorRuntime {
             'relativePath': document['relativePath'],
             'sha256': document['sha256'],
             'modifiedAt': document['modifiedAt'],
+            'kind': document['kind'],
+            'authoredId': document['authoredId'],
+            'title': document['title'],
             'cases': document['cases'],
           },
           _ => raw[index],
@@ -556,8 +560,9 @@ final class CockpitSupervisorRuntime {
         idempotencyKey: submission.idempotencyKey.value,
         fingerprint: fingerprint,
         projectId: workspace.projectId,
-        caseId: _caseId(submission.source),
-        sourceSha256: _sourceSha(submission.source),
+        documentKind: submission.source.documentKind,
+        documentId: submission.source.documentId,
+        sourceSha256: submission.source.sourceSha256,
         submittedAt: DateTime.now().toUtc(),
       );
     } on CockpitSupervisorRunAdmissionConflict {
@@ -572,7 +577,8 @@ final class CockpitSupervisorRuntime {
       workspaceId: admission.workspaceId,
       projectId: admission.projectId,
       runId: admission.runId,
-      caseId: admission.caseId,
+      documentKind: admission.documentKind,
+      documentId: admission.documentId,
       sourceSha256: admission.sourceSha256,
       idempotencyKey: admission.idempotencyKey,
       fingerprint: admission.fingerprint,
@@ -606,7 +612,9 @@ final class CockpitSupervisorRuntime {
       await _initializeWorker(spec);
       final deadline = DateTime.now().toUtc().add(const Duration(hours: 2));
       final invocation = CockpitOperationInvocation(
-        kind: 'case.run',
+        kind: run.documentKind == CockpitRunDocumentKind.testCase
+            ? 'case.run'
+            : 'suite.run',
         workspaceId: run.workspaceId,
         idempotencyKey: submission.idempotencyKey,
         deadline: deadline,
@@ -696,7 +704,6 @@ final class CockpitSupervisorRuntime {
       projectId: run.projectId,
       workspaceId: run.workspaceId,
       runId: run.runId,
-      caseId: run.caseId,
       lifecycle: CockpitRunLifecycle.completed,
       outcome: outcome,
       stability: CockpitRunStability.unknown,
@@ -758,7 +765,8 @@ final class CockpitSupervisorRuntime {
       projectId: admission.projectId,
       workspaceId: owner,
       runId: runId,
-      caseId: admission.caseId,
+      documentKind: admission.documentKind,
+      documentId: admission.documentId,
       sourceSha256: admission.sourceSha256,
       lifecycle:
           terminal?.lifecycle ??
@@ -769,8 +777,14 @@ final class CockpitSupervisorRuntime {
       submittedAt: admission.submittedAt,
       startedAt: running?.timestamp,
       finishedAt: terminal?.timestamp,
-      attemptIds: attempts,
-      activeAttemptId: terminal == null ? attempts.lastOrNull : null,
+      caseIds: <String>{
+        if (admission.documentKind == CockpitRunDocumentKind.testCase)
+          admission.documentId,
+        ...events.map((event) => event.caseId).whereType<String>(),
+      },
+      activeAttemptIds: terminal == null && attempts.isNotEmpty
+          ? <String>[attempts.last]
+          : const <String>[],
       failure: terminal?.failure,
     );
   }
@@ -825,6 +839,11 @@ final class CockpitSupervisorRuntime {
   ) async {
     final workspaceId = await _findRunOwner(runId);
     return _projection(workspaceId).requireArtifactFile(runId, artifactId);
+  }
+
+  Future<CockpitTestSuiteReport> report(String runId) async {
+    final workspaceId = await _findRunOwner(runId);
+    return _projection(workspaceId).requireSuiteReport(runId);
   }
 
   Future<int> sequenceForEventId(String runId, String eventId) async {
@@ -1189,7 +1208,8 @@ final class _ActiveRun {
     required this.workspaceId,
     required this.projectId,
     required this.runId,
-    required this.caseId,
+    required this.documentKind,
+    required this.documentId,
     required this.sourceSha256,
     required this.idempotencyKey,
     required this.fingerprint,
@@ -1199,7 +1219,8 @@ final class _ActiveRun {
   final String workspaceId;
   final String projectId;
   final String runId;
-  final String caseId;
+  final CockpitRunDocumentKind documentKind;
+  final String documentId;
   final String sourceSha256;
   final String idempotencyKey;
   final String fingerprint;
@@ -1254,15 +1275,6 @@ CockpitLeaseCleanupResult _quarantinedCleanupResult() =>
 CockpitRemovalPolicy _removalPolicy(bool force) =>
     force ? CockpitRemovalPolicy.force : CockpitRemovalPolicy.drain;
 DateTime _deadline() => DateTime.now().toUtc().add(const Duration(seconds: 30));
-
-String _caseId(CockpitCaseSubmissionSource source) => switch (source) {
-  CockpitInlineCaseSource() => source.testCase.id,
-  CockpitIndexedCaseSource() => source.reference.caseId,
-};
-String _sourceSha(CockpitCaseSubmissionSource source) => switch (source) {
-  CockpitInlineCaseSource() => source.sourceSha256,
-  CockpitIndexedCaseSource() => source.reference.documentSha256,
-};
 
 void _requireKeys(Map<String, Object?> input, Set<String> allowed) {
   final unknown = input.keys.where((key) => !allowed.contains(key)).toList();

@@ -16,8 +16,8 @@ void main() {
     expect(yaml.isSuccess, isTrue, reason: _diagnostics(yaml));
     expect(json.isSuccess, isTrue, reason: _diagnostics(json));
     expect(
-      yaml.requireCompiled().testCase.toJson(),
-      json.requireCompiled().testCase.toJson(),
+      yaml.requireCase().testCase.toJson(),
+      json.requireCase().testCase.toJson(),
     );
   });
 }

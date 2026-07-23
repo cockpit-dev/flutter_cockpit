@@ -1,0 +1,324 @@
+import 'dart:convert';
+
+import '../foundation/cockpit_locked_json_store.dart';
+import '../foundation/cockpit_permissions.dart';
+import '../suite/cockpit_suite_scheduler.dart';
+import 'cockpit_worker_value_reader.dart';
+
+final class CockpitWorkerSuiteReservation {
+  const CockpitWorkerSuiteReservation({
+    required this.runId,
+    required this.startedAt,
+    required this.executions,
+    required this.completedOutput,
+  });
+
+  final String runId;
+  final DateTime startedAt;
+  final List<CockpitSuiteNodeExecution> executions;
+  final Map<String, Object?>? completedOutput;
+
+  bool get completed => completedOutput != null;
+}
+
+final class CockpitWorkerSuiteRunStore {
+  CockpitWorkerSuiteRunStore({
+    required this.workspaceId,
+    required String path,
+    required CockpitPermissionHardener permissionHardener,
+    required CockpitDirectorySyncer directorySyncer,
+    this.maximumRuns = 10000,
+  }) : _store = CockpitLockedJsonStore<Map<String, Object?>>(
+         path: path,
+         codec: const _SuiteRunCodec(),
+         createInitial: () => <String, Object?>{
+           'schemaVersion': 'cockpit.worker.suite-runs/v2',
+           'workspaceId': workspaceId,
+           'runs': <String, Object?>{},
+         },
+         permissionHardener: permissionHardener,
+         directorySyncer: directorySyncer,
+         maximumBytes: 64 * 1024 * 1024,
+       ) {
+    workerId(workspaceId, r'$.workspaceId');
+    if (maximumRuns < 1 || maximumRuns > 100000) {
+      throw ArgumentError.value(maximumRuns, 'maximumRuns');
+    }
+  }
+
+  final String workspaceId;
+  final int maximumRuns;
+  final CockpitLockedJsonStore<Map<String, Object?>> _store;
+
+  Future<CockpitWorkerSuiteReservation> reserve({
+    required String runId,
+    required String idempotencyKey,
+    required String requestFingerprint,
+    required String suiteId,
+    required String sourceSha256,
+    required DateTime startedAt,
+  }) => _store.transact((raw) {
+    final state = _state(raw);
+    final runs = state.runs;
+    final existingRaw = runs[runId];
+    if (existingRaw != null) {
+      final existing = _run(existingRaw, runId);
+      if (existing.idempotencyKey != idempotencyKey ||
+          existing.requestFingerprint != requestFingerprint ||
+          existing.suiteId != suiteId ||
+          existing.sourceSha256 != sourceSha256) {
+        throw const FormatException('Suite run idempotency conflict.');
+      }
+      return CockpitLockedJsonUpdate.readOnly(raw, existing.reservation);
+    }
+    if (runs.length >= maximumRuns) {
+      throw const FormatException('Suite run store bound was exceeded.');
+    }
+    final run = _SuiteRunState(
+      runId: runId,
+      idempotencyKey: idempotencyKey,
+      requestFingerprint: requestFingerprint,
+      suiteId: suiteId,
+      sourceSha256: sourceSha256,
+      startedAt: startedAt,
+      executions: const <CockpitSuiteNodeExecution>[],
+      completedOutput: null,
+    );
+    runs[runId] = run.toJson();
+    return CockpitLockedJsonUpdate.write(state.toJson(), run.reservation);
+  });
+
+  Future<void> recordExecution({
+    required String runId,
+    required CockpitSuiteNodeExecution execution,
+  }) => _store.transact<void>((raw) {
+    final state = _state(raw);
+    final run = _run(state.runs[runId], runId);
+    if (run.completedOutput != null) {
+      throw const FormatException('Completed suite run is immutable.');
+    }
+    final existing = run.executions
+        .where((item) => item.nodeId == execution.nodeId)
+        .singleOrNull;
+    if (existing != null) {
+      if (_canonical(existing.toJson()) != _canonical(execution.toJson())) {
+        throw const FormatException('Suite node execution conflicts.');
+      }
+      return CockpitLockedJsonUpdate.readOnly(raw, null);
+    }
+    final updated = run.copyWith(
+      executions: <CockpitSuiteNodeExecution>[...run.executions, execution],
+    );
+    state.runs[runId] = updated.toJson();
+    return CockpitLockedJsonUpdate.write(state.toJson(), null);
+  });
+
+  Future<void> complete({
+    required String runId,
+    required Map<String, Object?> output,
+  }) => _store.transact<void>((raw) {
+    final state = _state(raw);
+    final run = _run(state.runs[runId], runId);
+    if (run.completedOutput != null) {
+      if (_canonical(run.completedOutput) != _canonical(output)) {
+        throw const FormatException('Completed suite output is immutable.');
+      }
+      return CockpitLockedJsonUpdate.readOnly(raw, null);
+    }
+    final updated = run.copyWith(completedOutput: output);
+    state.runs[runId] = updated.toJson();
+    return CockpitLockedJsonUpdate.write(state.toJson(), null);
+  });
+
+  _SuiteStoreState _state(Map<String, Object?> raw) {
+    final json = workerObject(raw, r'$');
+    workerKeys(
+      json,
+      const <String>{'schemaVersion', 'workspaceId', 'runs'},
+      r'$',
+      required: const <String>{'schemaVersion', 'workspaceId', 'runs'},
+    );
+    if (json['schemaVersion'] != 'cockpit.worker.suite-runs/v2' ||
+        json['workspaceId'] != workspaceId) {
+      throw const FormatException('Suite run store identity is invalid.');
+    }
+    final runs = workerObject(json['runs'], r'$.runs');
+    if (runs.length > maximumRuns) {
+      throw const FormatException('Suite run store bound was exceeded.');
+    }
+    return _SuiteStoreState(workspaceId: workspaceId, runs: runs);
+  }
+
+  _SuiteRunState _run(Object? value, String runId) {
+    if (value == null) throw const FormatException('Suite run was not found.');
+    final run = _SuiteRunState.fromJson(value, runId: runId);
+    if (run.runId != runId) {
+      throw const FormatException('Suite run identity is invalid.');
+    }
+    return run;
+  }
+}
+
+final class _SuiteStoreState {
+  const _SuiteStoreState({required this.workspaceId, required this.runs});
+
+  final String workspaceId;
+  final Map<String, Object?> runs;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'schemaVersion': 'cockpit.worker.suite-runs/v2',
+    'workspaceId': workspaceId,
+    'runs': runs,
+  };
+}
+
+final class _SuiteRunState {
+  const _SuiteRunState({
+    required this.runId,
+    required this.idempotencyKey,
+    required this.requestFingerprint,
+    required this.suiteId,
+    required this.sourceSha256,
+    required this.startedAt,
+    required this.executions,
+    required this.completedOutput,
+  });
+
+  final String runId;
+  final String idempotencyKey;
+  final String requestFingerprint;
+  final String suiteId;
+  final String sourceSha256;
+  final DateTime startedAt;
+  final List<CockpitSuiteNodeExecution> executions;
+  final Map<String, Object?>? completedOutput;
+
+  CockpitWorkerSuiteReservation get reservation =>
+      CockpitWorkerSuiteReservation(
+        runId: runId,
+        startedAt: startedAt,
+        executions: executions,
+        completedOutput: completedOutput,
+      );
+
+  _SuiteRunState copyWith({
+    List<CockpitSuiteNodeExecution>? executions,
+    Map<String, Object?>? completedOutput,
+  }) => _SuiteRunState(
+    runId: runId,
+    idempotencyKey: idempotencyKey,
+    requestFingerprint: requestFingerprint,
+    suiteId: suiteId,
+    sourceSha256: sourceSha256,
+    startedAt: startedAt,
+    executions: executions ?? this.executions,
+    completedOutput: completedOutput ?? this.completedOutput,
+  );
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'runId': runId,
+    'idempotencyKey': idempotencyKey,
+    'requestFingerprint': requestFingerprint,
+    'suiteId': suiteId,
+    'sourceSha256': sourceSha256,
+    'startedAt': startedAt.toIso8601String(),
+    'executions': executions.map((item) => item.toJson()).toList(),
+    if (completedOutput != null) 'completedOutput': completedOutput,
+  };
+
+  factory _SuiteRunState.fromJson(Object? value, {required String runId}) {
+    final json = workerObject(value, '\$.runs.$runId');
+    workerKeys(
+      json,
+      const <String>{
+        'runId',
+        'idempotencyKey',
+        'requestFingerprint',
+        'suiteId',
+        'sourceSha256',
+        'startedAt',
+        'executions',
+        'completedOutput',
+      },
+      '\$.runs.$runId',
+      required: const <String>{
+        'runId',
+        'idempotencyKey',
+        'requestFingerprint',
+        'suiteId',
+        'sourceSha256',
+        'startedAt',
+        'executions',
+      },
+    );
+    final rawExecutions = workerList(
+      json['executions'],
+      '\$.runs.$runId.executions',
+    );
+    final output = json['completedOutput'] == null
+        ? null
+        : workerJsonObject(
+            json['completedOutput'],
+            '\$.runs.$runId.completedOutput',
+          );
+    return _SuiteRunState(
+      runId: workerId(json['runId'], '\$.runs.$runId.runId'),
+      idempotencyKey: workerString(
+        json['idempotencyKey'],
+        '\$.runs.$runId.idempotencyKey',
+        maximum: 256,
+      ),
+      requestFingerprint: _sha(
+        json['requestFingerprint'],
+        '\$.runs.$runId.requestFingerprint',
+      ),
+      suiteId: workerId(json['suiteId'], '\$.runs.$runId.suiteId'),
+      sourceSha256: _sha(json['sourceSha256'], '\$.runs.$runId.sourceSha256'),
+      startedAt: workerUtcDateTime(
+        json['startedAt'],
+        '\$.runs.$runId.startedAt',
+      ),
+      executions: <CockpitSuiteNodeExecution>[
+        for (var index = 0; index < rawExecutions.length; index += 1)
+          CockpitSuiteNodeExecution.fromJson(
+            rawExecutions[index],
+            path: '\$.runs.$runId.executions[$index]',
+          ),
+      ],
+      completedOutput: output,
+    );
+  }
+}
+
+String _sha(Object? value, String path) {
+  final result = workerString(value, path, minimum: 64, maximum: 64);
+  if (!RegExp(r'^[a-f0-9]{64}$').hasMatch(result)) {
+    throw FormatException('Invalid digest at $path.');
+  }
+  return result;
+}
+
+String _canonical(Object? value) => jsonEncode(_canonicalValue(value));
+
+Object? _canonicalValue(Object? value) {
+  if (value is List<Object?>) {
+    return value.map(_canonicalValue).toList(growable: false);
+  }
+  if (value is Map<Object?, Object?>) {
+    final keys = value.keys.cast<String>().toList()..sort();
+    return <String, Object?>{
+      for (final key in keys) key: _canonicalValue(value[key]),
+    };
+  }
+  return value;
+}
+
+final class _SuiteRunCodec implements CockpitJsonCodec<Map<String, Object?>> {
+  const _SuiteRunCodec();
+
+  @override
+  Map<String, Object?> decode(Object? json) => workerObject(json, r'$');
+
+  @override
+  Object? encode(Map<String, Object?> value) => value;
+}

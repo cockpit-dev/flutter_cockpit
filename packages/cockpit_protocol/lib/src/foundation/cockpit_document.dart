@@ -2,6 +2,8 @@ import '../test/cockpit_test_diagnostic.dart';
 import 'cockpit_decode_policy.dart';
 import 'cockpit_foundation_value_reader.dart';
 
+enum CockpitIndexedDocumentKind { source, testCase, suite, project }
+
 final class CockpitCaseIndexEntry {
   CockpitCaseIndexEntry({required this.caseId, this.title, this.location}) {
     CockpitFoundationValueReader.id(caseId, r'$.caseId');
@@ -57,6 +59,9 @@ final class CockpitDocumentResource {
     required this.relativePath,
     required this.sha256,
     required this.modifiedAt,
+    required this.kind,
+    this.authoredId,
+    this.title,
     Iterable<CockpitCaseIndexEntry> cases = const <CockpitCaseIndexEntry>[],
   }) : cases = List<CockpitCaseIndexEntry>.unmodifiable(cases) {
     CockpitFoundationValueReader.id(documentId, r'$.documentId');
@@ -64,6 +69,17 @@ final class CockpitDocumentResource {
     CockpitFoundationValueReader.relativePath(relativePath, r'$.relativePath');
     CockpitFoundationValueReader.sha256(sha256, r'$.sha256');
     CockpitFoundationValueReader.utcDateTime(modifiedAt, r'$.modifiedAt');
+    if (authoredId != null) {
+      CockpitFoundationValueReader.id(authoredId!, r'$.authoredId');
+    }
+    if (title != null) {
+      CockpitFoundationValueReader.string(title!, r'$.title', maximum: 256);
+    }
+    if ((kind == CockpitIndexedDocumentKind.source) != (authoredId == null)) {
+      throw const FormatException(
+        'Indexed document kind and authored identity disagree.',
+      );
+    }
     final caseIds = <String>{};
     for (final testCase in this.cases) {
       if (!caseIds.add(testCase.caseId)) {
@@ -77,6 +93,9 @@ final class CockpitDocumentResource {
   final String relativePath;
   final String sha256;
   final DateTime modifiedAt;
+  final CockpitIndexedDocumentKind kind;
+  final String? authoredId;
+  final String? title;
   final List<CockpitCaseIndexEntry> cases;
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -85,6 +104,9 @@ final class CockpitDocumentResource {
     'relativePath': relativePath,
     'sha256': sha256,
     'modifiedAt': modifiedAt.toUtc().toIso8601String(),
+    'kind': kind == CockpitIndexedDocumentKind.testCase ? 'case' : kind.name,
+    if (authoredId != null) 'authoredId': authoredId,
+    if (title != null) 'title': title,
     'cases': cases.map((testCase) => testCase.toJson()).toList(),
   };
 
@@ -100,13 +122,16 @@ final class CockpitDocumentResource {
       'relativePath',
       'sha256',
       'modifiedAt',
+      'kind',
+      'authoredId',
+      'title',
       'cases',
     };
     CockpitFoundationValueReader.keys(
       json,
       fields,
       path,
-      required: fields,
+      required: fields.difference(const <String>{'authoredId', 'title'}),
       policy: decodePolicy,
     );
     final rawCases = CockpitFoundationValueReader.list(
@@ -134,6 +159,18 @@ final class CockpitDocumentResource {
         json['modifiedAt'],
         '$path.modifiedAt',
       ),
+      kind: _documentKind(json['kind'], '$path.kind'),
+      authoredId: json['authoredId'] == null
+          ? null
+          : CockpitFoundationValueReader.id(
+              json['authoredId'],
+              '$path.authoredId',
+            ),
+      title: CockpitFoundationValueReader.optionalString(
+        json['title'],
+        '$path.title',
+        maximum: 256,
+      ),
       cases: <CockpitCaseIndexEntry>[
         for (var index = 0; index < rawCases.length; index += 1)
           CockpitCaseIndexEntry.fromJson(
@@ -144,6 +181,17 @@ final class CockpitDocumentResource {
       ],
     );
   }
+}
+
+CockpitIndexedDocumentKind _documentKind(Object? value, String path) {
+  final name = CockpitFoundationValueReader.string(value, path);
+  if (name == 'case') return CockpitIndexedDocumentKind.testCase;
+  return CockpitEnumValue<CockpitIndexedDocumentKind>.parse(
+    name,
+    CockpitIndexedDocumentKind.values,
+    path,
+    policy: CockpitDecodePolicy.requests,
+  ).requireKnown();
 }
 
 final class CockpitIndexedCaseReference {
@@ -187,6 +235,51 @@ final class CockpitIndexedCaseReference {
         '$path.documentId',
       ),
       caseId: CockpitFoundationValueReader.id(json['caseId'], '$path.caseId'),
+      documentSha256: CockpitFoundationValueReader.sha256(
+        json['documentSha256'],
+        '$path.documentSha256',
+      ),
+    );
+  }
+}
+
+final class CockpitIndexedSuiteReference {
+  CockpitIndexedSuiteReference({
+    required this.documentId,
+    required this.suiteId,
+    required this.documentSha256,
+  }) {
+    CockpitFoundationValueReader.id(documentId, r'$.documentId');
+    CockpitFoundationValueReader.id(suiteId, r'$.suiteId');
+    CockpitFoundationValueReader.sha256(documentSha256, r'$.documentSha256');
+  }
+
+  final String documentId;
+  final String suiteId;
+  final String documentSha256;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'documentId': documentId,
+    'suiteId': suiteId,
+    'documentSha256': documentSha256,
+  };
+
+  factory CockpitIndexedSuiteReference.fromJson(
+    Object? value, {
+    String path = r'$',
+  }) {
+    final json = CockpitFoundationValueReader.object(value, path);
+    const fields = <String>{'documentId', 'suiteId', 'documentSha256'};
+    CockpitFoundationValueReader.keys(json, fields, path, required: fields);
+    return CockpitIndexedSuiteReference(
+      documentId: CockpitFoundationValueReader.id(
+        json['documentId'],
+        '$path.documentId',
+      ),
+      suiteId: CockpitFoundationValueReader.id(
+        json['suiteId'],
+        '$path.suiteId',
+      ),
       documentSha256: CockpitFoundationValueReader.sha256(
         json['documentSha256'],
         '$path.documentSha256',

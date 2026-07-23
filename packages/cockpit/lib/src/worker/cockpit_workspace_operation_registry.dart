@@ -695,7 +695,7 @@ final class _CockpitResourceHeartbeatGroup {
 }
 
 final RegExp _plaintextSecretKey = RegExp(
-  r'^(?:authorization|cookie|password|secretValue|token|apiKey|privateKey|environment)$',
+  r'^(?:authorization|cookie|password|secretValue|token|apiKey|privateKey)$',
   caseSensitive: false,
 );
 

@@ -1,5 +1,8 @@
 import '../test/cockpit_test_case.dart';
 import '../test/cockpit_test_diagnostic.dart';
+import '../test/cockpit_test_document.dart';
+import '../test/cockpit_test_project.dart';
+import '../test/cockpit_test_suite.dart';
 import 'cockpit_decode_policy.dart';
 import 'cockpit_foundation_value_reader.dart';
 
@@ -71,7 +74,7 @@ final class CockpitDocumentValidationResult {
   CockpitDocumentValidationResult({
     required this.valid,
     required this.sourceSha256,
-    this.testCase,
+    this.document,
     Iterable<CockpitTestDiagnostic> diagnostics =
         const <CockpitTestDiagnostic>[],
     Iterable<CockpitTestSourceMapEntry> sourceMap =
@@ -83,7 +86,7 @@ final class CockpitDocumentValidationResult {
       (diagnostic) =>
           diagnostic.severity == CockpitTestDiagnosticSeverity.error,
     );
-    if (valid != (testCase != null && !hasErrors) ||
+    if (valid != (document != null && !hasErrors) ||
         (!valid && this.diagnostics.isEmpty)) {
       throw const FormatException('Validation result is inconsistent.');
     }
@@ -91,14 +94,14 @@ final class CockpitDocumentValidationResult {
 
   final bool valid;
   final String sourceSha256;
-  final CockpitTestCase? testCase;
+  final CockpitTestDocument? document;
   final List<CockpitTestDiagnostic> diagnostics;
   final List<CockpitTestSourceMapEntry> sourceMap;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'valid': valid,
     'sourceSha256': sourceSha256,
-    if (testCase != null) 'case': testCase!.toJson(),
+    if (document != null) 'document': document!.toJson(),
     'diagnostics': diagnostics
         .map((diagnostic) => diagnostic.toJson())
         .toList(),
@@ -116,7 +119,7 @@ final class CockpitDocumentValidationResult {
       const <String>{
         'valid',
         'sourceSha256',
-        'case',
+        'document',
         'diagnostics',
         'sourceMap',
       },
@@ -143,9 +146,9 @@ final class CockpitDocumentValidationResult {
         json['sourceSha256'],
         '$path.sourceSha256',
       ),
-      testCase: json['case'] == null
+      document: json['document'] == null
           ? null
-          : CockpitTestCase.fromJson(json['case'], path: '$path.case'),
+          : _document(json['document'], '$path.document'),
       diagnostics: <CockpitTestDiagnostic>[
         for (var index = 0; index < rawDiagnostics.length; index += 1)
           CockpitTestDiagnostic.fromJson(
@@ -162,4 +165,15 @@ final class CockpitDocumentValidationResult {
       ],
     );
   }
+}
+
+CockpitTestDocument _document(Object? value, String path) {
+  final json = CockpitFoundationValueReader.object(value, path);
+  final kind = CockpitFoundationValueReader.string(json['kind'], '$path.kind');
+  return switch (kind) {
+    'case' => CockpitTestCase.fromJson(value, path: path),
+    'suite' => CockpitTestSuite.fromJson(value, path: path),
+    'project' => CockpitTestProject.fromJson(value, path: path),
+    _ => throw FormatException('Unsupported document kind at $path.kind.'),
+  };
 }

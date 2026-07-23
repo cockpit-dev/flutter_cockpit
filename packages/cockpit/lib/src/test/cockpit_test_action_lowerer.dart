@@ -14,6 +14,8 @@ final class CockpitTestLoweredAction {
   final CockpitTestPlane actualPlane;
 }
 
+enum CockpitTestActionBackend { flutter, system }
+
 final class CockpitTestLoweringResult {
   const CockpitTestLoweringResult.success(this.value) : error = null;
 
@@ -26,7 +28,12 @@ final class CockpitTestLoweringResult {
 }
 
 final class CockpitTestActionLowerer {
-  const CockpitTestActionLowerer();
+  const CockpitTestActionLowerer() : backend = CockpitTestActionBackend.flutter;
+
+  const CockpitTestActionLowerer.system()
+    : backend = CockpitTestActionBackend.system;
+
+  final CockpitTestActionBackend backend;
 
   CockpitTestLoweringResult lower({
     required CockpitTestAction action,
@@ -35,18 +42,29 @@ final class CockpitTestActionLowerer {
     required CockpitTestPlane requestedPlane,
     required CockpitCapabilities capabilities,
   }) {
-    if (requestedPlane != CockpitTestPlane.semantic) {
+    if (backend == CockpitTestActionBackend.flutter &&
+        requestedPlane != CockpitTestPlane.semantic) {
       return _failure(
         CockpitTestErrorCode.unsupportedAction,
         'The Flutter backend executes only the semantic plane; requested '
         '${requestedPlane.name}.',
       );
     }
-    final locatorResult = _lowerLocator(action.locator, capabilities);
+    if (backend == CockpitTestActionBackend.flutter &&
+        action.kind == CockpitTestActionKind.system) {
+      return _failure(
+        CockpitTestErrorCode.unsupportedAction,
+        'System actions require a non-Flutter target backend.',
+      );
+    }
+    final locatorResult = backend == CockpitTestActionBackend.flutter
+        ? _lowerFlutterLocator(action.locator, capabilities)
+        : _lowerSystemLocator(action.locator, capabilities);
     if (locatorResult.error != null) {
       return CockpitTestLoweringResult.failure(locatorResult.error!);
     }
-    if (action.kind == CockpitTestActionKind.assertText &&
+    if (backend == CockpitTestActionBackend.flutter &&
+        action.kind == CockpitTestActionKind.assertText &&
         action.value<String>(CockpitTestActionField.matchMode) != null &&
         action.value<String>(CockpitTestActionField.matchMode) != 'exact') {
       return _failure(
@@ -54,7 +72,8 @@ final class CockpitTestActionLowerer {
         'The Flutter backend currently supports exact assertText matching.',
       );
     }
-    if (action.kind == CockpitTestActionKind.setTextEditingValue &&
+    if (backend == CockpitTestActionBackend.flutter &&
+        action.kind == CockpitTestActionKind.setTextEditingValue &&
         (action.values.containsKey(CockpitTestActionField.composingStart) ||
             action.values.containsKey(CockpitTestActionField.composingEnd))) {
       return _failure(
@@ -62,7 +81,8 @@ final class CockpitTestActionLowerer {
         'The Flutter backend does not support composing ranges.',
       );
     }
-    if (action.kind == CockpitTestActionKind.scrollUntilVisible) {
+    if (backend == CockpitTestActionBackend.flutter &&
+        action.kind == CockpitTestActionKind.scrollUntilVisible) {
       final direction = action.value<String>(CockpitTestActionField.direction);
       if (direction == 'left' || direction == 'right') {
         return _failure(
@@ -71,7 +91,8 @@ final class CockpitTestActionLowerer {
         );
       }
     }
-    if (action.kind == CockpitTestActionKind.swipe) {
+    if (backend == CockpitTestActionBackend.flutter &&
+        action.kind == CockpitTestActionKind.swipe) {
       final distance = action
           .value<num>(CockpitTestActionField.distance)!
           .toDouble();
@@ -83,7 +104,8 @@ final class CockpitTestActionLowerer {
         );
       }
     }
-    if (action.kind == CockpitTestActionKind.fling) {
+    if (backend == CockpitTestActionBackend.flutter &&
+        action.kind == CockpitTestActionKind.fling) {
       final dx = action.value<num>(CockpitTestActionField.dx)!.toDouble();
       final dy = action.value<num>(CockpitTestActionField.dy)!.toDouble();
       final velocity = action
@@ -112,7 +134,14 @@ final class CockpitTestActionLowerer {
         'Target does not support ${action.kind.name}.',
       );
     }
-    final parameters = _parameters(action);
+    final parameters = <String, Object?>{
+      ..._parameters(action),
+      if (backend == CockpitTestActionBackend.system &&
+          action.value<String>(CockpitTestActionField.matchMode) != null)
+        'matchMode': action.value<String>(CockpitTestActionField.matchMode),
+      if (backend == CockpitTestActionBackend.system && action.locator != null)
+        'cockpitTestLocator': action.locator!.toJson(),
+    };
     final command = CockpitCommand(
       commandId: commandId,
       commandType: commandType,
@@ -127,7 +156,9 @@ final class CockpitTestActionLowerer {
       CockpitTestLoweredAction(
         command: command,
         requestedPlane: requestedPlane,
-        actualPlane: CockpitTestPlane.semantic,
+        actualPlane: backend == CockpitTestActionBackend.flutter
+            ? CockpitTestPlane.semantic
+            : requestedPlane,
       ),
     );
   }
@@ -139,17 +170,21 @@ final class CockpitTestActionLowerer {
     required CockpitTestPlane requestedPlane,
     required CockpitCapabilities capabilities,
   }) {
-    if (requestedPlane != CockpitTestPlane.semantic) {
+    if (backend == CockpitTestActionBackend.flutter &&
+        requestedPlane != CockpitTestPlane.semantic) {
       return _failure(
         CockpitTestErrorCode.unsupportedAction,
         'Condition cannot execute on ${requestedPlane.name} in Flutter.',
       );
     }
-    final locatorResult = _lowerLocator(condition.locator, capabilities);
+    final locatorResult = backend == CockpitTestActionBackend.flutter
+        ? _lowerFlutterLocator(condition.locator, capabilities)
+        : _lowerSystemLocator(condition.locator, capabilities);
     if (locatorResult.error != null) {
       return CockpitTestLoweringResult.failure(locatorResult.error!);
     }
-    if (condition.kind == CockpitTestConditionKind.text &&
+    if (backend == CockpitTestActionBackend.flutter &&
+        condition.kind == CockpitTestConditionKind.text &&
         condition.matchMode != null &&
         condition.matchMode != CockpitTestTextMatchMode.exact) {
       return _failure(
@@ -177,12 +212,22 @@ final class CockpitTestActionLowerer {
           commandId: commandId,
           commandType: commandType,
           locator: locatorResult.locator,
-          parameters: _conditionParameters(condition),
+          parameters: <String, Object?>{
+            ..._conditionParameters(condition),
+            if (backend == CockpitTestActionBackend.system &&
+                condition.matchMode != null)
+              'matchMode': condition.matchMode!.name,
+            if (backend == CockpitTestActionBackend.system &&
+                condition.locator != null)
+              'cockpitTestLocator': condition.locator!.toJson(),
+          },
           capturePolicy: CockpitCapturePolicy.none,
           timeoutMs: timeoutMs,
         ),
         requestedPlane: requestedPlane,
-        actualPlane: CockpitTestPlane.semantic,
+        actualPlane: backend == CockpitTestActionBackend.flutter
+            ? CockpitTestPlane.semantic
+            : requestedPlane,
       ),
     );
   }
@@ -203,7 +248,7 @@ final class _LocatorLoweringResult {
   final CockpitTestError? error;
 }
 
-_LocatorLoweringResult _lowerLocator(
+_LocatorLoweringResult _lowerFlutterLocator(
   CockpitTestLocator? locator,
   CockpitCapabilities capabilities,
 ) {
@@ -241,7 +286,7 @@ _LocatorLoweringResult _lowerLocator(
   }
   CockpitLocator? ancestor;
   if (locator.ancestor != null) {
-    final lowered = _lowerLocator(locator.ancestor, capabilities);
+    final lowered = _lowerFlutterLocator(locator.ancestor, capabilities);
     if (lowered.error != null) {
       return lowered;
     }
@@ -249,7 +294,7 @@ _LocatorLoweringResult _lowerLocator(
   }
   final fallbacks = <CockpitLocator>[];
   for (final fallback in locator.fallbacks) {
-    final lowered = _lowerLocator(fallback, capabilities);
+    final lowered = _lowerFlutterLocator(fallback, capabilities);
     if (lowered.error != null) {
       return lowered;
     }
@@ -268,6 +313,39 @@ _LocatorLoweringResult _lowerLocator(
       fallbacks: fallbacks,
     ),
   );
+}
+
+_LocatorLoweringResult _lowerSystemLocator(
+  CockpitTestLocator? locator,
+  CockpitCapabilities capabilities,
+) {
+  if (locator == null) {
+    return const _LocatorLoweringResult.success(null);
+  }
+  for (final candidate in locator.flattened) {
+    final kind = switch (candidate.strategy) {
+      CockpitTestLocatorStrategy.text => CockpitLocatorKind.text,
+      CockpitTestLocatorStrategy.label => CockpitLocatorKind.tooltip,
+      CockpitTestLocatorStrategy.nativeId => CockpitLocatorKind.nativeId,
+      CockpitTestLocatorStrategy.testId => CockpitLocatorKind.testId,
+      CockpitTestLocatorStrategy.role => CockpitLocatorKind.role,
+      CockpitTestLocatorStrategy.type => CockpitLocatorKind.type,
+      CockpitTestLocatorStrategy.path => CockpitLocatorKind.path,
+      CockpitTestLocatorStrategy.coordinate => CockpitLocatorKind.coordinate,
+      CockpitTestLocatorStrategy.visual => CockpitLocatorKind.visual,
+    };
+    if (!capabilities.supportedLocatorStrategies.contains(kind)) {
+      return _LocatorLoweringResult.failure(
+        CockpitTestError(
+          code: CockpitTestErrorCode.unsupportedLocator,
+          message:
+              'System target does not support locator strategy '
+              '${candidate.strategy.name}.',
+        ),
+      );
+    }
+  }
+  return const _LocatorLoweringResult.success(null);
 }
 
 CockpitCommandType _commandType(
@@ -310,6 +388,7 @@ CockpitCommandType _commandType(
         ? CockpitCommandType.waitFor
         : CockpitCommandType.assertVisible,
   CockpitTestActionKind.assertText => CockpitCommandType.assertText,
+  CockpitTestActionKind.system => CockpitCommandType.system,
   CockpitTestActionKind.captureScreenshot =>
     CockpitCommandType.captureScreenshot,
   CockpitTestActionKind.collectSnapshot => CockpitCommandType.collectSnapshot,
@@ -347,6 +426,10 @@ Map<String, Object?> _parameters(CockpitTestAction action) {
         break;
       case CockpitTestActionField.artifactName:
         parameters['name'] = entry.value;
+      case CockpitTestActionField.systemName:
+        parameters['action'] = entry.value;
+      case CockpitTestActionField.systemParameters:
+        parameters['parameters'] = entry.value;
       case CockpitTestActionField.captureOptions ||
           CockpitTestActionField.snapshotOptions ||
           CockpitTestActionField.expected ||

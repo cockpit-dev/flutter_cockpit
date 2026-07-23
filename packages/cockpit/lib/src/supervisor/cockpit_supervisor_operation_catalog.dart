@@ -31,6 +31,7 @@ final class CockpitSupervisorOperationCatalog {
           _read('document.index', CockpitOperationScope.workspace),
           _read('case.validate', CockpitOperationScope.workspace),
           _job('case.run', CockpitOperationScope.workspace),
+          _job('suite.run', CockpitOperationScope.workspace),
           _read('analyze.files', CockpitOperationScope.workspace),
           _read('analyze.workspace', CockpitOperationScope.workspace),
           _mutation('fix.workspace', CockpitOperationScope.workspace),
@@ -49,6 +50,7 @@ final class CockpitSupervisorOperationCatalog {
           _read('app.list', CockpitOperationScope.workspace),
           _read('app.get', CockpitOperationScope.workspace),
           _read('target.get', CockpitOperationScope.workspace),
+          _mutation('target.register', CockpitOperationScope.workspace),
           _mutation(
             'app.launch',
             CockpitOperationScope.workspace,

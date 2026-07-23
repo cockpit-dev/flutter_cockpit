@@ -119,7 +119,8 @@ bool _isKeyOperation(CockpitCommandType commandType) {
     CockpitCommandType.increase ||
     CockpitCommandType.decrease ||
     CockpitCommandType.dismiss ||
-    CockpitCommandType.dismissKeyboard => true,
+    CockpitCommandType.dismissKeyboard ||
+    CockpitCommandType.system => true,
     CockpitCommandType.clearNetworkActivity ||
     CockpitCommandType.waitForNetworkIdle ||
     CockpitCommandType.waitForUiIdle ||

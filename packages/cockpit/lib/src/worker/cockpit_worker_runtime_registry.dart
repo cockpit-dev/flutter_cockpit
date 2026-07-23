@@ -11,10 +11,19 @@ import '../application/cockpit_stop_app_service.dart';
 import '../development/cockpit_development_probe.dart';
 import '../development/cockpit_development_session_handle.dart';
 import '../foundation/cockpit_ids.dart';
+import '../remote/cockpit_remote_automation_adapter.dart';
+import '../remote/cockpit_remote_capture_adapter.dart';
+import '../remote/cockpit_remote_recording_adapter.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import '../targets/cockpit_target_handle.dart';
+import '../test/cockpit_test_action_lowerer.dart';
 import '../test/cockpit_test_safety_policy.dart';
+import '../system_control/cockpit_system_control_action_service.dart';
+import '../system_control/cockpit_system_control_service.dart';
+import '../system_control/cockpit_system_test_automation_adapter.dart';
+import '../system_control/cockpit_system_test_evidence_adapters.dart';
+import '../system_control/cockpit_system_test_target.dart';
 import 'cockpit_case_run_adapter.dart';
 import 'cockpit_worker_artifact_registry.dart';
 import 'cockpit_worker_document_index.dart';
@@ -52,6 +61,7 @@ final class CockpitWorkerTargetRegistration {
     this.entrypoint,
     this.entrypointSha256,
     this.flavor,
+    this.wdaUrl,
     this.targetKind = CockpitTargetKind.flutterApp,
     this.mode = CockpitAppMode.development,
     this.environment = CockpitTestTargetEnvironment.unknown,
@@ -63,6 +73,7 @@ final class CockpitWorkerTargetRegistration {
   final String? entrypoint;
   final String? entrypointSha256;
   final String? flavor;
+  final String? wdaUrl;
   final CockpitTargetKind targetKind;
   final CockpitAppMode mode;
   final CockpitTestTargetEnvironment environment;
@@ -161,6 +172,8 @@ final class CockpitWorkerRuntimeRegistry
     CockpitStopAppService? stopAppService,
     CockpitWorkerDevelopmentSessionAborter? developmentSessionAborter,
     CockpitWorkerRunOwnershipAuthority? runOwnershipAuthority,
+    CockpitSystemControlService? systemControlService,
+    CockpitSystemControlActionService? systemActionService,
     CockpitTokenGenerator? tokenGenerator,
     DateTime Function()? utcNow,
   }) : _stateStore = stateStore,
@@ -171,6 +184,13 @@ final class CockpitWorkerRuntimeRegistry
            const CockpitDenyAllWorkerRunOwnershipAuthority(),
        _tokenGenerator = tokenGenerator ?? CockpitSecureTokenGenerator(),
        _utcNow = utcNow ?? (() => DateTime.now().toUtc()) {
+    _systemControlService =
+        systemControlService ?? CockpitSystemControlService();
+    _systemActionService =
+        systemActionService ??
+        CockpitSystemControlActionService(
+          systemControlService: _systemControlService,
+        );
     workerId(workspaceId, r'$.workspaceId');
     workerString(workspaceRoot, r'$.workspaceRoot', maximum: 32768);
     workerString(stateRoot, r'$.stateRoot', maximum: 32768);
@@ -190,6 +210,8 @@ final class CockpitWorkerRuntimeRegistry
   final CockpitWorkerRunOwnershipAuthority _runOwnershipAuthority;
   final CockpitTokenGenerator _tokenGenerator;
   final DateTime Function() _utcNow;
+  late final CockpitSystemControlService _systemControlService;
+  late final CockpitSystemControlActionService _systemActionService;
 
   final Map<String, CockpitWorkerTargetBinding> _targets =
       <String, CockpitWorkerTargetBinding>{};
@@ -847,6 +869,12 @@ final class CockpitWorkerRuntimeRegistry
     required CockpitTestTargetRequirements requirements,
   }) => _locked(() async {
     await _ensureLoaded();
+    if (requirements.targetKind != CockpitTargetKind.flutterApp.name) {
+      return _selectHealthySystemSession(
+        targetId: targetId,
+        requirements: requirements,
+      );
+    }
     final candidates =
         _sessions.values
             .where((binding) {
@@ -881,7 +909,10 @@ final class CockpitWorkerRuntimeRegistry
           deviceResourceId: candidate.deviceResourceId,
           resourceId: candidate.resourceId,
           environment: candidate.environment,
-          client: client,
+          automationAdapter: CockpitRemoteAutomationAdapter(client: client),
+          captureAdapter: CockpitRemoteCaptureAdapter(client: client),
+          recordingAdapter: CockpitRemoteRecordingAdapter(client: client),
+          healthCheck: () async => await client.ping() && await client.ready(),
           forceAbort: () => forceAbortSession(candidate.sessionId),
         );
       } on Object {
@@ -893,6 +924,113 @@ final class CockpitWorkerRuntimeRegistry
       message: 'No compatible healthy session is owned by this workspace.',
     );
   });
+
+  Future<CockpitWorkerHealthySession> _selectHealthySystemSession({
+    required String? targetId,
+    required CockpitTestTargetRequirements requirements,
+  }) async {
+    final candidates =
+        _targets.values
+            .where((candidate) {
+              if (targetId != null && candidate.targetId != targetId) {
+                return false;
+              }
+              final registration = candidate.registration;
+              return registration.targetKind.name == requirements.targetKind &&
+                  registration.platform.trim().toLowerCase() ==
+                      requirements.platform.trim().toLowerCase();
+            })
+            .toList(growable: false)
+          ..sort((left, right) => left.targetId.compareTo(right.targetId));
+    for (final candidate in candidates) {
+      final appMatches =
+          _apps.values
+              .where((binding) => binding.targetId == candidate.targetId)
+              .toList(growable: false)
+            ..sort((left, right) => right.updatedAt.compareTo(left.updatedAt));
+      final app = appMatches.firstOrNull;
+      final platformAppId = requirements.appId ?? app?.handle.platformAppId;
+      if (_targetKindRequiresAppId(candidate.registration.targetKind) &&
+          (platformAppId == null || platformAppId.trim().isEmpty)) {
+        continue;
+      }
+      final target = CockpitSystemTestTarget(
+        platform: candidate.registration.platform,
+        deviceId: candidate.registration.deviceId,
+        appId: platformAppId,
+        processId: app?.handle.processId,
+        metadata: <String, Object?>{
+          if (candidate.registration.wdaUrl != null)
+            'wdaUrl': candidate.registration.wdaUrl,
+        },
+      );
+      final automation = CockpitSystemTestAutomationAdapter(
+        target: target,
+        controlService: _systemControlService,
+        actionService: _systemActionService,
+      );
+      try {
+        final capabilities = await automation.describeCapabilities();
+        final available = capabilities.supportedCommands
+            .map((command) => command.name)
+            .toSet();
+        if (!available.containsAll(requirements.requiredCapabilities)) continue;
+        final profile = (await _systemControlService.describe(
+          CockpitSystemControlDescribeRequest(
+            platform: target.platform,
+            deviceId: target.deviceId,
+            appId: target.appId,
+            processId: target.processId,
+            metadata: target.metadata,
+          ),
+        )).profile;
+        final actions = profile.availableActions.toSet();
+        final resourceId = cockpitCanonicalSystemSessionResourceId(
+          deviceResourceId: candidate.deviceResourceId,
+          targetId: candidate.targetId,
+          targetKind: requirements.targetKind,
+          appId: platformAppId,
+        );
+        return CockpitWorkerHealthySession(
+          sessionId: 'system_${resourceId.substring('session_'.length)}',
+          targetId: candidate.targetId,
+          deviceResourceId: candidate.deviceResourceId,
+          resourceId: resourceId,
+          environment: candidate.registration.environment,
+          automationAdapter: automation,
+          captureAdapter:
+              actions.contains(CockpitSystemControlAction.captureScreenshot)
+              ? CockpitSystemTestCaptureAdapter(
+                  target: target,
+                  actionService: _systemActionService,
+                )
+              : null,
+          recordingAdapter:
+              actions.contains(CockpitSystemControlAction.startRecording) &&
+                  actions.contains(CockpitSystemControlAction.stopRecording)
+              ? CockpitSystemTestRecordingAdapter(
+                  target: target,
+                  actionService: _systemActionService,
+                )
+              : null,
+          lowerer: const CockpitTestActionLowerer.system(),
+          healthCheck: () async {
+            final current = await automation.describeCapabilities();
+            return current.supportedCommands
+                .map((command) => command.name)
+                .toSet()
+                .containsAll(requirements.requiredCapabilities);
+          },
+        );
+      } on Object {
+        continue;
+      }
+    }
+    throw const CockpitApplicationServiceException(
+      code: 'healthySystemSessionNotFound',
+      message: 'No compatible system automation target is available.',
+    );
+  }
 
   Future<void> forceAbortSession(String sessionId) async {
     final app = await _locked(() async {
@@ -978,6 +1116,18 @@ final class CockpitWorkerRuntimeRegistry
     workerString(registration.deviceId, r'$.deviceId', maximum: 512);
     if (registration.flavor != null) {
       workerString(registration.flavor, r'$.flavor', maximum: 256);
+    }
+    if (registration.wdaUrl case final wdaUrl?) {
+      workerString(wdaUrl, r'$.wdaUrl', maximum: 2048);
+      final uri = Uri.tryParse(wdaUrl);
+      if (uri == null ||
+          !const <String>{'http', 'https'}.contains(uri.scheme) ||
+          uri.host.isEmpty) {
+        throw const CockpitApplicationServiceException(
+          code: 'targetWdaUrlInvalid',
+          message: 'Target wdaUrl must be an absolute HTTP(S) URL.',
+        );
+      }
     }
     final entrypoint = registration.entrypoint;
     final entrypointSha256 = registration.entrypointSha256;
@@ -1556,6 +1706,7 @@ final class CockpitWorkerRuntimeRegistry
           'entrypoint',
           'entrypointSha256',
           'flavor',
+          'wdaUrl',
           'targetKind',
           'mode',
           'environment',
@@ -1599,6 +1750,11 @@ final class CockpitWorkerRuntimeRegistry
           registrationJson['flavor'],
           '$path.registration.flavor',
           maximum: 256,
+        ),
+        wdaUrl: _optionalString(
+          registrationJson['wdaUrl'],
+          '$path.registration.wdaUrl',
+          maximum: 2048,
         ),
         targetKind: CockpitTargetKind.fromJson(
           workerString(
@@ -2468,6 +2624,8 @@ Map<String, Object?> _encodeTarget(
       'entrypointSha256': binding.registration.entrypointSha256,
     if (binding.registration.flavor != null)
       'flavor': binding.registration.flavor,
+    if (binding.registration.wdaUrl != null)
+      'wdaUrl': binding.registration.wdaUrl,
     'targetKind': binding.registration.targetKind.name,
     'mode': binding.registration.mode.jsonValue,
     'environment': binding.registration.environment.name,
@@ -2529,6 +2687,16 @@ const Set<String> _targetResourceKinds = <String>{
   'session.remote.launch',
   'session.development.launch',
   'system.action',
+};
+
+bool _targetKindRequiresAppId(CockpitTargetKind kind) => switch (kind) {
+  CockpitTargetKind.nativeApp ||
+  CockpitTargetKind.desktopApp ||
+  CockpitTargetKind.browserPage => true,
+  CockpitTargetKind.systemSurface ||
+  CockpitTargetKind.device ||
+  CockpitTargetKind.hostWorkspace ||
+  CockpitTargetKind.flutterApp => false,
 };
 
 const Set<String> _sessionResourceKinds = <String>{

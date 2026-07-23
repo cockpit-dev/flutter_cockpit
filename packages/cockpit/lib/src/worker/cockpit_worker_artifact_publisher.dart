@@ -26,6 +26,13 @@ abstract interface class CockpitWorkerArtifactPublisher {
     required CockpitRpcCancellation cancellation,
   });
 
+  Future<List<CockpitArtifactResource>> publishSuiteReport({
+    required CockpitTestSuiteReport report,
+    required String reportRoot,
+    required DateTime deadline,
+    required CockpitRpcCancellation cancellation,
+  });
+
   Future<void> resume();
 }
 
@@ -319,6 +326,158 @@ final class CockpitDurableWorkerArtifactPublisher
   }
 
   @override
+  Future<List<CockpitArtifactResource>> publishSuiteReport({
+    required CockpitTestSuiteReport report,
+    required String reportRoot,
+    required DateTime deadline,
+    required CockpitRpcCancellation cancellation,
+  }) async {
+    final runId = report.runId;
+    workerId(runId, r'$.runId');
+    if (report.workspaceId != workspaceId) {
+      throw const FormatException('Suite report crosses workspace authority.');
+    }
+    return _locked(runId, () async {
+      _checkOperation(deadline, cancellation);
+      final runRoot = p.join(stateRoot, 'runs', runId);
+      final plan = await _artifactRetainer.planCommittedBundle(
+        ownerId: runId,
+        sourcePath: reportRoot,
+      );
+      final sourceReportRoot = plan.sourcePath;
+      final retainedReportRoot = plan.retainedPath;
+      await _validateBundleRoot(sourceReportRoot, runRoot: runRoot);
+      await _verifySourceReport(report, sourceReportRoot);
+
+      final catalog = await _catalog(runId).read();
+      final existing = _decodeCatalog(
+        catalog,
+        expectedRunId: runId,
+        maximumArtifacts: maximumArtifactsPerRun,
+      );
+      final existingByPath = <String, CockpitArtifactResource>{
+        for (final resource in existing) resource.relativePath: resource,
+      };
+      final artifactIds = existing
+          .map((resource) => resource.artifactId)
+          .toSet();
+      final resources = <CockpitArtifactResource>[];
+      var aggregateBytes = 0;
+      for (final format in report.reportPolicy.formats) {
+        _checkOperation(deadline, cancellation);
+        final name = _reportFileName(format);
+        final sourcePath = p.normalize(p.join(sourceReportRoot, name));
+        await _validateImmutableFile(sourcePath, bundleRoot: sourceReportRoot);
+        final size = await File(sourcePath).length();
+        if (size > maximumArtifactBytes) {
+          throw const FormatException('Suite report file is too large.');
+        }
+        aggregateBytes += size;
+        if (aggregateBytes > maximumAggregateBytes) {
+          throw const FormatException(
+            'Suite report aggregate byte bound was exceeded.',
+          );
+        }
+        final digest = (await sha256.bind(File(sourcePath).openRead()).first)
+            .toString();
+        final retainedPath = p.normalize(p.join(retainedReportRoot, name));
+        final relativeToRun = p
+            .relative(retainedPath, from: runRoot)
+            .replaceAll('\\', '/');
+        final existingResource = existingByPath[relativeToRun];
+        final artifactId =
+            existingResource?.artifactId ??
+            'artifact_${_tokenGenerator.nextToken(byteLength: 24)}';
+        if (existingResource == null && !artifactIds.add(artifactId)) {
+          throw const FormatException(
+            'Generated report artifact id conflicts with the durable catalog.',
+          );
+        }
+        final candidate = _redactedResource(
+          CockpitArtifactResource(
+            artifactId: artifactId,
+            workspaceId: workspaceId,
+            runId: runId,
+            kind: _reportArtifactKind(format),
+            relativePath: relativeToRun,
+            mediaType: _reportMediaType(format),
+            sizeBytes: size,
+            sha256: digest,
+            createdAt: report.finishedAt.toUtc(),
+            downloadUrl: '/api/v2/runs/$runId/artifacts/$artifactId',
+          ),
+        );
+        if (existingResource != null &&
+            !_sameArtifactResource(existingResource, candidate)) {
+          throw const FormatException(
+            'Suite report artifact conflicts with its durable catalog entry.',
+          );
+        }
+        resources.add(existingResource ?? candidate);
+      }
+      final merged = <String, CockpitArtifactResource>{
+        for (final resource in existing) resource.artifactId: resource,
+        for (final resource in resources) resource.artifactId: resource,
+      }.values.toList(growable: false);
+      if (merged.length > maximumArtifactsPerRun) {
+        throw const FormatException(
+          'Worker artifact catalog bound was exceeded.',
+        );
+      }
+      _checkOperation(deadline, cancellation);
+      final retained = await _artifactRetainer.commitCommittedBundle(plan);
+      if (!p.equals(retained.path, retainedReportRoot)) {
+        throw StateError('Committed report target differs from its plan.');
+      }
+      await _verifyRetainedReport(
+        report,
+        retained.path,
+        resources,
+        deadline: deadline,
+      );
+      await _catalog(runId).transact<void>((currentJson) {
+        final current = _decodeCatalog(
+          currentJson,
+          expectedRunId: runId,
+          maximumArtifacts: maximumArtifactsPerRun,
+        );
+        if (!_sameArtifactCatalog(current, existing)) {
+          throw const FormatException(
+            'Worker artifact catalog changed after report preflight.',
+          );
+        }
+        return CockpitLockedJsonUpdate.write(
+          _encodeCatalog(runId, merged),
+          null,
+        );
+      });
+      for (final resource in resources) {
+        if (await _events.containsArtifact(runId, resource.artifactId)) {
+          continue;
+        }
+        await _events.append(
+          runId,
+          CockpitWorkerEventDraft(
+            kind: 'artifact.published',
+            entityKind: CockpitRunEventEntityKind.artifact,
+            artifacts: <CockpitArtifactReference>[resource.reference],
+          ),
+          publishImmediately: false,
+        );
+      }
+      await _publish(
+        projectId: report.projectId,
+        runId: runId,
+        caseId: null,
+        resources: resources,
+        deadline: deadline,
+      );
+      await _events.resume();
+      return List<CockpitArtifactResource>.unmodifiable(resources);
+    });
+  }
+
+  @override
   Future<void> resume() async {
     final runsRoot = Directory(p.join(stateRoot, 'runs'));
     if (!await runsRoot.exists()) return;
@@ -373,22 +532,17 @@ final class CockpitDurableWorkerArtifactPublisher
       final contexts = await _ensureArtifactEvents(runId, resources);
       final resourcesByOwner =
           <
-            ({String projectId, String caseId}),
+            ({String projectId, String? caseId}),
             List<CockpitArtifactResource>
           >{};
       for (final resource in resources) {
         final attemptId = resource.attemptId;
         final context = attemptId == null ? null : contexts[attemptId];
-        if (context == null) {
-          throw const FormatException(
-            'Persisted artifact has no immutable attempt manifest.',
-          );
-        }
+        final owner = context == null
+            ? await _reportOwner(runId, resource)
+            : (projectId: context.projectId, caseId: context.caseId);
         resourcesByOwner
-            .putIfAbsent((
-              projectId: context.projectId,
-              caseId: context.caseId,
-            ), () => <CockpitArtifactResource>[])
+            .putIfAbsent(owner, () => <CockpitArtifactResource>[])
             .add(resource);
       }
       for (final entry in resourcesByOwner.entries) {
@@ -435,12 +589,30 @@ final class CockpitDurableWorkerArtifactPublisher
           .add(resource);
     }
     for (final entry in liveByRoot.entries) {
-      await _verifyRetainedBundle(
-        runId,
-        entry.key,
-        entry.value,
-        deadline: deadline,
-      );
+      final attemptOwned = entry.value
+          .map((resource) => resource.attemptId != null)
+          .toSet();
+      if (attemptOwned.length != 1) {
+        throw const FormatException(
+          'Retained artifact bundle mixes ownership levels.',
+        );
+      }
+      if (attemptOwned.single) {
+        await _verifyRetainedBundle(
+          runId,
+          entry.key,
+          entry.value,
+          deadline: deadline,
+        );
+      } else {
+        final report = await _readSuiteReport(entry.key);
+        await _verifyRetainedReport(
+          report,
+          entry.key,
+          entry.value,
+          deadline: deadline,
+        );
+      }
     }
 
     final artifactType = await FileSystemEntity.type(
@@ -585,6 +757,115 @@ final class CockpitDurableWorkerArtifactPublisher
     }
   }
 
+  Future<void> _verifySourceReport(
+    CockpitTestSuiteReport expected,
+    String reportRoot,
+  ) async {
+    final expectedNames = expected.reportPolicy.formats
+        .map(_reportFileName)
+        .toSet();
+    final actualNames = <String>{};
+    await for (final entity in Directory(reportRoot).list(followLinks: false)) {
+      if (await FileSystemEntity.type(entity.path, followLinks: false) !=
+          FileSystemEntityType.file) {
+        throw FileSystemException(
+          'Suite report contains a non-file entry.',
+          entity.path,
+        );
+      }
+      actualNames.add(p.basename(entity.path));
+    }
+    if (actualNames.length != expectedNames.length ||
+        !actualNames.containsAll(expectedNames)) {
+      throw const FormatException(
+        'Suite report files do not match the declared report policy.',
+      );
+    }
+    final parsed = await _readSuiteReport(reportRoot);
+    if (jsonEncode(parsed.toJson()) != jsonEncode(expected.toJson())) {
+      throw const FormatException(
+        'Canonical suite report does not match the executed report.',
+      );
+    }
+  }
+
+  Future<void> _verifyRetainedReport(
+    CockpitTestSuiteReport expected,
+    String bundleRoot,
+    List<CockpitArtifactResource> resources, {
+    required DateTime deadline,
+  }) async {
+    await _validateRecoveryBundleShape(bundleRoot, deadline: deadline);
+    final report = await _readSuiteReport(bundleRoot);
+    if (jsonEncode(report.toJson()) != jsonEncode(expected.toJson()) ||
+        report.workspaceId != workspaceId) {
+      throw const FormatException(
+        'Persisted suite report ownership or content is invalid.',
+      );
+    }
+    final formatsByName = <String, CockpitTestReportFormat>{
+      for (final format in report.reportPolicy.formats)
+        _reportFileName(format): format,
+    };
+    final actualNames = <String>{};
+    for (final resource in resources) {
+      _checkRecoveryDeadline(deadline);
+      if (resource.workspaceId != workspaceId ||
+          resource.runId != report.runId ||
+          resource.attemptId != null ||
+          resource.stepExecutionId != null ||
+          resource.downloadUrl !=
+              '/api/v2/runs/${report.runId}/artifacts/${resource.artifactId}') {
+        throw const FormatException(
+          'Persisted report artifact ownership is invalid.',
+        );
+      }
+      final filePath = p.normalize(
+        p.joinAll(<String>[
+          p.join(stateRoot, 'runs', report.runId),
+          ...p.posix.split(resource.relativePath),
+        ]),
+      );
+      await _validateImmutableFile(filePath, bundleRoot: bundleRoot);
+      final name = p.relative(filePath, from: bundleRoot).replaceAll('\\', '/');
+      final format = formatsByName[name];
+      if (format == null ||
+          !actualNames.add(name) ||
+          resource.kind != _reportArtifactKind(format) ||
+          resource.mediaType != _reportMediaType(format) ||
+          resource.createdAt != report.finishedAt.toUtc()) {
+        throw const FormatException(
+          'Persisted report artifact metadata is invalid.',
+        );
+      }
+      final size = await File(filePath).length();
+      final digest = (await sha256.bind(File(filePath).openRead()).first)
+          .toString();
+      if (resource.sizeBytes != size || resource.sha256 != digest) {
+        throw const FormatException(
+          'Persisted report artifact byte integrity is invalid.',
+        );
+      }
+    }
+    if (actualNames.length != formatsByName.length ||
+        !actualNames.containsAll(formatsByName.keys)) {
+      throw const FormatException(
+        'Persisted report artifact catalog is incomplete.',
+      );
+    }
+  }
+
+  Future<CockpitTestSuiteReport> _readSuiteReport(String reportRoot) async {
+    final path = p.join(reportRoot, 'report.json');
+    await _validateImmutableFile(path, bundleRoot: reportRoot);
+    if (await File(path).length() > maximumArtifactBytes) {
+      throw const FormatException('Canonical suite report is too large.');
+    }
+    return CockpitTestSuiteReport.fromJson(
+      jsonDecode(await File(path).readAsString()),
+    );
+  }
+
   Future<void> _validateRecoveryBundleShape(
     String bundleRoot, {
     required DateTime deadline,
@@ -635,7 +916,7 @@ final class CockpitDurableWorkerArtifactPublisher
   Future<void> _publish({
     required String projectId,
     required String runId,
-    required String caseId,
+    required String? caseId,
     required List<CockpitArtifactResource> resources,
     required DateTime deadline,
   }) async {
@@ -650,7 +931,7 @@ final class CockpitDurableWorkerArtifactPublisher
           'idempotencyKey': 'artifact-$runId-$offset-${++_rpcSequence}',
           'projectId': projectId,
           'runId': runId,
-          'caseId': caseId,
+          'caseId': ?caseId,
           'artifacts': batch.map((artifact) => artifact.toJson()).toList(),
         },
         deadline: deadline,
@@ -696,7 +977,7 @@ final class CockpitDurableWorkerArtifactPublisher
       if (await _events.containsArtifact(runId, resource.artifactId)) continue;
       final attemptId = resource.attemptId;
       final context = attemptId == null ? null : contextByAttempt[attemptId];
-      if (attemptId == null || context == null) {
+      if (attemptId != null && context == null) {
         throw const FormatException(
           'Persisted artifact has no immutable attempt manifest.',
         );
@@ -706,7 +987,7 @@ final class CockpitDurableWorkerArtifactPublisher
         CockpitWorkerEventDraft(
           kind: 'artifact.published',
           entityKind: CockpitRunEventEntityKind.artifact,
-          caseId: context.caseId,
+          caseId: context?.caseId,
           attemptId: attemptId,
           stepExecutionId: resource.stepExecutionId,
           artifacts: <CockpitArtifactReference>[resource.reference],
@@ -715,6 +996,32 @@ final class CockpitDurableWorkerArtifactPublisher
       );
     }
     return Map<String, CockpitTestRunContext>.unmodifiable(contextByAttempt);
+  }
+
+  Future<({String projectId, String? caseId})> _reportOwner(
+    String runId,
+    CockpitArtifactResource resource,
+  ) async {
+    if (resource.attemptId != null) {
+      throw const FormatException(
+        'Attempt artifact owner must come from its immutable manifest.',
+      );
+    }
+    final components = p.posix.split(resource.relativePath);
+    if (components.length < 3 ||
+        components.first != 'artifacts' ||
+        !_validRetainedBundleName(components[1])) {
+      throw const FormatException(
+        'Report artifact path has no retained bundle authority.',
+      );
+    }
+    final report = await _readSuiteReport(
+      p.join(stateRoot, 'runs', runId, 'artifacts', components[1]),
+    );
+    if (report.workspaceId != workspaceId || report.runId != runId) {
+      throw const FormatException('Persisted suite report owner is invalid.');
+    }
+    return (projectId: report.projectId, caseId: null);
   }
 
   CockpitArtifactResource _redactedResource(CockpitArtifactResource resource) {
@@ -950,3 +1257,24 @@ String _foundationArtifactKind(String value) {
       '${normalized.substring(0, 1).toLowerCase()}${normalized.substring(1)}';
   return 'attempt.$lowerCamel';
 }
+
+String _reportFileName(CockpitTestReportFormat format) => switch (format) {
+  CockpitTestReportFormat.json => 'report.json',
+  CockpitTestReportFormat.junit => 'junit.xml',
+  CockpitTestReportFormat.html => 'report.html',
+  CockpitTestReportFormat.aiSummary => 'ai-summary.md',
+};
+
+String _reportArtifactKind(CockpitTestReportFormat format) => switch (format) {
+  CockpitTestReportFormat.json => 'report.json',
+  CockpitTestReportFormat.junit => 'report.junit',
+  CockpitTestReportFormat.html => 'report.html',
+  CockpitTestReportFormat.aiSummary => 'report.aiSummary',
+};
+
+String _reportMediaType(CockpitTestReportFormat format) => switch (format) {
+  CockpitTestReportFormat.json => 'application/json',
+  CockpitTestReportFormat.junit => 'application/xml',
+  CockpitTestReportFormat.html => 'text/html',
+  CockpitTestReportFormat.aiSummary => 'text/markdown',
+};

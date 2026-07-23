@@ -23,6 +23,18 @@ String cockpitCanonicalSessionResourceId({
   '${handle.devicePort}',
 ]);
 
+String cockpitCanonicalSystemSessionResourceId({
+  required String deviceResourceId,
+  required String targetId,
+  required String targetKind,
+  required String? appId,
+}) => _canonicalResourceId('session', <String>[
+  deviceResourceId,
+  targetId,
+  targetKind,
+  appId ?? '',
+]);
+
 String cockpitCanonicalWorkspaceResourceId(String workspaceId) =>
     _canonicalResourceId('workspace', <String>[workspaceId]);
 

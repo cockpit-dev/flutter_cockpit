@@ -25,13 +25,15 @@ final class CockpitCaseRunner {
     required CockpitTestSafetyPolicy safetyPolicy,
     CockpitTestBundlePrePublicationValidator? bundlePrePublicationValidator,
     CockpitMonotonicClock? clock,
+    CockpitTestActionLowerer lowerer = const CockpitTestActionLowerer(),
   }) : _automationAdapter = automationAdapter,
        _captureAdapter = captureAdapter,
        _recordingAdapter = recordingAdapter,
        _secretResolver = secretResolver,
        _safetyPolicy = safetyPolicy,
        _bundlePrePublicationValidator = bundlePrePublicationValidator,
-       _clock = clock ?? CockpitSystemMonotonicClock();
+       _clock = clock ?? CockpitSystemMonotonicClock(),
+       _lowerer = lowerer;
 
   final CockpitAutomationAdapter _automationAdapter;
   final CockpitCaptureAdapter? _captureAdapter;
@@ -40,7 +42,7 @@ final class CockpitCaseRunner {
   final CockpitTestSafetyPolicy _safetyPolicy;
   final CockpitTestBundlePrePublicationValidator?
   _bundlePrePublicationValidator;
-  final CockpitTestActionLowerer _lowerer = const CockpitTestActionLowerer();
+  final CockpitTestActionLowerer _lowerer;
   final CockpitMonotonicClock _clock;
   final CockpitTestAttemptBundleWriter _bundleWriter =
       const CockpitTestAttemptBundleWriter();
@@ -182,7 +184,7 @@ final class CockpitCaseRunner {
       primaryError: kernelResult.primaryError,
       cleanupErrors: kernelResult.cleanupErrors,
       outcome: kernelResult.outcome,
-      actualPlane: CockpitTestPlane.semantic,
+      actualPlane: plan.target.plane,
       platform: capabilities.platform,
     );
   }
@@ -194,10 +196,16 @@ final class CockpitCaseRunner {
     required CockpitTestTargetEnvironment targetEnvironment,
   }) async {
     final target = plan.target;
-    if (target.targetKind != 'flutterApp') {
+    final acceptsTargetKind = switch (_lowerer.backend) {
+      CockpitTestActionBackend.flutter => target.targetKind == 'flutterApp',
+      CockpitTestActionBackend.system => target.targetKind != 'flutterApp',
+    };
+    if (!acceptsTargetKind) {
       return CockpitTestError(
         code: CockpitTestErrorCode.targetMismatch,
-        message: 'Flutter case runner requires targetKind flutterApp.',
+        message: _lowerer.backend == CockpitTestActionBackend.flutter
+            ? 'Flutter case runner requires targetKind flutterApp.'
+            : 'System case runner requires a non-Flutter targetKind.',
       );
     }
     if (target.platform != 'flutter' &&

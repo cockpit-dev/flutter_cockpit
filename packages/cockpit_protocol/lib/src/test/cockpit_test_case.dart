@@ -1,9 +1,10 @@
 import 'cockpit_test_policy.dart';
 import 'cockpit_test_step.dart';
+import 'cockpit_test_document.dart';
 import 'cockpit_test_value_reader.dart';
 import 'cockpit_test_variable.dart';
 
-final class CockpitTestCase {
+final class CockpitTestCase implements CockpitTestDocument {
   CockpitTestCase({
     this.schemaVersion = 'cockpit.test/v2',
     this.kind = 'case',
@@ -73,9 +74,13 @@ final class CockpitTestCase {
     }
   }
 
+  @override
   final String schemaVersion;
+  @override
   final String kind;
+  @override
   final String id;
+  @override
   final String? name;
   final String? description;
   final Set<String> tags;
@@ -88,6 +93,7 @@ final class CockpitTestCase {
   final List<CockpitTestStepTemplate> finallySteps;
   final Map<String, Object?> extensions;
 
+  @override
   Map<String, Object?> toJson() => <String, Object?>{
     'schemaVersion': schemaVersion,
     'kind': kind,

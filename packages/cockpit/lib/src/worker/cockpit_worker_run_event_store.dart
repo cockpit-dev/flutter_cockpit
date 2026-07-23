@@ -23,7 +23,7 @@ final class CockpitWorkerEventDraft {
   const CockpitWorkerEventDraft({
     required this.kind,
     required this.entityKind,
-    required this.caseId,
+    this.caseId,
     this.attemptId,
     this.stepExecutionId,
     this.stepStatus,
@@ -43,7 +43,7 @@ final class CockpitWorkerEventDraft {
 
   final String kind;
   final CockpitRunEventEntityKind entityKind;
-  final String caseId;
+  final String? caseId;
   final String? attemptId;
   final String? stepExecutionId;
   final CockpitTestStepStatus? stepStatus;
@@ -175,6 +175,14 @@ final class CockpitWorkerRunEventStore implements CockpitWorkerEventExchange {
     });
     _initialization = operation;
     return operation;
+  }
+
+  Future<List<CockpitRunEvent>> eventsForRun(String runId) async {
+    workerId(runId, r'$.runId');
+    await initialize();
+    return List<CockpitRunEvent>.unmodifiable(
+      _events[runId] ?? const <CockpitRunEvent>[],
+    );
   }
 
   Future<void> _initialize() async {
@@ -511,8 +519,6 @@ final class CockpitWorkerRunEventStore implements CockpitWorkerEventExchange {
       CockpitWorkerEventDraft(
         kind: 'recovery.run.interrupted',
         entityKind: CockpitRunEventEntityKind.run,
-        caseId: caseId,
-        attemptId: attemptId,
         lifecycle: CockpitRunLifecycle.completed,
         outcome: CockpitRunOutcome.interrupted,
         stability: CockpitRunStability.unknown,

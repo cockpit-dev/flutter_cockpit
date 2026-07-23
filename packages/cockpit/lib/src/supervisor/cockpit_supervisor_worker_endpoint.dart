@@ -191,7 +191,6 @@ final class CockpitSupervisorWorkerEndpoint {
   }) async {
     final events = <CockpitRunEvent>[];
     String? projectId;
-    String? caseId;
     var cursor = 0;
     while (true) {
       _checkDeadline(deadline);
@@ -220,8 +219,7 @@ final class CockpitSupervisorWorkerEndpoint {
           );
         }
         projectId ??= event.projectId;
-        caseId ??= event.caseId;
-        if (event.projectId != projectId || event.caseId != caseId) {
+        if (event.projectId != projectId) {
           throw const FormatException(
             'Worker event replay changes run ownership.',
           );

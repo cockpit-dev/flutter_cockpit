@@ -845,6 +845,11 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
         _locatorPathForElement(element),
         value,
       ),
+      CockpitLocatorKind.nativeId ||
+      CockpitLocatorKind.testId ||
+      CockpitLocatorKind.role ||
+      CockpitLocatorKind.coordinate ||
+      CockpitLocatorKind.visual => false,
     };
   }
 
@@ -1379,7 +1384,12 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
               _matchesTextSignal(candidate.textPreview, signal.value),
         CockpitLocatorKind.semanticId ||
         CockpitLocatorKind.tooltip ||
-        CockpitLocatorKind.registrationId => false,
+        CockpitLocatorKind.registrationId ||
+        CockpitLocatorKind.nativeId ||
+        CockpitLocatorKind.testId ||
+        CockpitLocatorKind.role ||
+        CockpitLocatorKind.coordinate ||
+        CockpitLocatorKind.visual => false,
       };
       if (!matched) {
         return false;
@@ -1493,7 +1503,12 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
           matchedSignals += 1;
         case CockpitLocatorKind.semanticId ||
             CockpitLocatorKind.tooltip ||
-            CockpitLocatorKind.registrationId:
+            CockpitLocatorKind.registrationId ||
+            CockpitLocatorKind.nativeId ||
+            CockpitLocatorKind.testId ||
+            CockpitLocatorKind.role ||
+            CockpitLocatorKind.coordinate ||
+            CockpitLocatorKind.visual:
           return 0;
       }
     }
@@ -1554,7 +1569,12 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
         ),
         CockpitLocatorKind.route => ancestor.routeName == signal.value,
         CockpitLocatorKind.path => _matchesPath(ancestor.path, signal.value),
-        CockpitLocatorKind.registrationId => false,
+        CockpitLocatorKind.registrationId ||
+        CockpitLocatorKind.nativeId ||
+        CockpitLocatorKind.testId ||
+        CockpitLocatorKind.role ||
+        CockpitLocatorKind.coordinate ||
+        CockpitLocatorKind.visual => false,
       };
       if (!matched) {
         return false;

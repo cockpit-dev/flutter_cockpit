@@ -9,7 +9,12 @@ enum CockpitLocatorKind {
   type,
   route,
   registrationId,
-  path;
+  path,
+  nativeId,
+  testId,
+  role,
+  coordinate,
+  visual;
 
   static CockpitLocatorKind fromJson(Object? json) {
     return values.byName(json! as String);

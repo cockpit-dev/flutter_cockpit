@@ -117,7 +117,7 @@ Map<String, Object?> buildFoundationApiPaths() => <String, Object?>{
     'parameters': <Object?>[_pathParameter('workspaceId')],
     'get': negotiatedOperation(
       operationId: 'listDocuments',
-      summary: 'List indexed standalone case documents',
+      summary: 'List indexed case, suite, and project documents',
       parameters: _pageParameters(),
       responses: <String, Object?>{
         '200': jsonResponse('Indexed documents.', 'DocumentPage'),
@@ -128,7 +128,7 @@ Map<String, Object?> buildFoundationApiPaths() => <String, Object?>{
     'parameters': <Object?>[_pathParameter('workspaceId')],
     'post': negotiatedOperation(
       operationId: 'validateDocument',
-      summary: 'Compile and validate an inline standalone case document',
+      summary: 'Compile and validate an inline test document',
       requestSchema: 'DocumentValidationRequest',
       responses: <String, Object?>{
         '200': jsonResponse('Validation result.', 'DocumentValidationResult'),
@@ -169,13 +169,11 @@ Map<String, Object?> buildFoundationApiPaths() => <String, Object?>{
   '/api/v2/workspaces/{workspaceId}/runs': <String, Object?>{
     'parameters': <Object?>[_pathParameter('workspaceId')],
     'post': negotiatedOperation(
-      operationId: 'submitStandaloneRun',
-      summary: 'Submit one inline or indexed standalone case',
+      operationId: 'submitRun',
+      summary: 'Submit one inline or indexed case or suite',
       requestSchema: 'RunSubmission',
-      description:
-          'Only one case is accepted. Suite, matrix, and multi-case fields are invalid.',
       responses: <String, Object?>{
-        '202': jsonResponse('Accepted standalone run.', 'RunAccepted'),
+        '202': jsonResponse('Accepted run.', 'RunAccepted'),
       },
     ),
   },
@@ -183,7 +181,7 @@ Map<String, Object?> buildFoundationApiPaths() => <String, Object?>{
     'parameters': <Object?>[_pathParameter('runId')],
     'get': negotiatedOperation(
       operationId: 'getRun',
-      summary: 'Read a standalone run projection',
+      summary: 'Read a run projection',
       responses: <String, Object?>{
         '200': jsonResponse('Run projection.', 'RunResource'),
       },
@@ -240,14 +238,35 @@ Map<String, Object?> buildFoundationApiPaths() => <String, Object?>{
       },
     ),
   },
+  '/api/v2/runs/{runId}/report': <String, Object?>{
+    'parameters': <Object?>[_pathParameter('runId')],
+    'get': negotiatedOperation(
+      operationId: 'getSuiteReport',
+      summary: 'Read the finalized canonical suite report',
+      responses: <String, Object?>{
+        '200': <String, Object?>{
+          'description': 'Finalized cockpit.report/v2 aggregate report.',
+          'content': <String, Object?>{
+            'application/json': <String, Object?>{
+              'schema': <String, Object?>{
+                r'$ref':
+                    r'../schema/cockpit.test.v2.schema.json#/$defs/suiteReport',
+              },
+            },
+          },
+        },
+        '404': <String, Object?>{r'$ref': '#/components/responses/NotFound'},
+      },
+    ),
+  },
   '/api/v2/runs/{runId}/cases': <String, Object?>{
     'parameters': <Object?>[_pathParameter('runId')],
     'get': negotiatedOperation(
       operationId: 'listRunCases',
-      summary: 'Read the single-case run collection',
+      summary: 'Read cases executed by a case or suite run',
       parameters: _pageParameters(),
       responses: <String, Object?>{
-        '200': jsonResponse('Single-case collection.', 'RunCasePage'),
+        '200': jsonResponse('Run case collection.', 'RunCasePage'),
       },
     ),
   },

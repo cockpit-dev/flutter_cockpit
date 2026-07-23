@@ -8,13 +8,15 @@ import 'package:path/path.dart' as p;
 import '../foundation/cockpit_ids.dart';
 import '../foundation/cockpit_locked_json_store.dart';
 import '../foundation/cockpit_permissions.dart';
+import '../suite/cockpit_suite_compiler.dart';
 import '../test/cockpit_test_document_compiler.dart';
 import 'cockpit_case_run_adapter.dart';
 import 'cockpit_worker_resource_grant.dart';
 import 'cockpit_worker_value_reader.dart';
 import 'cockpit_workspace_operation_registry.dart';
 
-final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
+final class CockpitWorkerDocumentIndex
+    implements CockpitWorkerCaseIndex, CockpitSuiteCaseResolver {
   CockpitWorkerDocumentIndex({
     this.workspaceId = 'workspace-local',
     required this.workspaceRoot,
@@ -98,12 +100,13 @@ final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
       final bytes = resolved.bytes;
       final sourceSha256 = resolved.sourceSha256;
       final documentId = previous[relativePath]?.documentId ?? _newDocumentId();
-      CockpitCompiledTestCase? compiled;
+      CockpitCompiledTestDocument? compiled;
       if (_paths.extension(entity.path) != '.dart') {
         try {
-          compiled = const CockpitTestDocumentCompiler()
+          final candidate = const CockpitTestDocumentCompiler()
               .compile(utf8.decode(bytes, allowMalformed: false))
               .compiled;
+          compiled = candidate;
         } on Object {
           compiled = null;
         }
@@ -142,15 +145,7 @@ final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
         'sha256': document.sourceSha256,
         'sourceSha256': document.sourceSha256,
         'modifiedAt': stat.modified.toUtc().toIso8601String(),
-        'kind': document.compiled == null ? 'source' : 'case',
-        'cases': <Map<String, Object?>>[
-          if (document.compiled case final compiled?)
-            <String, Object?>{
-              'caseId': compiled.testCase.id,
-              'title': ?compiled.testCase.name,
-            },
-        ],
-        if (document.compiled != null) 'caseId': document.compiled!.testCase.id,
+        ..._documentSummary(document),
       });
     }
     summaries.sort(
@@ -207,7 +202,7 @@ final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
     final document = _byId[reference.documentId];
     final compiled = document?.compiled;
     if (document == null ||
-        compiled == null ||
+        compiled is! CockpitCompiledTestCase ||
         document.sourceSha256 != reference.documentSha256 ||
         compiled.testCase.id != reference.caseId) {
       throw const FormatException(
@@ -220,6 +215,58 @@ final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
     );
     if (current == null) {
       throw const FormatException('Indexed case source is stale or invalid.');
+    }
+    return compiled;
+  }
+
+  Future<CockpitCompiledTestSuite> resolveSuite(
+    CockpitIndexedSuiteReference reference,
+  ) async {
+    await _ensureLoaded();
+    final document = _byId[reference.documentId];
+    final compiled = document?.compiled;
+    if (document == null ||
+        compiled is! CockpitCompiledTestSuite ||
+        document.sourceSha256 != reference.documentSha256 ||
+        compiled.suite.id != reference.suiteId) {
+      throw const FormatException(
+        'Indexed suite reference is stale or invalid.',
+      );
+    }
+    final current = await _readConfinedDocument(
+      document.relativePath,
+      expectedSha256: document.sourceSha256,
+    );
+    if (current == null) {
+      throw const FormatException('Indexed suite source is stale or invalid.');
+    }
+    return compiled;
+  }
+
+  @override
+  Future<CockpitCompiledTestCase> resolveFile(
+    CockpitTestSuiteFileCaseSource source,
+  ) async {
+    await _ensureLoaded();
+    final document = _byId.values
+        .where((candidate) => candidate.relativePath == source.relativePath)
+        .singleOrNull;
+    final compiled = document?.compiled;
+    if (document == null ||
+        compiled is! CockpitCompiledTestCase ||
+        compiled.testCase.id != source.caseId) {
+      throw const FormatException(
+        'Suite file case source is stale or invalid.',
+      );
+    }
+    final current = await _readConfinedDocument(
+      document.relativePath,
+      expectedSha256: document.sourceSha256,
+    );
+    if (current == null) {
+      throw const FormatException(
+        'Suite file case source is stale or invalid.',
+      );
     }
     return compiled;
   }
@@ -285,31 +332,20 @@ final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
         document.relativePath,
         expectedSha256: document.sourceSha256,
       );
-      if (current == null) {
-        throw FormatException(
-          'Indexed document ${document.documentId} is stale.',
-        );
-      }
-      CockpitCompiledTestCase? compiled;
-      if (document.caseId != null) {
+      CockpitCompiledTestDocument? compiled;
+      if (current != null &&
+          document.kind != CockpitIndexedDocumentKind.source) {
         try {
-          compiled = const CockpitTestDocumentCompiler()
+          final candidate = const CockpitTestDocumentCompiler()
               .compile(utf8.decode(current.bytes, allowMalformed: false))
               .compiled;
-        } on Object {
-          throw FormatException(
-            'Indexed case ${document.documentId} cannot be rebuilt.',
-          );
-        }
-        if (compiled == null) {
-          throw FormatException(
-            'Indexed case ${document.documentId} cannot be rebuilt.',
-          );
-        }
-        if (compiled.testCase.id != document.caseId) {
-          throw FormatException(
-            'Indexed case ${document.documentId} identity is stale.',
-          );
+          if (candidate != null &&
+              _documentKind(candidate.document) == document.kind &&
+              candidate.document.id == document.authoredId) {
+            compiled = candidate;
+          }
+        } on FormatException {
+          compiled = null;
         }
       }
       loaded[document.documentId] = _IndexedDocument(
@@ -344,7 +380,7 @@ final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
       r'$',
       required: const <String>{'schemaVersion', 'documents'},
     );
-    if (json['schemaVersion'] != 'cockpit.worker.documents/v3') {
+    if (json['schemaVersion'] != 'cockpit.worker.documents/v4') {
       throw const FormatException('Unsupported worker document index.');
     }
     final raw = workerList(
@@ -372,9 +408,20 @@ final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
     final json = workerObject(value, path);
     workerKeys(
       json,
-      const <String>{'documentId', 'relativePath', 'sourceSha256', 'caseId'},
+      const <String>{
+        'documentId',
+        'relativePath',
+        'sourceSha256',
+        'kind',
+        'authoredId',
+      },
       path,
-      required: const <String>{'documentId', 'relativePath', 'sourceSha256'},
+      required: const <String>{
+        'documentId',
+        'relativePath',
+        'sourceSha256',
+        'kind',
+      },
     );
     final relativePath = workerString(
       json['relativePath'],
@@ -397,24 +444,28 @@ final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
       documentId: workerId(json['documentId'], '$path.documentId'),
       relativePath: relativePath,
       sourceSha256: sourceSha256,
-      caseId: json['caseId'] == null
+      kind: _workerDocumentKind(json['kind'], '$path.kind'),
+      authoredId: json['authoredId'] == null
           ? null
-          : workerId(json['caseId'], '$path.caseId'),
+          : workerId(json['authoredId'], '$path.authoredId'),
     );
   }
 
   Future<void> _persist() async {
     await _prepareStorageDirectory();
     final contents = <String, Object?>{
-      'schemaVersion': 'cockpit.worker.documents/v3',
+      'schemaVersion': 'cockpit.worker.documents/v4',
       'documents': <Map<String, Object?>>[
         for (final document in _byId.values)
           <String, Object?>{
             'documentId': document.documentId,
             'relativePath': document.relativePath,
             'sourceSha256': document.sourceSha256,
+            'kind': document.compiled == null
+                ? 'source'
+                : _documentKindWire(_documentKind(document.compiled!.document)),
             if (document.compiled != null)
-              'caseId': document.compiled!.testCase.id,
+              'authoredId': document.compiled!.document.id,
           },
       ],
     };
@@ -537,6 +588,64 @@ final class CockpitWorkerDocumentIndex implements CockpitWorkerCaseIndex {
       'document_${_tokenGenerator.nextToken(byteLength: 16)}';
 }
 
+Map<String, Object?> _documentSummary(_IndexedDocument indexed) {
+  final compiled = indexed.compiled;
+  if (compiled == null) {
+    return const <String, Object?>{
+      'kind': 'source',
+      'cases': <Map<String, Object?>>[],
+    };
+  }
+  final document = compiled.document;
+  final cases = switch (compiled) {
+    CockpitCompiledTestCase(:final testCase) => <Map<String, Object?>>[
+      <String, Object?>{
+        'caseId': testCase.id,
+        if (testCase.name != null) 'title': testCase.name,
+      },
+    ],
+    CockpitCompiledTestSuite(:final suite) => <Map<String, Object?>>[
+      for (final entry in suite.cases)
+        <String, Object?>{
+          'caseId': entry.source.caseId,
+          if (entry.source case CockpitTestSuiteInlineCaseSource(
+            :final testCase,
+          ) when testCase.name != null)
+            'title': testCase.name,
+        },
+    ],
+    CockpitCompiledTestProject() => const <Map<String, Object?>>[],
+  };
+  return <String, Object?>{
+    'kind': _documentKindWire(_documentKind(document)),
+    'authoredId': document.id,
+    if (document.name != null) 'title': document.name,
+    'cases': cases,
+  };
+}
+
+CockpitIndexedDocumentKind _documentKind(CockpitTestDocument document) =>
+    switch (document) {
+      CockpitTestCase() => CockpitIndexedDocumentKind.testCase,
+      CockpitTestSuite() => CockpitIndexedDocumentKind.suite,
+      CockpitTestProject() => CockpitIndexedDocumentKind.project,
+      _ => throw StateError('Unsupported indexed document ${document.kind}.'),
+    };
+
+String _documentKindWire(CockpitIndexedDocumentKind kind) =>
+    kind == CockpitIndexedDocumentKind.testCase ? 'case' : kind.name;
+
+CockpitIndexedDocumentKind _workerDocumentKind(Object? value, String path) {
+  final name = workerString(value, path, maximum: 16);
+  return switch (name) {
+    'source' => CockpitIndexedDocumentKind.source,
+    'case' => CockpitIndexedDocumentKind.testCase,
+    'suite' => CockpitIndexedDocumentKind.suite,
+    'project' => CockpitIndexedDocumentKind.project,
+    _ => throw FormatException('Invalid indexed document kind at $path.'),
+  };
+}
+
 bool _isLowercaseHex(String value, {required int length}) {
   if (value.length != length) return false;
   for (final codeUnit in value.codeUnits) {
@@ -578,7 +687,7 @@ final class _IndexedDocument {
   final String documentId;
   final String relativePath;
   final String sourceSha256;
-  final CockpitCompiledTestCase? compiled;
+  final CockpitCompiledTestDocument? compiled;
 }
 
 final class _PersistedDocument {
@@ -586,11 +695,15 @@ final class _PersistedDocument {
     required this.documentId,
     required this.relativePath,
     required this.sourceSha256,
-    required this.caseId,
-  });
+    required this.kind,
+    required this.authoredId,
+  }) : assert(
+         (kind == CockpitIndexedDocumentKind.source) == (authoredId == null),
+       );
 
   final String documentId;
   final String relativePath;
   final String sourceSha256;
-  final String? caseId;
+  final CockpitIndexedDocumentKind kind;
+  final String? authoredId;
 }

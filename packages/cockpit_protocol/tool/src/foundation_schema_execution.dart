@@ -104,10 +104,27 @@ Map<String, Object?> foundationExecutionDefinitions() => <String, Object?>{
     schemaRef('InlineCaseSource'),
     schemaRef('IndexedCaseSource'),
   ]),
+  'InlineSuiteSource': objectSchema(<String, Object?>{
+    'kind': stringSchema(constant: 'inline'),
+    'suite': externalRef('cockpit.test.v2.schema.json#/\$defs/suite'),
+    'sourceSha256': schemaRef('Sha256'),
+  }),
+  'IndexedSuiteSource': objectSchema(<String, Object?>{
+    'kind': stringSchema(constant: 'indexed'),
+    'reference': schemaRef('IndexedSuiteReference'),
+  }),
+  'SuiteSubmissionSource': oneOfSchema(<Map<String, Object?>>[
+    schemaRef('InlineSuiteSource'),
+    schemaRef('IndexedSuiteSource'),
+  ]),
+  'RunSubmissionSource': oneOfSchema(<Map<String, Object?>>[
+    schemaRef('CaseSubmissionSource'),
+    schemaRef('SuiteSubmissionSource'),
+  ]),
   'RunSubmission': objectSchema(
     <String, Object?>{
       'workspaceId': schemaRef('Identifier'),
-      'source': schemaRef('CaseSubmissionSource'),
+      'source': schemaRef('RunSubmissionSource'),
       'idempotencyKey': schemaRef('IdempotencyKey'),
       'inputs': schemaRef('JsonObject'),
       'targetId': schemaRef('Identifier'),
@@ -233,18 +250,19 @@ Map<String, Object?> _runResourceSchema() => objectSchema(
     'projectId': schemaRef('Identifier'),
     'workspaceId': schemaRef('Identifier'),
     'runId': schemaRef('Identifier'),
-    'caseId': schemaRef('Identifier'),
+    'documentKind': stringSchema(values: const <String>['case', 'suite']),
+    'documentId': schemaRef('Identifier'),
     'sourceSha256': schemaRef('Sha256'),
     'lifecycle': stringSchema(
-      values: const <String>['queued', 'running', 'completed'],
+      values: const <String>['queued', 'running', 'finalizing', 'completed'],
     ),
     'outcome': _runOutcome(),
     'stability': _runStability(),
     'submittedAt': schemaRef('UtcTimestamp'),
     'startedAt': schemaRef('UtcTimestamp'),
     'finishedAt': schemaRef('UtcTimestamp'),
-    'attemptIds': arraySchema(schemaRef('Identifier'), unique: true),
-    'activeAttemptId': schemaRef('Identifier'),
+    'caseIds': arraySchema(schemaRef('Identifier'), unique: true),
+    'activeAttemptIds': arraySchema(schemaRef('Identifier'), unique: true),
     'failure': schemaRef('Failure'),
   },
   optional: const <String>{
@@ -252,7 +270,6 @@ Map<String, Object?> _runResourceSchema() => objectSchema(
     'stability',
     'startedAt',
     'finishedAt',
-    'activeAttemptId',
     'failure',
   },
   extra: <String, Object?>{
@@ -269,7 +286,7 @@ Map<String, Object?> _runResourceSchema() => objectSchema(
         },
         'then': <String, Object?>{
           'properties': <String, Object?>{
-            'attemptIds': <String, Object?>{'minItems': 1},
+            'caseIds': <String, Object?>{'minItems': 1},
           },
         },
       },
@@ -281,7 +298,9 @@ Map<String, Object?> _runResourceSchema() => objectSchema(
         },
         'then': <String, Object?>{
           'not': <String, Object?>{
-            'required': <String>['activeAttemptId'],
+            'properties': <String, Object?>{
+              'activeAttemptIds': <String, Object?>{'maxItems': 0},
+            },
           },
         },
       },
@@ -296,7 +315,15 @@ Map<String, Object?> _runEventSchema() => objectSchema(
     'timestamp': schemaRef('UtcTimestamp'),
     'kind': schemaRef('Kind'),
     'entityKind': stringSchema(
-      values: const <String>['run', 'case', 'attempt', 'step', 'artifact'],
+      values: const <String>[
+        'run',
+        'suite',
+        'case',
+        'attempt',
+        'step',
+        'report',
+        'artifact',
+      ],
     ),
     'projectId': schemaRef('Identifier'),
     'workspaceId': schemaRef('Identifier'),
@@ -314,7 +341,7 @@ Map<String, Object?> _runEventSchema() => objectSchema(
       ],
     ),
     'lifecycle': stringSchema(
-      values: const <String>['queued', 'running', 'completed'],
+      values: const <String>['queued', 'running', 'finalizing', 'completed'],
     ),
     'outcome': _runOutcome(),
     'stability': _runStability(),
@@ -329,6 +356,7 @@ Map<String, Object?> _runEventSchema() => objectSchema(
     'artifacts': arraySchema(schemaRef('ArtifactReference'), unique: true),
   },
   optional: const <String>{
+    'caseId',
     'attemptId',
     'stepExecutionId',
     'status',
@@ -642,8 +670,10 @@ Map<String, Object?> _runOutcome() => stringSchema(
     'passed',
     'failed',
     'blocked',
+    'skipped',
     'cancelled',
     'interrupted',
+    'internalError',
   ],
 );
 
@@ -656,6 +686,7 @@ Map<String, Object?> _testPlane() => stringSchema(
 
 Map<String, Object?> _leaseResourceKind() => stringSchema(
   values: const <String>[
+    'run',
     'device',
     'session',
     'browserContext',

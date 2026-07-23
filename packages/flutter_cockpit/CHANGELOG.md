@@ -2,6 +2,9 @@
 
 ## 2.0.0
 
+- Kept Flutter semantic execution as one driver behind the shared 2.0 case and
+  suite runtime while native black-box targets execute independently in the
+  host package.
 - Migrated all shared runtime, control, evidence, and bridge models to the
   platform-neutral `cockpit_protocol` package.
 - Removed the `flutter_cockpit_protocol` dependency and established the 2.0

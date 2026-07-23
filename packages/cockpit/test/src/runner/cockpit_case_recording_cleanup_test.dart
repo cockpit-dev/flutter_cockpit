@@ -15,7 +15,7 @@ void main() {
     final recording = _RecordingAdapter();
     final compiled = const CockpitTestDocumentCompiler()
         .compile(_recordingCase())
-        .requireCompiled();
+        .requireCase();
     final context = CockpitTestRunContext(
       projectId: 'projectOne',
       workspaceId: 'workspaceOne',
@@ -75,7 +75,7 @@ void main() {
           ).run(
             compiled: const CockpitTestDocumentCompiler()
                 .compile(_recordingCase(cleanupTimeoutMs: 50))
-                .requireCompiled(),
+                .requireCase(),
             context: CockpitTestRunContext(
               projectId: 'projectOne',
               workspaceId: 'workspaceOne',

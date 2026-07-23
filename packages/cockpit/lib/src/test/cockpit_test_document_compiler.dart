@@ -6,16 +6,16 @@ import 'package:json_schema/json_schema.dart';
 import 'package:source_span/source_span.dart';
 import 'package:yaml/yaml.dart';
 
-final class CockpitCompiledTestCase {
-  CockpitCompiledTestCase({
-    required this.testCase,
+sealed class CockpitCompiledTestDocument {
+  CockpitCompiledTestDocument({
+    required this.document,
     required this.sourceSha256,
     required Map<String, CockpitTestSourceLocation> sourceMap,
   }) : sourceMap = Map<String, CockpitTestSourceLocation>.unmodifiable(
          sourceMap,
        );
 
-  final CockpitTestCase testCase;
+  final CockpitTestDocument document;
   final String sourceSha256;
   final Map<String, CockpitTestSourceLocation> sourceMap;
 
@@ -36,6 +36,36 @@ final class CockpitCompiledTestCase {
   }
 }
 
+final class CockpitCompiledTestCase extends CockpitCompiledTestDocument {
+  CockpitCompiledTestCase({
+    required this.testCase,
+    required super.sourceSha256,
+    required super.sourceMap,
+  }) : super(document: testCase);
+
+  final CockpitTestCase testCase;
+}
+
+final class CockpitCompiledTestSuite extends CockpitCompiledTestDocument {
+  CockpitCompiledTestSuite({
+    required this.suite,
+    required super.sourceSha256,
+    required super.sourceMap,
+  }) : super(document: suite);
+
+  final CockpitTestSuite suite;
+}
+
+final class CockpitCompiledTestProject extends CockpitCompiledTestDocument {
+  CockpitCompiledTestProject({
+    required this.project,
+    required super.sourceSha256,
+    required super.sourceMap,
+  }) : super(document: project);
+
+  final CockpitTestProject project;
+}
+
 final class CockpitTestCompilationResult {
   CockpitTestCompilationResult({
     this.compiled,
@@ -49,17 +79,41 @@ final class CockpitTestCompilationResult {
     }
   }
 
-  final CockpitCompiledTestCase? compiled;
+  final CockpitCompiledTestDocument? compiled;
   final List<CockpitTestDiagnostic> diagnostics;
 
   bool get isSuccess => compiled != null;
 
-  CockpitCompiledTestCase requireCompiled() {
+  CockpitCompiledTestDocument requireCompiled() {
     final value = compiled;
     if (value == null) {
       throw FormatException(
         diagnostics.map((diagnostic) => diagnostic.message).join('\n'),
       );
+    }
+    return value;
+  }
+
+  CockpitCompiledTestCase requireCase() {
+    final value = requireCompiled();
+    if (value is! CockpitCompiledTestCase) {
+      throw const FormatException('Expected a case document.');
+    }
+    return value;
+  }
+
+  CockpitCompiledTestSuite requireSuite() {
+    final value = requireCompiled();
+    if (value is! CockpitCompiledTestSuite) {
+      throw const FormatException('Expected a suite document.');
+    }
+    return value;
+  }
+
+  CockpitCompiledTestProject requireProject() {
+    final value = requireCompiled();
+    if (value is! CockpitCompiledTestProject) {
+      throw const FormatException('Expected a project document.');
     }
     return value;
   }
@@ -107,7 +161,7 @@ final class CockpitTestDocumentCompiler {
     if (schemaDiagnostics.isNotEmpty) {
       final diagnostics = <CockpitTestDiagnostic>[...schemaDiagnostics];
       try {
-        CockpitTestCase.fromJson(normalized);
+        _decodeDocument(normalized);
       } on FormatException catch (error) {
         final path = _pathFromMessage(error.message);
         diagnostics.removeWhere(
@@ -131,9 +185,9 @@ final class CockpitTestDocumentCompiler {
       );
     }
 
-    CockpitTestCase testCase;
+    CockpitTestDocument document;
     try {
-      testCase = CockpitTestCase.fromJson(normalized);
+      document = _decodeDocument(normalized);
     } on FormatException catch (error) {
       final path = _pathFromMessage(error.message);
       return CockpitTestCompilationResult(
@@ -148,7 +202,9 @@ final class CockpitTestDocumentCompiler {
       );
     }
 
-    final documentLimit = testCase.defaults.limits.maxDocumentBytes;
+    final documentLimit = document is CockpitTestCase
+        ? document.defaults.limits.maxDocumentBytes
+        : _maximumDocumentBytes;
     if (bytes.length > documentLimit) {
       const path = r'$.defaults.limits.maxDocumentBytes';
       return CockpitTestCompilationResult(
@@ -163,15 +219,17 @@ final class CockpitTestDocumentCompiler {
       );
     }
 
-    final diagnostics = _validate(testCase, sourceMap);
+    final diagnostics = document is CockpitTestCase
+        ? _validate(document, sourceMap)
+        : const <CockpitTestDiagnostic>[];
     if (diagnostics.isNotEmpty) {
       return CockpitTestCompilationResult(diagnostics: diagnostics);
     }
     return CockpitTestCompilationResult(
-      compiled: CockpitCompiledTestCase(
-        testCase: testCase,
-        sourceSha256: sha256.convert(bytes).toString(),
-        sourceMap: sourceMap,
+      compiled: _compiledDocument(
+        document,
+        sha256.convert(bytes).toString(),
+        sourceMap,
       ),
     );
   }
@@ -186,6 +244,42 @@ final class CockpitTestDocumentCompiler {
     ],
   );
 }
+
+CockpitTestDocument _decodeDocument(Object? value) {
+  if (value is! Map<Object?, Object?> || value['kind'] is! String) {
+    throw const FormatException(r'Expected a document object at $.');
+  }
+  final kind = value['kind']! as String;
+  return switch (kind) {
+    'case' => CockpitTestCase.fromJson(value),
+    'suite' => CockpitTestSuite.fromJson(value),
+    'project' => CockpitTestProject.fromJson(value),
+    _ => throw const FormatException(r'Unsupported document kind at $.kind.'),
+  };
+}
+
+CockpitCompiledTestDocument _compiledDocument(
+  CockpitTestDocument document,
+  String sourceSha256,
+  Map<String, CockpitTestSourceLocation> sourceMap,
+) => switch (document) {
+  CockpitTestCase testCase => CockpitCompiledTestCase(
+    testCase: testCase,
+    sourceSha256: sourceSha256,
+    sourceMap: sourceMap,
+  ),
+  CockpitTestSuite suite => CockpitCompiledTestSuite(
+    suite: suite,
+    sourceSha256: sourceSha256,
+    sourceMap: sourceMap,
+  ),
+  CockpitTestProject project => CockpitCompiledTestProject(
+    project: project,
+    sourceSha256: sourceSha256,
+    sourceMap: sourceMap,
+  ),
+  _ => throw StateError('Unsupported compiled document ${document.kind}.'),
+};
 
 List<CockpitTestDiagnostic> _validateSchema(
   Object? document,

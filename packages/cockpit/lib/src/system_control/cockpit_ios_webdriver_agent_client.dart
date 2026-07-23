@@ -51,6 +51,28 @@ final class CockpitIosWebDriverAgentClient {
     });
   }
 
+  Future<List<int>> captureScreenshot(
+    Uri baseUri, {
+    required Duration timeout,
+  }) async {
+    final session = await resolveSession(baseUri, timeout: timeout);
+    return _withClient((client) async {
+      final response = await _getSession(
+        client,
+        session,
+        'screenshot',
+        timeout: timeout,
+      );
+      final value = _decodeObject(response.body)['value'];
+      if (value is! String || value.trim().isEmpty) {
+        throw StateError(
+          'WebDriverAgent screenshot response did not include PNG data.',
+        );
+      }
+      return base64Decode(value);
+    });
+  }
+
   Future<CockpitIosWdaSession> resolveSession(
     Uri baseUri, {
     required Duration timeout,
@@ -330,6 +352,26 @@ final class CockpitIosWebDriverAgentClient {
             timeout: timeout,
           );
           return 'pressHome';
+        case CockpitIosWdaAction.activateApp:
+          final bundleId = _requiredString(command.parameters, 'bundleId');
+          await _postSession(
+            client,
+            session,
+            'wda/apps/activate',
+            <String, Object?>{'bundleId': bundleId},
+            timeout: timeout,
+          );
+          return 'activateApp bundleId=$bundleId';
+        case CockpitIosWdaAction.terminateApp:
+          final bundleId = _requiredString(command.parameters, 'bundleId');
+          await _postSession(
+            client,
+            session,
+            'wda/apps/terminate',
+            <String, Object?>{'bundleId': bundleId},
+            timeout: timeout,
+          );
+          return 'terminateApp bundleId=$bundleId';
         case CockpitIosWdaAction.setOrientation:
           final orientation = _requiredString(
             command.parameters,
@@ -464,15 +506,25 @@ final class CockpitIosWebDriverAgentClient {
           final appId = _requiredString(command.parameters, 'appId');
           final deviceId =
               _optionalString(command.parameters, 'deviceId') ?? 'booted';
-          final launchOutput = await _processRunner('xcrun', <String>[
-            'simctl',
-            'launch',
-            deviceId,
-            appId,
-          ]).timeout(timeout);
-          if (launchOutput.exitCode != 0) {
-            throw StateError(
-              'Failed to relaunch iOS simulator app $appId: ${launchOutput.stderr}',
+          if (_looksLikeIosSimulatorDeviceId(deviceId)) {
+            final launchOutput = await _processRunner('xcrun', <String>[
+              'simctl',
+              'launch',
+              deviceId,
+              appId,
+            ]).timeout(timeout);
+            if (launchOutput.exitCode != 0) {
+              throw StateError(
+                'Failed to relaunch iOS simulator app $appId: ${launchOutput.stderr}',
+              );
+            }
+          } else {
+            await _postSession(
+              client,
+              session,
+              'wda/apps/activate',
+              <String, Object?>{'bundleId': appId},
+              timeout: timeout,
             );
           }
           return 'resolveBlockers appId=$appId decision=$decision';
@@ -937,6 +989,12 @@ final class CockpitIosWebDriverAgentClient {
   }
 }
 
+bool _looksLikeIosSimulatorDeviceId(String deviceId) =>
+    deviceId.toLowerCase() == 'booted' ||
+    RegExp(
+      r'^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$',
+    ).hasMatch(deviceId);
+
 final class CockpitIosWdaSession {
   const CockpitIosWdaSession({required this.baseUri, required this.sessionId});
 
@@ -966,6 +1024,8 @@ enum CockpitIosWdaAction {
   dismissKeyboard,
   pressButton,
   pressHome,
+  activateApp,
+  terminateApp,
   setOrientation,
   readUiTree,
   readDeviceInfo,

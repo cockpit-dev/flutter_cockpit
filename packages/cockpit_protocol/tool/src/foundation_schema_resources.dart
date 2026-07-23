@@ -140,17 +140,30 @@ Map<String, Object?> foundationResourceDefinitions() => <String, Object?>{
     },
     optional: const <String>{'title', 'location'},
   ),
-  'DocumentResource': objectSchema(<String, Object?>{
-    'documentId': schemaRef('Identifier'),
-    'workspaceId': schemaRef('Identifier'),
-    'relativePath': schemaRef('RelativePath'),
-    'sha256': schemaRef('Sha256'),
-    'modifiedAt': schemaRef('UtcTimestamp'),
-    'cases': arraySchema(schemaRef('CaseIndexEntry'), unique: true),
-  }),
+  'DocumentResource': objectSchema(
+    <String, Object?>{
+      'documentId': schemaRef('Identifier'),
+      'workspaceId': schemaRef('Identifier'),
+      'relativePath': schemaRef('RelativePath'),
+      'sha256': schemaRef('Sha256'),
+      'modifiedAt': schemaRef('UtcTimestamp'),
+      'kind': stringSchema(
+        values: const <String>['source', 'case', 'suite', 'project'],
+      ),
+      'authoredId': schemaRef('Identifier'),
+      'title': stringSchema(maxLength: 256),
+      'cases': arraySchema(schemaRef('CaseIndexEntry'), unique: true),
+    },
+    optional: const <String>{'authoredId', 'title'},
+  ),
   'IndexedCaseReference': objectSchema(<String, Object?>{
     'documentId': schemaRef('Identifier'),
     'caseId': schemaRef('Identifier'),
+    'documentSha256': schemaRef('Sha256'),
+  }),
+  'IndexedSuiteReference': objectSchema(<String, Object?>{
+    'documentId': schemaRef('Identifier'),
+    'suiteId': schemaRef('Identifier'),
     'documentSha256': schemaRef('Sha256'),
   }),
   'DocumentValidationRequest': objectSchema(
@@ -165,11 +178,11 @@ Map<String, Object?> foundationResourceDefinitions() => <String, Object?>{
     <String, Object?>{
       'valid': booleanSchema(),
       'sourceSha256': schemaRef('Sha256'),
-      'case': externalRef('cockpit.test.v2.schema.json#/\$defs/case'),
+      'document': externalRef('cockpit.test.v2.schema.json'),
       'diagnostics': arraySchema(schemaRef('Diagnostic')),
       'sourceMap': arraySchema(schemaRef('SourceMapEntry')),
     },
-    optional: const <String>{'case'},
+    optional: const <String>{'document'},
     extra: <String, Object?>{
       'allOf': <Object?>[
         <String, Object?>{
@@ -179,11 +192,11 @@ Map<String, Object?> foundationResourceDefinitions() => <String, Object?>{
             },
           },
           'then': <String, Object?>{
-            'required': <String>['case'],
+            'required': <String>['document'],
           },
           'else': <String, Object?>{
             'not': <String, Object?>{
-              'required': <String>['case'],
+              'required': <String>['document'],
             },
             'properties': <String, Object?>{
               'diagnostics': <String, Object?>{'minItems': 1},

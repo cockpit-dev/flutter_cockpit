@@ -503,6 +503,11 @@ void _validateActionValues(
       }
     case CockpitTestActionKind.captureScreenshot:
       _validateCaptureOptions(values[CockpitTestActionField.captureOptions]);
+    case CockpitTestActionKind.system:
+      final parameters = values[CockpitTestActionField.systemParameters];
+      if (parameters != null && parameters is! Map<Object?, Object?>) {
+        throw const FormatException('system parameters must be an object.');
+      }
     case CockpitTestActionKind.collectSnapshot:
       _validateSnapshotOptions(
         values[CockpitTestActionField.snapshotOptions],

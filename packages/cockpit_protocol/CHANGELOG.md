@@ -2,6 +2,10 @@
 
 ## 2.0.0
 
+- Added project, suite, fixture, matrix, campaign policy, aggregate report, and
+  report-case contracts to `cockpit.test/v2`.
+- Added native/test-id/role/coordinate locator strategies and a system action
+  contract for black-box setup, device control, and cleanup steps.
 - Renamed the pure-Dart package from `flutter_cockpit_protocol` to
   `cockpit_protocol` as the sole owner of platform-neutral Cockpit models.
 - Renamed the public libraries to `cockpit_protocol.dart` and

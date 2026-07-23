@@ -15,7 +15,7 @@ Map<String, Object?> buildFoundationSchema() {
         'https://github.com/cockpit-dev/flutter_cockpit/packages/cockpit_protocol/schema/cockpit.foundation.v2.schema.json',
     'title': 'Cockpit 2.0 foundation API contracts',
     'description':
-        'Strict platform-neutral contracts for Cockpit Supervisor clients, resources, operations, standalone runs, events, artifacts, and leases.',
+        'Strict platform-neutral contracts for Cockpit Supervisor clients, resources, operations, case and suite runs, events, artifacts, reports, and leases.',
     'oneOf': <Object?>[
       for (final definition in const <String>[
         'ServerInfo',

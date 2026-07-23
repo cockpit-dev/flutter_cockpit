@@ -312,6 +312,17 @@ final class CockpitSupervisorApiClient {
     );
   }
 
+  Future<CockpitTestSuiteReport> report(String runId) async {
+    final session = await _ensureSession();
+    return CockpitTestSuiteReport.fromJson(
+      await _jsonRequest(
+        session,
+        'GET',
+        '/api/v2/runs/${_segment(runId)}/report',
+      ),
+    );
+  }
+
   Future<CockpitRunCancellation> cancelRun(
     String runId,
     CockpitRunCancellationRequest request,

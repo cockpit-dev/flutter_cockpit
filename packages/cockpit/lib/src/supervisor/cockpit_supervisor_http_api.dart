@@ -318,29 +318,62 @@ final class CockpitSupervisorHttpApi {
       await sse.stream(request, runId);
       return;
     }
+    if (path.length == 5 && path[4] == 'report') {
+      if (request.method != 'GET') {
+        return _methodNotAllowed(request, const <String>['GET']);
+      }
+      await support.json(
+        request,
+        HttpStatus.ok,
+        (await runtime.report(runId)).toJson(),
+      );
+      return;
+    }
     if (path.length == 5 && path[4] == 'cases') {
       if (request.method != 'GET') {
         return _methodNotAllowed(request, const <String>['GET']);
       }
       final page = support.pageRequest(request, 'run-cases:$runId');
       final run = await runtime.run(runId);
-      final testCase = CockpitRunCaseResource(
-        runId: run.runId,
-        caseId: run.caseId,
-        sourceSha256: run.sourceSha256,
-        attemptIds: run.attemptIds,
-        outcome: run.outcome,
-        stability: run.stability,
-      );
+      final replay = await runtime.events(runId, 0);
+      final byCase = <String, List<CockpitRunEvent>>{};
+      for (final event in replay.events) {
+        final caseId = event.caseId;
+        if (caseId == null) continue;
+        byCase.putIfAbsent(caseId, () => <CockpitRunEvent>[]).add(event);
+      }
+      final cases = <CockpitRunCaseResource>[
+        for (final entry in byCase.entries)
+          CockpitRunCaseResource(
+            runId: run.runId,
+            caseId: entry.key,
+            sourceSha256: run.sourceSha256,
+            attemptIds: entry.value
+                .map((event) => event.attemptId)
+                .whereType<String>()
+                .toSet(),
+            outcome: entry.value
+                .where(
+                  (event) =>
+                      event.entityKind == CockpitRunEventEntityKind.testCase,
+                )
+                .map((event) => event.outcome)
+                .whereType<CockpitRunOutcome>()
+                .lastOrNull,
+            stability: entry.value
+                .where(
+                  (event) =>
+                      event.entityKind == CockpitRunEventEntityKind.testCase,
+                )
+                .map((event) => event.stability)
+                .whereType<CockpitRunStability>()
+                .lastOrNull,
+          ),
+      ]..sort((left, right) => left.caseId.compareTo(right.caseId));
       await support.json(
         request,
         HttpStatus.ok,
-        support.page(
-          <CockpitRunCaseResource>[testCase],
-          page,
-          'run-cases:$runId',
-          (item) => item.toJson(),
-        ),
+        support.page(cases, page, 'run-cases:$runId', (item) => item.toJson()),
       );
       return;
     }

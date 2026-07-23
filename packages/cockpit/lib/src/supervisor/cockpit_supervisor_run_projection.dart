@@ -16,6 +16,8 @@ import '../worker/cockpit_worker_protocol_result.dart';
 import '../worker/cockpit_worker_server.dart';
 import '../worker/cockpit_worker_value_reader.dart';
 
+const int _maximumCanonicalReportBytes = 64 * 1024 * 1024;
+
 abstract interface class CockpitSupervisorRunRetentionIndex {
   Future<void> retainRun({
     required String workspaceId,
@@ -87,7 +89,7 @@ typedef CockpitSupervisorRunAdmissionValidator =
     Future<void> Function({
       required String runId,
       required String projectId,
-      required String caseId,
+      required String? caseId,
     });
 
 abstract interface class CockpitSupervisorRunTruthProjection
@@ -167,10 +169,10 @@ final class CockpitSupervisorRunProjection
     CockpitWorkerPublishEventBatchRequest request,
   ) async {
     _validateRequestIdentity(request.workspaceId, request.runId);
-    await _admissionValidator?.call(
+    await _validateAdmission(
       runId: request.runId,
       projectId: request.events.first.projectId,
-      caseId: request.events.first.caseId,
+      caseIds: request.events.map((event) => event.caseId),
     );
     final result = await _store.transact<CockpitWorkerPublishEventBatchResult>((
       raw,
@@ -355,6 +357,11 @@ final class CockpitSupervisorRunProjection
     CockpitWorkerPublishArtifactBatchRequest request,
   ) async {
     _validateRequestIdentity(request.workspaceId, request.runId);
+    await _validateAdmission(
+      runId: request.runId,
+      projectId: request.projectId,
+      caseIds: <String?>[request.caseId],
+    );
     final initial = _decodeProjection(
       await _store.read(),
       expectedWorkspaceId: workspaceId,
@@ -369,7 +376,7 @@ final class CockpitSupervisorRunProjection
       );
     }
     final owner = (projectId: request.projectId, caseId: request.caseId);
-    if (initialRun != null && _projectedRunOwner(initialRun) != owner) {
+    if (initialRun != null && initialRun.projectId != owner.projectId) {
       throw const FormatException(
         'Artifact publication changes projected run ownership.',
       );
@@ -396,7 +403,7 @@ final class CockpitSupervisorRunProjection
           var run = projection.runs[request.runId];
           if (run != null &&
               (run.phase != _ProjectedRunPhase.active ||
-                  _projectedRunOwner(run) != owner)) {
+                  run.projectId != owner.projectId)) {
             throw const FormatException(
               'Artifact projected owner changed during publication.',
             );
@@ -411,6 +418,7 @@ final class CockpitSupervisorRunProjection
             );
             projection.runs[request.runId] = run;
           }
+          if (request.caseId case final caseId?) run.caseIds.add(caseId);
           var changed = false;
           for (final artifact in verified) {
             final owner = projection.artifactOwners[artifact.artifactId];
@@ -468,7 +476,40 @@ final class CockpitSupervisorRunProjection
     return _verifyArtifact(
       resource,
       expectedRunId: runId,
-      owner: _projectedRunOwner(run!),
+      owner: (projectId: run!.projectId, caseId: null),
+    );
+  }
+
+  Future<CockpitTestSuiteReport> requireSuiteReport(String runId) async {
+    _validateRequestIdentity(workspaceId, runId);
+    final projection = _decodeProjection(
+      await _store.read(),
+      expectedWorkspaceId: workspaceId,
+      maximumRuns: maximumRuns,
+      maximumEventOwners: maximumEventOwners,
+      maximumArtifacts: maximumArtifacts,
+    );
+    final run = projection.runs[runId];
+    if (run == null) {
+      throw const FormatException('Run is not projected.');
+    }
+    final resource = run.artifacts.values
+        .where((artifact) => artifact.kind == 'report.json')
+        .singleOrNull;
+    if (resource == null) {
+      throw const FormatException('Suite report is not available.');
+    }
+    final verified = await _verifyArtifact(
+      resource,
+      expectedRunId: runId,
+      owner: (projectId: run.projectId, caseId: null),
+    );
+    final file = File(p.join(stateRoot, 'runs', runId, verified.relativePath));
+    if (await file.length() > _maximumCanonicalReportBytes) {
+      throw const FormatException('Suite report is too large.');
+    }
+    return CockpitTestSuiteReport.fromJson(
+      jsonDecode(await file.readAsString()),
     );
   }
 
@@ -510,15 +551,12 @@ final class CockpitSupervisorRunProjection
     )) {
       throw const FormatException('Run rebuild crosses projection authority.');
     }
-    await _admissionValidator?.call(
+    await _validateAdmission(
       runId: runId,
       projectId: events.first.projectId,
-      caseId: events.first.caseId,
+      caseIds: events.map((event) => event.caseId),
     );
-    final owner = (
-      projectId: events.first.projectId,
-      caseId: events.first.caseId,
-    );
+    final owner = (projectId: events.first.projectId);
     final replacementEventOwners = <String, String>{};
     final replacementEventIndex = <int, _ProjectedEventIndexRecord>{};
     for (final event in events) {
@@ -576,6 +614,9 @@ final class CockpitSupervisorRunProjection
         }
       }
       final run = _ProjectedRun.fromFirst(events.first);
+      run.caseIds.addAll(
+        events.map((event) => event.caseId).whereType<String>(),
+      );
       run.highestSequence = events.last.sequence;
       run.events.addAll(retainedEvents);
       run.eventIndex.addAll(replacementEventIndex);
@@ -619,6 +660,23 @@ final class CockpitSupervisorRunProjection
           ..sort((left, right) => left.runId.compareTo(right.runId));
     for (final intent in pending) {
       await _completeRetentionRelease(intent, deadline: deadline);
+    }
+  }
+
+  Future<void> _validateAdmission({
+    required String runId,
+    required String projectId,
+    required Iterable<String?> caseIds,
+  }) async {
+    final validator = _admissionValidator;
+    if (validator == null) return;
+    final authoredCaseIds = caseIds.whereType<String>().toSet();
+    if (authoredCaseIds.isEmpty) {
+      await validator(runId: runId, projectId: projectId, caseId: null);
+      return;
+    }
+    for (final caseId in authoredCaseIds) {
+      await validator(runId: runId, projectId: projectId, caseId: caseId);
     }
   }
 
@@ -704,15 +762,14 @@ final class CockpitSupervisorRunProjection
   Future<CockpitArtifactResource> _verifyArtifact(
     CockpitArtifactResource artifact, {
     required String expectedRunId,
-    required _ProjectedRunOwner owner,
+    required _ArtifactOwner owner,
   }) async {
     if (artifact.workspaceId != workspaceId ||
         artifact.runId != expectedRunId) {
       throw const FormatException('Artifact crosses projected run authority.');
     }
-    if (artifact.attemptId == null ||
-        artifact.downloadUrl !=
-            '/api/v2/runs/${artifact.runId}/artifacts/${artifact.artifactId}') {
+    if (artifact.downloadUrl !=
+        '/api/v2/runs/${artifact.runId}/artifacts/${artifact.artifactId}') {
       throw const FormatException('Artifact ownership metadata is incomplete.');
     }
     final relative = artifact.relativePath.replaceAll('\\', '/');
@@ -775,35 +832,24 @@ final class CockpitSupervisorRunProjection
         'Artifact byte integrity verification failed.',
       );
     }
-    final manifest = await const CockpitTestAttemptBundleReader().readAndVerify(
-      path: bundleRoot,
-    );
-    if (manifest.context.projectId != owner.projectId ||
-        manifest.context.workspaceId != workspaceId ||
-        manifest.context.runId != expectedRunId ||
-        manifest.context.caseId != owner.caseId ||
-        manifest.context.attemptId != artifact.attemptId) {
-      throw const FormatException('Artifact attempt ownership is invalid.');
-    }
     final relativeToBundle = p
         .relative(candidate, from: bundleRoot)
         .replaceAll('\\', '/');
-    final manifestEntry = manifest.artifacts
-        .where((entry) => entry.relativePath == relativeToBundle)
-        .firstOrNull;
-    final manifestFile = relativeToBundle == 'manifest.json';
-    final declared = manifestFile
-        ? artifact.kind == 'attempt.manifest' &&
-              artifact.mediaType == 'application/json' &&
-              artifact.stepExecutionId == null &&
-              artifact.createdAt == manifest.createdAt
-        : manifestEntry != null &&
-              manifestEntry.sizeBytes == size &&
-              manifestEntry.sha256 == digest &&
-              manifestEntry.mediaType == artifact.mediaType &&
-              manifestEntry.stepExecutionId == artifact.stepExecutionId &&
-              artifact.kind == _artifactKind(manifestEntry.kind) &&
-              artifact.createdAt == manifest.createdAt;
+    final declared = artifact.attemptId == null
+        ? await _verifyReportArtifact(
+            artifact,
+            owner: owner,
+            bundleRoot: bundleRoot,
+            relativeToBundle: relativeToBundle,
+          )
+        : await _verifyAttemptArtifact(
+            artifact,
+            owner: owner,
+            bundleRoot: bundleRoot,
+            relativeToBundle: relativeToBundle,
+            size: size,
+            digest: digest,
+          );
     if (!declared) {
       throw const FormatException('Artifact is not declared by its bundle.');
     }
@@ -820,6 +866,83 @@ final class CockpitSupervisorRunProjection
       );
     }
     return redacted;
+  }
+
+  Future<bool> _verifyAttemptArtifact(
+    CockpitArtifactResource artifact, {
+    required _ArtifactOwner owner,
+    required String bundleRoot,
+    required String relativeToBundle,
+    required int size,
+    required String digest,
+  }) async {
+    if (owner.caseId == null) return false;
+    final manifest = await const CockpitTestAttemptBundleReader().readAndVerify(
+      path: bundleRoot,
+    );
+    if (manifest.context.projectId != owner.projectId ||
+        manifest.context.workspaceId != workspaceId ||
+        manifest.context.runId != artifact.runId ||
+        manifest.context.caseId != owner.caseId ||
+        manifest.context.attemptId != artifact.attemptId) {
+      throw const FormatException('Artifact attempt ownership is invalid.');
+    }
+    if (relativeToBundle == 'manifest.json') {
+      return artifact.kind == 'attempt.manifest' &&
+          artifact.mediaType == 'application/json' &&
+          artifact.stepExecutionId == null &&
+          artifact.createdAt == manifest.createdAt;
+    }
+    final entry = manifest.artifacts
+        .where((item) => item.relativePath == relativeToBundle)
+        .firstOrNull;
+    return entry != null &&
+        entry.sizeBytes == size &&
+        entry.sha256 == digest &&
+        entry.mediaType == artifact.mediaType &&
+        entry.stepExecutionId == artifact.stepExecutionId &&
+        artifact.kind == _artifactKind(entry.kind) &&
+        artifact.createdAt == manifest.createdAt;
+  }
+
+  Future<bool> _verifyReportArtifact(
+    CockpitArtifactResource artifact, {
+    required _ArtifactOwner owner,
+    required String bundleRoot,
+    required String relativeToBundle,
+  }) async {
+    if (owner.caseId != null ||
+        artifact.stepExecutionId != null ||
+        p.posix.split(relativeToBundle).length != 1) {
+      return false;
+    }
+    final reportFile = File(p.join(bundleRoot, 'report.json'));
+    if (await FileSystemEntity.type(reportFile.path, followLinks: false) !=
+            FileSystemEntityType.file ||
+        await reportFile.length() > _maximumCanonicalReportBytes) {
+      throw const FormatException(
+        'Canonical suite report is unavailable or too large.',
+      );
+    }
+    final canonical = p.normalize(await reportFile.resolveSymbolicLinks());
+    if (!p.equals(canonical, reportFile.path) ||
+        !p.isWithin(bundleRoot, canonical)) {
+      throw const FormatException('Canonical suite report is not confined.');
+    }
+    final report = CockpitTestSuiteReport.fromJson(
+      jsonDecode(await reportFile.readAsString()),
+    );
+    if (report.projectId != owner.projectId ||
+        report.workspaceId != workspaceId ||
+        report.runId != artifact.runId) {
+      throw const FormatException('Report artifact ownership is invalid.');
+    }
+    final format = _reportFormatForName(relativeToBundle);
+    return format != null &&
+        report.reportPolicy.formats.contains(format) &&
+        artifact.kind == _reportArtifactKind(format) &&
+        artifact.mediaType == _reportMediaType(format) &&
+        artifact.createdAt == report.finishedAt.toUtc();
   }
 
   Future<void> _validateCanonicalArtifactDirectory(
@@ -915,7 +1038,7 @@ final class _ProjectionState {
   final Map<String, String> artifactOwners;
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'schemaVersion': 'cockpit.supervisor.run-projection/v2',
+    'schemaVersion': 'cockpit.supervisor.run-projection/v3',
     'workspaceId': workspaceId,
     'runs': <String, Object?>{
       for (final entry in runs.entries) entry.key: entry.value.toJson(),
@@ -928,17 +1051,17 @@ final class _ProjectionState {
 final class _ProjectedRun {
   _ProjectedRun({
     required this.projectId,
-    required this.caseId,
+    required Iterable<String> caseIds,
     required this.phase,
     required this.highestSequence,
     required this.events,
     required this.eventIndex,
     required this.artifacts,
-  });
+  }) : caseIds = caseIds.toSet();
 
   factory _ProjectedRun.fromFirst(CockpitRunEvent event) => _ProjectedRun(
     projectId: event.projectId,
-    caseId: event.caseId,
+    caseIds: <String>[?event.caseId],
     phase: _ProjectedRunPhase.active,
     highestSequence: 0,
     events: <CockpitRunEvent>[],
@@ -948,10 +1071,10 @@ final class _ProjectedRun {
 
   factory _ProjectedRun.empty({
     required String projectId,
-    required String caseId,
+    required String? caseId,
   }) => _ProjectedRun(
     projectId: projectId,
-    caseId: caseId,
+    caseIds: <String>[?caseId],
     phase: _ProjectedRunPhase.active,
     highestSequence: 0,
     events: <CockpitRunEvent>[],
@@ -960,7 +1083,7 @@ final class _ProjectedRun {
   );
 
   final String projectId;
-  final String caseId;
+  final Set<String> caseIds;
   _ProjectedRunPhase phase;
   int highestSequence;
   final List<CockpitRunEvent> events;
@@ -969,7 +1092,7 @@ final class _ProjectedRun {
 
   Map<String, Object?> toJson() => <String, Object?>{
     'projectId': projectId,
-    'caseId': caseId,
+    'caseIds': caseIds.toList(growable: false)..sort(),
     'phase': phase.name,
     'highestSequence': highestSequence,
     'events': events.map((event) => event.toJson()).toList(),
@@ -1007,10 +1130,11 @@ final class _RetentionReleaseIntent {
   final _ProjectedRunOwner owner;
 }
 
-typedef _ProjectedRunOwner = ({String projectId, String caseId});
+typedef _ProjectedRunOwner = ({String projectId});
+typedef _ArtifactOwner = ({String projectId, String? caseId});
 
 _ProjectedRunOwner _projectedRunOwner(_ProjectedRun run) =>
-    (projectId: run.projectId, caseId: run.caseId);
+    (projectId: run.projectId);
 
 bool _validRetainedBundleName(String value) =>
     RegExp(r'^bundle_[A-Za-z0-9_-]{32}$').hasMatch(value);
@@ -1048,7 +1172,7 @@ _ProjectionState _decodeProjection(
       'artifactOwners',
     },
   );
-  if (json['schemaVersion'] != 'cockpit.supervisor.run-projection/v2' ||
+  if (json['schemaVersion'] != 'cockpit.supervisor.run-projection/v3' ||
       json['workspaceId'] != expectedWorkspaceId) {
     throw const FormatException('Supervisor projection identity is invalid.');
   }
@@ -1068,7 +1192,7 @@ _ProjectionState _decodeProjection(
       value,
       const <String>{
         'projectId',
-        'caseId',
+        'caseIds',
         'phase',
         'highestSequence',
         'events',
@@ -1078,7 +1202,7 @@ _ProjectionState _decodeProjection(
       '\$.runs.$runId',
       required: const <String>{
         'projectId',
-        'caseId',
+        'caseIds',
         'phase',
         'highestSequence',
         'events',
@@ -1087,7 +1211,11 @@ _ProjectionState _decodeProjection(
       },
     );
     final projectId = workerId(value['projectId'], '\$.runs.$runId.projectId');
-    final caseId = workerId(value['caseId'], '\$.runs.$runId.caseId');
+    final caseIds = workerList(
+      value['caseIds'],
+      '\$.runs.$runId.caseIds',
+      maximum: 10000,
+    ).map((value) => workerId(value, '\$.runs.$runId.caseIds[]')).toSet();
     final phase = switch (workerString(
       value['phase'],
       '\$.runs.$runId.phase',
@@ -1196,7 +1324,7 @@ _ProjectionState _decodeProjection(
     for (final event in events) {
       final indexed = eventIndex[event.sequence];
       if (event.projectId != projectId ||
-          event.caseId != caseId ||
+          event.caseId != null && !caseIds.contains(event.caseId) ||
           indexed?.eventId != event.eventId ||
           indexed?.sha256 != _eventDigest(event)) {
         throw const FormatException(
@@ -1227,7 +1355,7 @@ _ProjectionState _decodeProjection(
     }
     runs[runId] = _ProjectedRun(
       projectId: projectId,
-      caseId: caseId,
+      caseIds: caseIds,
       phase: phase,
       highestSequence: highest,
       events: events,
@@ -1275,9 +1403,10 @@ Map<String, String> _stringMap(Object? value, String path) {
 }
 
 void _validateProjectedEvent(CockpitRunEvent event, _ProjectedRun run) {
-  if (event.projectId != run.projectId || event.caseId != run.caseId) {
+  if (event.projectId != run.projectId) {
     throw const FormatException('Published event changes run ownership.');
   }
+  if (event.caseId case final caseId?) run.caseIds.add(caseId);
 }
 
 bool _sameJson(Map<String, Object?> left, Map<String, Object?> right) =>
@@ -1311,3 +1440,25 @@ String _artifactKind(String value) {
   return 'attempt.'
       '${normalized.substring(0, 1).toLowerCase()}${normalized.substring(1)}';
 }
+
+CockpitTestReportFormat? _reportFormatForName(String name) => switch (name) {
+  'report.json' => CockpitTestReportFormat.json,
+  'junit.xml' => CockpitTestReportFormat.junit,
+  'report.html' => CockpitTestReportFormat.html,
+  'ai-summary.md' => CockpitTestReportFormat.aiSummary,
+  _ => null,
+};
+
+String _reportArtifactKind(CockpitTestReportFormat format) => switch (format) {
+  CockpitTestReportFormat.json => 'report.json',
+  CockpitTestReportFormat.junit => 'report.junit',
+  CockpitTestReportFormat.html => 'report.html',
+  CockpitTestReportFormat.aiSummary => 'report.aiSummary',
+};
+
+String _reportMediaType(CockpitTestReportFormat format) => switch (format) {
+  CockpitTestReportFormat.json => 'application/json',
+  CockpitTestReportFormat.junit => 'application/xml',
+  CockpitTestReportFormat.html => 'text/html',
+  CockpitTestReportFormat.aiSummary => 'text/markdown',
+};

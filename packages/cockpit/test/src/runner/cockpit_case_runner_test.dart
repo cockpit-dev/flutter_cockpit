@@ -25,7 +25,7 @@ void main() {
       final adapter = RecordingAutomationAdapter();
       final resolver = RecordingSecretResolver('plain-secret-value');
       final safety = RecordingSafetyPolicy();
-      final compiled = compiler.compile(_secretCase()).requireCompiled();
+      final compiled = compiler.compile(_secretCase()).requireCase();
       final result = await _runner(adapter, resolver, safety).run(
         compiled: compiled,
         context: _context('secretCase'),
@@ -70,7 +70,7 @@ void main() {
       final resolver = RecordingSecretResolver('plain-secret-value');
       final safety = RecordingSafetyPolicy(denyDispatch: true);
       final result = await _runner(adapter, resolver, safety).run(
-        compiled: compiler.compile(_secretCase()).requireCompiled(),
+        compiled: compiler.compile(_secretCase()).requireCase(),
         context: _context('secretCase'),
         targetId: 'emulatorOne',
         targetEnvironment: CockpitTestTargetEnvironment.test,
@@ -97,7 +97,7 @@ void main() {
         ).run(
           compiled: compiler
               .compile(_simpleCase(targetKind: 'app'))
-              .requireCompiled(),
+              .requireCase(),
           context: _context('simpleCase'),
           targetId: 'emulatorOne',
           targetEnvironment: CockpitTestTargetEnvironment.test,
@@ -132,7 +132,7 @@ void main() {
         ).run(
           compiled: compiler
               .compile(_simpleCase(targetKind: 'app'))
-              .requireCompiled(),
+              .requireCase(),
           context: _context('simpleCase'),
           targetId: 'emulatorOne',
           targetEnvironment: CockpitTestTargetEnvironment.test,
@@ -156,7 +156,7 @@ void main() {
           RecordingSecretResolver('unused'),
           RecordingSafetyPolicy(),
         ).run(
-          compiled: compiler.compile(_retryCase()).requireCompiled(),
+          compiled: compiler.compile(_retryCase()).requireCase(),
           context: _context('retryCase'),
           targetId: 'emulatorOne',
           targetEnvironment: CockpitTestTargetEnvironment.test,
@@ -222,7 +222,7 @@ void main() {
           safetyPolicy: RecordingSafetyPolicy(),
           clock: clock,
         ).run(
-          compiled: compiler.compile(_timedCase()).requireCompiled(),
+          compiled: compiler.compile(_timedCase()).requireCase(),
           context: _context('timedCase'),
           targetId: 'emulatorOne',
           targetEnvironment: CockpitTestTargetEnvironment.test,

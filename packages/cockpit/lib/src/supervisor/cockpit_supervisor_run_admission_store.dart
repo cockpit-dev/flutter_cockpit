@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:path/path.dart' as p;
 
 import '../foundation/cockpit_home.dart';
@@ -15,7 +16,8 @@ final class CockpitSupervisorRunAdmission {
     required this.runId,
     required this.requestId,
     required this.projectId,
-    required this.caseId,
+    required this.documentKind,
+    required this.documentId,
     required this.sourceSha256,
     required this.submittedAt,
   }) {
@@ -24,7 +26,7 @@ final class CockpitSupervisorRunAdmission {
       'runId': runId,
       'requestId': requestId,
       'projectId': projectId,
-      'caseId': caseId,
+      'documentId': documentId,
     }.entries) {
       if (!_id.hasMatch(entry.value)) {
         throw FormatException('${entry.key} is invalid.');
@@ -47,7 +49,8 @@ final class CockpitSupervisorRunAdmission {
   final String runId;
   final String requestId;
   final String projectId;
-  final String caseId;
+  final CockpitRunDocumentKind documentKind;
+  final String documentId;
   final String sourceSha256;
   final DateTime submittedAt;
 
@@ -58,7 +61,10 @@ final class CockpitSupervisorRunAdmission {
     'runId': runId,
     'requestId': requestId,
     'projectId': projectId,
-    'caseId': caseId,
+    'documentKind': documentKind == CockpitRunDocumentKind.testCase
+        ? 'case'
+        : documentKind.name,
+    'documentId': documentId,
     'sourceSha256': sourceSha256,
     'submittedAt': submittedAt.toIso8601String(),
   };
@@ -74,7 +80,8 @@ final class CockpitSupervisorRunAdmission {
       'runId',
       'requestId',
       'projectId',
-      'caseId',
+      'documentKind',
+      'documentId',
       'sourceSha256',
       'submittedAt',
     };
@@ -99,7 +106,8 @@ final class CockpitSupervisorRunAdmission {
       runId: string('runId'),
       requestId: string('requestId'),
       projectId: string('projectId'),
-      caseId: string('caseId'),
+      documentKind: _documentKind(value['documentKind']),
+      documentId: string('documentId'),
       sourceSha256: string('sourceSha256'),
       submittedAt: submittedAt,
     );
@@ -147,7 +155,8 @@ final class CockpitSupervisorRunAdmissionStore {
     required String idempotencyKey,
     required String fingerprint,
     required String projectId,
-    required String caseId,
+    required CockpitRunDocumentKind documentKind,
+    required String documentId,
     required String sourceSha256,
     required DateTime submittedAt,
   }) => _store.transact((state) {
@@ -179,7 +188,8 @@ final class CockpitSupervisorRunAdmissionStore {
       runId: 'run_$requestId',
       requestId: requestId,
       projectId: projectId,
-      caseId: caseId,
+      documentKind: documentKind,
+      documentId: documentId,
       sourceSha256: sourceSha256,
       submittedAt: submittedAt,
     );
@@ -205,7 +215,7 @@ final class CockpitSupervisorRunAdmissionStore {
     required String workspaceId,
     required String runId,
     required String projectId,
-    required String caseId,
+    required String? caseId,
   }) async {
     final admission = await findRun(runId);
     if (admission == null) {
@@ -213,12 +223,20 @@ final class CockpitSupervisorRunAdmissionStore {
     }
     if (admission.workspaceId != workspaceId ||
         admission.projectId != projectId ||
-        admission.caseId != caseId) {
+        (admission.documentKind == CockpitRunDocumentKind.testCase &&
+            caseId != null &&
+            admission.documentId != caseId)) {
       throw const FormatException(
         'Projected run ownership conflicts with durable admission.',
       );
     }
   }
+}
+
+CockpitRunDocumentKind _documentKind(Object? value) {
+  if (value == 'case') return CockpitRunDocumentKind.testCase;
+  if (value == 'suite') return CockpitRunDocumentKind.suite;
+  throw const FormatException('Run admission document kind is invalid.');
 }
 
 final class _AdmissionState {

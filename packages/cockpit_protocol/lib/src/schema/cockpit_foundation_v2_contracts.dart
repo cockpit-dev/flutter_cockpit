@@ -5,7 +5,7 @@ const String cockpitFoundationV2SchemaJson = r'''
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/cockpit-dev/flutter_cockpit/packages/cockpit_protocol/schema/cockpit.foundation.v2.schema.json",
   "title": "Cockpit 2.0 foundation API contracts",
-  "description": "Strict platform-neutral contracts for Cockpit Supervisor clients, resources, operations, standalone runs, events, artifacts, and leases.",
+  "description": "Strict platform-neutral contracts for Cockpit Supervisor clients, resources, operations, case and suite runs, events, artifacts, reports, and leases.",
   "oneOf": [
     {
       "$ref": "#/$defs/ServerInfo"
@@ -2369,6 +2369,24 @@ const String cockpitFoundationV2SchemaJson = r'''
         "modifiedAt": {
           "$ref": "#/$defs/UtcTimestamp"
         },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "source",
+            "case",
+            "suite",
+            "project"
+          ],
+          "minLength": 1
+        },
+        "authoredId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
         "cases": {
           "type": "array",
           "items": {
@@ -2383,6 +2401,7 @@ const String cockpitFoundationV2SchemaJson = r'''
         "relativePath",
         "sha256",
         "modifiedAt",
+        "kind",
         "cases"
       ],
       "additionalProperties": false
@@ -2403,6 +2422,26 @@ const String cockpitFoundationV2SchemaJson = r'''
       "required": [
         "documentId",
         "caseId",
+        "documentSha256"
+      ],
+      "additionalProperties": false
+    },
+    "IndexedSuiteReference": {
+      "type": "object",
+      "properties": {
+        "documentId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "suiteId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "documentSha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      },
+      "required": [
+        "documentId",
+        "suiteId",
         "documentSha256"
       ],
       "additionalProperties": false
@@ -2442,8 +2481,8 @@ const String cockpitFoundationV2SchemaJson = r'''
         "sourceSha256": {
           "$ref": "#/$defs/Sha256"
         },
-        "case": {
-          "$ref": "cockpit.test.v2.schema.json#/$defs/case"
+        "document": {
+          "$ref": "cockpit.test.v2.schema.json"
         },
         "diagnostics": {
           "type": "array",
@@ -2476,13 +2515,13 @@ const String cockpitFoundationV2SchemaJson = r'''
           },
           "then": {
             "required": [
-              "case"
+              "document"
             ]
           },
           "else": {
             "not": {
               "required": [
-                "case"
+                "document"
               ]
             },
             "properties": {
@@ -3060,6 +3099,66 @@ const String cockpitFoundationV2SchemaJson = r'''
         }
       ]
     },
+    "InlineSuiteSource": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "inline",
+          "minLength": 1
+        },
+        "suite": {
+          "$ref": "cockpit.test.v2.schema.json#/$defs/suite"
+        },
+        "sourceSha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      },
+      "required": [
+        "kind",
+        "suite",
+        "sourceSha256"
+      ],
+      "additionalProperties": false
+    },
+    "IndexedSuiteSource": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "indexed",
+          "minLength": 1
+        },
+        "reference": {
+          "$ref": "#/$defs/IndexedSuiteReference"
+        }
+      },
+      "required": [
+        "kind",
+        "reference"
+      ],
+      "additionalProperties": false
+    },
+    "SuiteSubmissionSource": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/InlineSuiteSource"
+        },
+        {
+          "$ref": "#/$defs/IndexedSuiteSource"
+        }
+      ]
+    },
+    "RunSubmissionSource": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CaseSubmissionSource"
+        },
+        {
+          "$ref": "#/$defs/SuiteSubmissionSource"
+        }
+      ]
+    },
     "RunSubmission": {
       "type": "object",
       "properties": {
@@ -3067,7 +3166,7 @@ const String cockpitFoundationV2SchemaJson = r'''
           "$ref": "#/$defs/Identifier"
         },
         "source": {
-          "$ref": "#/$defs/CaseSubmissionSource"
+          "$ref": "#/$defs/RunSubmissionSource"
         },
         "idempotencyKey": {
           "$ref": "#/$defs/IdempotencyKey"
@@ -3176,7 +3275,15 @@ const String cockpitFoundationV2SchemaJson = r'''
         "runId": {
           "$ref": "#/$defs/Identifier"
         },
-        "caseId": {
+        "documentKind": {
+          "type": "string",
+          "enum": [
+            "case",
+            "suite"
+          ],
+          "minLength": 1
+        },
+        "documentId": {
           "$ref": "#/$defs/Identifier"
         },
         "sourceSha256": {
@@ -3187,6 +3294,7 @@ const String cockpitFoundationV2SchemaJson = r'''
           "enum": [
             "queued",
             "running",
+            "finalizing",
             "completed"
           ],
           "minLength": 1
@@ -3197,8 +3305,10 @@ const String cockpitFoundationV2SchemaJson = r'''
             "passed",
             "failed",
             "blocked",
+            "skipped",
             "cancelled",
-            "interrupted"
+            "interrupted",
+            "internalError"
           ],
           "minLength": 1
         },
@@ -3220,15 +3330,19 @@ const String cockpitFoundationV2SchemaJson = r'''
         "finishedAt": {
           "$ref": "#/$defs/UtcTimestamp"
         },
-        "attemptIds": {
+        "caseIds": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/Identifier"
           },
           "uniqueItems": true
         },
-        "activeAttemptId": {
-          "$ref": "#/$defs/Identifier"
+        "activeAttemptIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
         },
         "failure": {
           "$ref": "#/$defs/Failure"
@@ -3238,11 +3352,13 @@ const String cockpitFoundationV2SchemaJson = r'''
         "projectId",
         "workspaceId",
         "runId",
-        "caseId",
+        "documentKind",
+        "documentId",
         "sourceSha256",
         "lifecycle",
         "submittedAt",
-        "attemptIds"
+        "caseIds",
+        "activeAttemptIds"
       ],
       "additionalProperties": false,
       "allOf": [
@@ -3364,7 +3480,7 @@ const String cockpitFoundationV2SchemaJson = r'''
           },
           "then": {
             "properties": {
-              "attemptIds": {
+              "caseIds": {
                 "minItems": 1
               }
             }
@@ -3380,9 +3496,11 @@ const String cockpitFoundationV2SchemaJson = r'''
           },
           "then": {
             "not": {
-              "required": [
-                "activeAttemptId"
-              ]
+              "properties": {
+                "activeAttemptIds": {
+                  "maxItems": 0
+                }
+              }
             }
           }
         }
@@ -3413,8 +3531,10 @@ const String cockpitFoundationV2SchemaJson = r'''
             "passed",
             "failed",
             "blocked",
+            "skipped",
             "cancelled",
-            "interrupted"
+            "interrupted",
+            "internalError"
           ],
           "minLength": 1
         },
@@ -3464,9 +3584,11 @@ const String cockpitFoundationV2SchemaJson = r'''
           "type": "string",
           "enum": [
             "run",
+            "suite",
             "case",
             "attempt",
             "step",
+            "report",
             "artifact"
           ],
           "minLength": 1
@@ -3507,6 +3629,7 @@ const String cockpitFoundationV2SchemaJson = r'''
           "enum": [
             "queued",
             "running",
+            "finalizing",
             "completed"
           ],
           "minLength": 1
@@ -3517,8 +3640,10 @@ const String cockpitFoundationV2SchemaJson = r'''
             "passed",
             "failed",
             "blocked",
+            "skipped",
             "cancelled",
-            "interrupted"
+            "interrupted",
+            "internalError"
           ],
           "minLength": 1
         },
@@ -3587,8 +3712,7 @@ const String cockpitFoundationV2SchemaJson = r'''
         "entityKind",
         "projectId",
         "workspaceId",
-        "runId",
-        "caseId"
+        "runId"
       ],
       "additionalProperties": false,
       "allOf": [
@@ -4005,6 +4129,7 @@ const String cockpitFoundationV2SchemaJson = r'''
         "resourceKind": {
           "type": "string",
           "enum": [
+            "run",
             "device",
             "session",
             "browserContext",
@@ -4062,6 +4187,7 @@ const String cockpitFoundationV2SchemaJson = r'''
         "resourceKind": {
           "type": "string",
           "enum": [
+            "run",
             "device",
             "session",
             "browserContext",
@@ -4315,7 +4441,7 @@ const String cockpitV2OpenApiJson = r'''
   "info": {
     "title": "Cockpit Supervisor API",
     "version": "2.0.0",
-    "description": "Authenticated loopback API for Cockpit 2.0 discovery, workspaces, typed operations, standalone cases, durable events, and immutable artifacts."
+    "description": "Authenticated loopback API for Cockpit 2.0 discovery, workspaces, typed operations, case and suite runs, durable events, immutable artifacts, and aggregate reports."
   },
   "servers": [
     {
@@ -5079,7 +5205,7 @@ const String cockpitV2OpenApiJson = r'''
       ],
       "get": {
         "operationId": "listDocuments",
-        "summary": "List indexed standalone case documents",
+        "summary": "List indexed case, suite, and project documents",
         "parameters": [
           {
             "$ref": "#/components/parameters/ApiVersion"
@@ -5155,7 +5281,7 @@ const String cockpitV2OpenApiJson = r'''
       ],
       "post": {
         "operationId": "validateDocument",
-        "summary": "Compile and validate an inline standalone case document",
+        "summary": "Compile and validate an inline test document",
         "parameters": [
           {
             "$ref": "#/components/parameters/ApiVersion"
@@ -5463,9 +5589,8 @@ const String cockpitV2OpenApiJson = r'''
         }
       ],
       "post": {
-        "operationId": "submitStandaloneRun",
-        "summary": "Submit one inline or indexed standalone case",
-        "description": "Only one case is accepted. Suite, matrix, and multi-case fields are invalid.",
+        "operationId": "submitRun",
+        "summary": "Submit one inline or indexed case or suite",
         "parameters": [
           {
             "$ref": "#/components/parameters/ApiVersion"
@@ -5486,7 +5611,7 @@ const String cockpitV2OpenApiJson = r'''
         },
         "responses": {
           "202": {
-            "description": "Accepted standalone run.",
+            "description": "Accepted run.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5545,7 +5670,7 @@ const String cockpitV2OpenApiJson = r'''
       ],
       "get": {
         "operationId": "getRun",
-        "summary": "Read a standalone run projection",
+        "summary": "Read a run projection",
         "parameters": [
           {
             "$ref": "#/components/parameters/ApiVersion"
@@ -5770,6 +5895,76 @@ const String cockpitV2OpenApiJson = r'''
         }
       }
     },
+    "/api/v2/runs/{runId}/report": {
+      "parameters": [
+        {
+          "name": "runId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,127}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getSuiteReport",
+        "summary": "Read the finalized canonical suite report",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/RequiredFeatures"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Finalized cockpit.report/v2 aggregate report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../schema/cockpit.test.v2.schema.json#/$defs/suiteReport"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMedia"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/ResourceBusy"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
     "/api/v2/runs/{runId}/cases": {
       "parameters": [
         {
@@ -5784,7 +5979,7 @@ const String cockpitV2OpenApiJson = r'''
       ],
       "get": {
         "operationId": "listRunCases",
-        "summary": "Read the single-case run collection",
+        "summary": "Read cases executed by a case or suite run",
         "parameters": [
           {
             "$ref": "#/components/parameters/ApiVersion"
@@ -5801,7 +5996,7 @@ const String cockpitV2OpenApiJson = r'''
         ],
         "responses": {
           "200": {
-            "description": "Single-case collection.",
+            "description": "Run case collection.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6398,9 +6593,6 @@ const String cockpitV2OpenApiJson = r'''
   "x-cockpit-json-maximum-nodes": 1048576,
   "x-cockpit-cors": "deny",
   "x-cockpit-deferred-capabilities": [
-    "suite",
-    "matrix",
-    "aggregateReport",
     "nativeBlackBoxDriver",
     "aiExploration"
   ],

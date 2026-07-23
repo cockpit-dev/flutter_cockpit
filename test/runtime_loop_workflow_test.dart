@@ -35,7 +35,7 @@ void main() {
   test('runtime loop workflow uses full verifier coverage on every platform', () {
     final workflow = workflowFile.readAsStringSync();
 
-    expect(workflow, contains('macos-mcp-surface:'));
+    expect(workflow, isNot(contains('macos-mcp-surface:')));
     expect(workflow, contains('Run publish readiness gates'));
     expect(
       workflow,
@@ -112,22 +112,7 @@ void main() {
       contains(r'--launch-timeout-seconds 600 2>&1 | tee "$LOG_PATH_POSIX"'),
     );
     expect(workflow, isNot(contains('--launch-timeout-seconds 300')));
-    expect(workflow, contains('dart run tool/verify_mcp_surface.dart'));
-    expect(
-      workflow,
-      contains('"read_system_capabilities" in mcp_cli["toolNames"]'),
-    );
-    expect(workflow, contains('"run_system_action" in mcp_cli["toolNames"]'));
-    expect(workflow, contains('"read_system_capabilities",'));
-    expect(workflow, contains('"run_system_action_read_system_state",'));
-    expect(
-      workflow,
-      contains(
-        'app["run_system_action_read_system_state"]["action"] == "readSystemState"',
-      ),
-    );
-    expect(workflow, contains('working-directory: packages/cockpit'));
-    expect(workflow, contains(r'STATUS=${PIPESTATUS[0]}'));
+    expect(workflow, isNot(contains('dart run tool/verify_mcp_surface.dart')));
     expect(workflow, contains('xvfb-run -a dart run'));
     expect(workflow, contains('reactivecircus/android-emulator-runner@v2'));
     expect(workflow, contains('examples/cockpit_demo/cockpit/**'));

@@ -51,6 +51,47 @@ steps:
     action: {type: back}
 ''',
           );
+      await File(p.join(workspace.path, 'suite_case_one.yaml')).writeAsString(
+        '''
+schemaVersion: cockpit.test/v2
+kind: case
+id: suiteCaseOne
+target: {platform: flutter, targetKind: flutterApp, plane: semantic}
+steps:
+  - stepId: enterFirst
+    action: {type: enterText, text: first}
+''',
+      );
+      await File(p.join(workspace.path, 'suite_case_two.yaml')).writeAsString(
+        '''
+schemaVersion: cockpit.test/v2
+kind: case
+id: suiteCaseTwo
+target: {platform: flutter, targetKind: flutterApp, plane: semantic}
+steps:
+  - stepId: enterSecond
+    action: {type: enterText, text: second}
+''',
+      );
+      await File(p.join(workspace.path, 'regression_suite.yaml')).writeAsString(
+        '''
+schemaVersion: cockpit.test/v2
+kind: suite
+id: regressionSuite
+cases:
+  - id: firstEntry
+    source:
+      kind: file
+      relativePath: suite_case_one.yaml
+      caseId: suiteCaseOne
+  - id: secondEntry
+    dependsOn: [firstEntry]
+    source:
+      kind: file
+      relativePath: suite_case_two.yaml
+      caseId: suiteCaseTwo
+''',
+      );
       final packageLibrary = await Isolate.resolvePackageUri(
         Uri.parse('package:cockpit/cockpit.dart'),
       );
@@ -140,6 +181,7 @@ steps:
           'case.run',
           'case.validate',
           'document.index',
+          'suite.run',
         ]),
       );
       expect(capabilities.operationKinds, isNot(contains('target.list')));
@@ -158,7 +200,14 @@ steps:
         (document) => document['kind'] == 'source',
       );
       final caseDocument = documents.cast<Map<Object?, Object?>>().singleWhere(
-        (document) => document['kind'] == 'case',
+        (document) =>
+            document['kind'] == 'case' &&
+            document['authoredId'] == 'indexedCase',
+        orElse: () => throw StateError('Indexed case was not found.'),
+      );
+      final suiteDocument = documents.cast<Map<Object?, Object?>>().singleWhere(
+        (document) => document['kind'] == 'suite',
+        orElse: () => throw StateError('Indexed suite was not found.'),
       );
       final registered = await _callOperation(
         pool,
@@ -278,7 +327,7 @@ steps:
           source: CockpitIndexedCaseSource(
             reference: CockpitIndexedCaseReference(
               documentId: caseDocument['documentId']! as String,
-              caseId: caseDocument['caseId']! as String,
+              caseId: caseDocument['authoredId']! as String,
               documentSha256: caseDocument['sourceSha256']! as String,
             ),
           ),
@@ -288,6 +337,15 @@ steps:
       );
       expect(staleCase.outcome, CockpitOperationOutcome.failed);
       expect(authority.acquiredKinds, isEmpty);
+      await indexedCase.writeAsString('''
+schemaVersion: cockpit.test/v2
+kind: case
+id: indexedCase
+target: {platform: flutter, targetKind: flutterApp, plane: semantic}
+steps:
+  - stepId: goBack
+    action: {type: back}
+''');
 
       authority.resetObservations();
       await mainEntrypoint.rename('${mainEntrypoint.path}.replaced');
@@ -319,6 +377,8 @@ steps:
           FileSystemEntityType.link,
         );
       }
+      await File(mainEntrypoint.path).delete();
+      await File('${mainEntrypoint.path}.replaced').rename(mainEntrypoint.path);
 
       final printEnvironment = await _callOperation(
         pool,
@@ -466,7 +526,22 @@ steps:
         idempotencyKey: 'case-run-workerA',
         input: successfulSubmission.toJson(),
       );
-      expect(caseResult.outcome, CockpitOperationOutcome.succeeded);
+      final successfulCaseRecord = await _readCaseRecord(
+        state,
+        'case-run-workerA',
+      );
+      expect(
+        caseResult.outcome,
+        CockpitOperationOutcome.succeeded,
+        reason: <String, Object?>{
+          'operation': caseResult.toJson(),
+          'caseRecord': successfulCaseRecord,
+          'acquiredKinds': authority.acquiredKinds
+              .map((kind) => kind.name)
+              .toList(),
+          'releaseCount': authority.releaseCount,
+        }.toString(),
+      );
       expect(
         authority.acquiredKinds,
         unorderedEquals(<CockpitLeaseResourceKind>[
@@ -548,6 +623,172 @@ steps:
       expect(preparation.toString(), isNot(contains(environmentSecret)));
       await _expectTreeExcludes(state, environmentSecret);
 
+      authority.resetObservations();
+      final suiteCommandsBefore = remoteSession.commands.length;
+      final suiteSubmission = CockpitRunSubmission(
+        workspaceId: spec.key.workspaceId,
+        source: CockpitIndexedSuiteSource(
+          reference: CockpitIndexedSuiteReference(
+            documentId: suiteDocument['documentId']! as String,
+            suiteId: suiteDocument['authoredId']! as String,
+            documentSha256: suiteDocument['sourceSha256']! as String,
+          ),
+        ),
+        idempotencyKey: CockpitIdempotencyKey('suite-run-workerA'),
+      );
+      final suiteResult = await _callOperation(
+        pool,
+        spec,
+        kind: 'suite.run',
+        idempotencyKey: 'suite-run-workerA',
+        input: suiteSubmission.toJson(),
+      );
+      expect(
+        suiteResult.outcome,
+        CockpitOperationOutcome.succeeded,
+        reason: <String, Object?>{
+          'operation': suiteResult.toJson(),
+          'acquiredKinds': authority.acquiredKinds
+              .map((kind) => kind.name)
+              .toList(),
+          'releaseCount': authority.releaseCount,
+        }.toString(),
+      );
+      final suiteOutput = suiteResult.output!;
+      final suiteRunId = suiteOutput['runId']! as String;
+      final report = CockpitTestSuiteReport.fromJson(suiteOutput['report']);
+      expect(report.runId, suiteRunId);
+      expect(report.suiteId, 'regressionSuite');
+      expect(
+        report.outcome,
+        CockpitRunOutcome.passed,
+        reason: <String, Object?>{
+          'report': report.toJson(),
+          'commands': remoteSession.commands
+              .skip(suiteCommandsBefore)
+              .map((command) => command.toJson())
+              .toList(),
+          'acquiredKinds': authority.acquiredKinds
+              .map((kind) => kind.name)
+              .toList(),
+          'releaseCount': authority.releaseCount,
+        }.toString(),
+      );
+      expect(report.counts.total, 2);
+      expect(report.counts.passed, 2);
+      expect(
+        remoteSession.commands
+            .skip(suiteCommandsBefore)
+            .map((command) => command.parameters['text']),
+        <Object?>['first', 'second'],
+        reason: <String, Object?>{
+          'report': report.toJson(),
+          'acquiredKinds': authority.acquiredKinds
+              .map((kind) => kind.name)
+              .toList(),
+        }.toString(),
+      );
+      expect(
+        authority.acquiredKinds.where(
+          (kind) => kind == CockpitLeaseResourceKind.run,
+        ),
+        hasLength(1),
+      );
+      expect(
+        authority.acquiredKinds.where(
+          (kind) => kind == CockpitLeaseResourceKind.device,
+        ),
+        hasLength(2),
+      );
+      expect(authority.releaseCount, authority.acquiredKinds.length);
+
+      expect(report.cases.map((item) => item.caseId), <String>[
+        'suiteCaseOne',
+        'suiteCaseTwo',
+      ]);
+      final suiteEvents = await _readRunEvents(state, suiteRunId);
+      expect(
+        suiteEvents
+            .where((event) => event.kind == 'attempt.completed')
+            .map((event) => event.caseId),
+        <String>['suiteCaseOne', 'suiteCaseTwo'],
+      );
+      expect(
+        suiteEvents.where((event) => event.kind == 'run.completed'),
+        hasLength(1),
+      );
+      expect(suiteEvents.map((event) => event.runId).toSet(), <String>{
+        suiteRunId,
+      });
+
+      final reportArtifacts = (suiteOutput['reportArtifacts']! as List<Object?>)
+          .map(CockpitArtifactResource.fromJson)
+          .toList(growable: false);
+      expect(reportArtifacts.map((artifact) => artifact.kind).toSet(), <String>{
+        'report.json',
+        'report.junit',
+        'report.html',
+        'report.aiSummary',
+      });
+      expect(
+        reportArtifacts.every(
+          (artifact) =>
+              artifact.runId == suiteRunId && artifact.attemptId == null,
+        ),
+        isTrue,
+      );
+      final reportProjection = CockpitSupervisorRunProjection(
+        workspaceId: spec.key.workspaceId,
+        stateRoot: spec.stateRoot,
+        permissionHardener: permissionHardener,
+        directorySyncer: const _NoopDirectorySyncer(),
+        retentionIndex: const _RunRetentionIndex(),
+      );
+      final retainedReportFiles = await Future.wait(
+        reportArtifacts.map(
+          (artifact) => reportProjection.requireArtifactFile(
+            suiteRunId,
+            artifact.artifactId,
+          ),
+        ),
+      );
+      expect(
+        retainedReportFiles.map((resolved) => p.basename(resolved.file.path)),
+        unorderedEquals(const <String>[
+          'report.json',
+          'junit.xml',
+          'report.html',
+          'ai-summary.md',
+        ]),
+      );
+      expect(
+        retainedReportFiles.every(
+          (resolved) => p.isWithin(
+            p.join(spec.stateRoot, 'runs', suiteRunId, 'artifacts'),
+            resolved.file.path,
+          ),
+        ),
+        isTrue,
+      );
+
+      final suiteOperationId = suiteResult.operationId;
+      await pool.shutdownWorkspace(spec.key, grace: const Duration(seconds: 5));
+      authority.resetObservations();
+      final commandsBeforeSuiteReplay = remoteSession.commands.length;
+      final replayedSuite = await _callOperation(
+        pool,
+        spec,
+        kind: 'suite.run',
+        idempotencyKey: 'suite-run-workerA',
+        input: suiteSubmission.toJson(),
+      );
+      expect(replayedSuite.outcome, CockpitOperationOutcome.succeeded);
+      expect(replayedSuite.operationId, suiteOperationId);
+      expect(replayedSuite.output!['runId'], suiteRunId);
+      expect(remoteSession.commands, hasLength(commandsBeforeSuiteReplay));
+      expect(authority.acquiredKinds, isEmpty);
+      expect(authority.releaseCount, 0);
+
       remoteSession.artifactBytes = utf8.encode(environmentSecret);
       final rejectedCase = await _callOperation(
         pool,
@@ -611,6 +852,7 @@ steps:
       remoteSession.artifactBytes = <int>[1, 2, 3, 4];
 
       authority.resetObservations();
+      final commandsBeforeRunningCrash = remoteSession.commands.length;
       final runningBlock = remoteSession.blockNextCommand();
       final runningConnection = await pool.connectionFor(spec);
       final runningPid = runningConnection.processId;
@@ -685,7 +927,7 @@ steps:
         ),
         <String>['interrupted', 'completed'],
       );
-      expect(remoteSession.commands, hasLength(3));
+      expect(remoteSession.commands, hasLength(commandsBeforeRunningCrash + 2));
       expect(authority.acquiredKinds, hasLength(8));
       expect(authority.releaseCount, 4);
 

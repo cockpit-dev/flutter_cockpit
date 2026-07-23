@@ -299,6 +299,89 @@ final class CockpitOperationCommand extends Command<int> {
   String get description => 'Inspect and execute advertised operations.';
 }
 
+final class CockpitTargetCommand extends Command<int> {
+  CockpitTargetCommand(this.runtime) {
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'register',
+        description: 'Register a workspace-owned automation target.',
+        configure: (parser) => parser
+          ..addOption('workspace-id')
+          ..addOption('platform', mandatory: true)
+          ..addOption('device-id', mandatory: true)
+          ..addOption(
+            'target-kind',
+            allowed: CockpitTargetKind.values
+                .map((kind) => kind.name)
+                .toList(growable: false),
+            defaultsTo: CockpitTargetKind.nativeApp.name,
+          )
+          ..addOption(
+            'environment',
+            allowed: const <String>[
+              'development',
+              'staging',
+              'production',
+              'unknown',
+            ],
+            defaultsTo: 'unknown',
+          )
+          ..addOption(
+            'mode',
+            allowed: const <String>['development', 'automation'],
+            defaultsTo: 'automation',
+          )
+          ..addOption('entrypoint-document-id')
+          ..addOption('flavor')
+          ..addOption(
+            'wda-url',
+            help: 'WebDriverAgent endpoint assigned to this iOS target.',
+          )
+          ..addOption('idempotency-key', mandatory: true),
+        action: (arguments) async {
+          final workspaceId = await runtime.workspaceId(
+            arguments.option('workspace-id'),
+          );
+          final result = await (await runtime.client()).executeOperation(
+            CockpitOperationInvocation(
+              kind: 'target.register',
+              workspaceId: workspaceId,
+              idempotencyKey: CockpitIdempotencyKey(
+                arguments.option('idempotency-key')!,
+              ),
+              input: <String, Object?>{
+                'platform': arguments.option('platform'),
+                'deviceId': arguments.option('device-id'),
+                'targetKind': arguments.option('target-kind'),
+                'environment': arguments.option('environment'),
+                'mode': arguments.option('mode'),
+                if (arguments.option('entrypoint-document-id') != null)
+                  'entrypointDocumentId': arguments.option(
+                    'entrypoint-document-id',
+                  ),
+                if (arguments.option('flavor') != null)
+                  'flavor': arguments.option('flavor'),
+                if (arguments.option('wda-url') != null)
+                  'wdaUrl': arguments.option('wda-url'),
+              },
+            ),
+          );
+          runtime.success(result.toJson());
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+  }
+
+  final CockpitCliRuntime runtime;
+
+  @override
+  String get name => 'target';
+
+  @override
+  String get description => 'Register workspace automation targets.';
+}
+
 int _integer(ArgResults arguments, String name) {
   final value = int.tryParse(arguments.option(name)!);
   if (value == null) throw FormatException('--$name is invalid.');

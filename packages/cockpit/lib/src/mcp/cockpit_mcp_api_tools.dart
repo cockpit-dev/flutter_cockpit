@@ -124,12 +124,79 @@ List<CockpitMcpTool> cockpitMcpApiTools(
     },
   ),
   ..._executionTools(client),
+  ..._suiteTools(client),
   ..._runTools(client),
 ];
 
 List<CockpitMcpTool> _executionTools(
   CockpitMcpClientProvider client,
 ) => <CockpitMcpTool>[
+  _CockpitApiTool(
+    client: client,
+    name: 'target_register',
+    description: 'Register a workspace-owned native or host automation target.',
+    inputSchema: _schema(
+      properties: <String, Object?>{
+        'workspaceId': _string(),
+        'platform': _string(),
+        'deviceId': _string(),
+        'targetKind': _string(),
+        'environment': _string(),
+        'mode': _string(),
+        'entrypointDocumentId': _string(),
+        'flavor': _string(),
+        'wdaUrl': _string(),
+        'idempotencyKey': _string(),
+      },
+      required: const <String>[
+        'workspaceId',
+        'platform',
+        'deviceId',
+        'idempotencyKey',
+      ],
+    ),
+    action: (api, arguments) async {
+      _only(arguments, const <String>{
+        'workspaceId',
+        'platform',
+        'deviceId',
+        'targetKind',
+        'environment',
+        'mode',
+        'entrypointDocumentId',
+        'flavor',
+        'wdaUrl',
+        'idempotencyKey',
+      });
+      return (await api.executeOperation(
+        CockpitOperationInvocation(
+          kind: 'target.register',
+          workspaceId: _requiredString(arguments, 'workspaceId'),
+          idempotencyKey: CockpitIdempotencyKey(
+            _requiredString(arguments, 'idempotencyKey'),
+          ),
+          input: <String, Object?>{
+            'platform': _requiredString(arguments, 'platform'),
+            'deviceId': _requiredString(arguments, 'deviceId'),
+            'targetKind':
+                _optionalString(arguments, 'targetKind') ?? 'nativeApp',
+            'environment':
+                _optionalString(arguments, 'environment') ?? 'unknown',
+            'mode': _optionalString(arguments, 'mode') ?? 'automation',
+            if (_optionalString(arguments, 'entrypointDocumentId') != null)
+              'entrypointDocumentId': _requiredString(
+                arguments,
+                'entrypointDocumentId',
+              ),
+            if (_optionalString(arguments, 'flavor') != null)
+              'flavor': _requiredString(arguments, 'flavor'),
+            if (_optionalString(arguments, 'wdaUrl') != null)
+              'wdaUrl': _requiredString(arguments, 'wdaUrl'),
+          },
+        ),
+      )).toJson();
+    },
+  ),
   _CockpitApiTool(
     client: client,
     name: 'operation_execute',
@@ -381,6 +448,111 @@ List<CockpitMcpTool> _runTools(
         'sha256': artifact.sha256,
         'dataBase64': base64Encode(artifact.bytes),
       };
+    },
+  ),
+];
+
+List<CockpitMcpTool> _suiteTools(
+  CockpitMcpClientProvider client,
+) => <CockpitMcpTool>[
+  _CockpitApiTool(
+    client: client,
+    name: 'suite_validate',
+    description: 'Validate a bounded suite document in a workspace.',
+    inputSchema: _schema(
+      properties: <String, Object?>{
+        'workspaceId': _string(),
+        'format': <String, Object?>{
+          'type': 'string',
+          'enum': const <String>['json', 'yaml'],
+        },
+        'sourceText': _string(),
+        'relativePath': _string(),
+      },
+      required: const <String>['workspaceId', 'format', 'sourceText'],
+    ),
+    action: (api, arguments) async {
+      _only(arguments, const <String>{
+        'workspaceId',
+        'format',
+        'sourceText',
+        'relativePath',
+      });
+      return (await api.validateCaseDocument(
+        _requiredString(arguments, 'workspaceId'),
+        CockpitDocumentValidationRequest(
+          format: CockpitDocumentFormat.values.byName(
+            _requiredString(arguments, 'format'),
+          ),
+          sourceText: _requiredString(arguments, 'sourceText'),
+          relativePath: _optionalString(arguments, 'relativePath'),
+        ),
+      )).toJson();
+    },
+  ),
+  _CockpitApiTool(
+    client: client,
+    name: 'suite_run',
+    description: 'Run an explicitly identified canonical indexed suite.',
+    inputSchema: _schema(
+      properties: <String, Object?>{
+        'workspaceId': _string(),
+        'documentId': _string(),
+        'documentSha256': _sha256Schema(),
+        'suiteId': _string(),
+        'idempotencyKey': _string(),
+        'inputs': _object(),
+        'targetId': _string(),
+      },
+      required: const <String>[
+        'workspaceId',
+        'documentId',
+        'documentSha256',
+        'suiteId',
+        'idempotencyKey',
+      ],
+    ),
+    action: (api, arguments) async {
+      _only(arguments, const <String>{
+        'workspaceId',
+        'documentId',
+        'documentSha256',
+        'suiteId',
+        'idempotencyKey',
+        'inputs',
+        'targetId',
+      });
+      return (await api.submitRun(
+        CockpitRunSubmission(
+          workspaceId: _requiredString(arguments, 'workspaceId'),
+          source: CockpitIndexedSuiteSource(
+            reference: CockpitIndexedSuiteReference(
+              documentId: _requiredString(arguments, 'documentId'),
+              suiteId: _requiredString(arguments, 'suiteId'),
+              documentSha256: _requiredString(arguments, 'documentSha256'),
+            ),
+          ),
+          idempotencyKey: CockpitIdempotencyKey(
+            _requiredString(arguments, 'idempotencyKey'),
+          ),
+          inputs:
+              _optionalObject(arguments, 'inputs') ?? const <String, Object?>{},
+          targetId: _optionalString(arguments, 'targetId'),
+        ),
+      )).toJson();
+    },
+  ),
+  _CockpitApiTool(
+    client: client,
+    name: 'suite_report',
+    description: 'Read the finalized canonical suite report for a run.',
+    inputSchema: _schema(
+      properties: <String, Object?>{'runId': _string()},
+      required: const <String>['runId'],
+    ),
+    action: (api, arguments) async {
+      _only(arguments, const <String>{'runId'});
+      return (await api.report(_requiredString(arguments, 'runId'))).toJson();
     },
   ),
 ];

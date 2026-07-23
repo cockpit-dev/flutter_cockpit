@@ -76,6 +76,9 @@ enum CockpitIntentAction {
       CockpitCommandType.waitFor => CockpitIntentAction.waitFor,
       CockpitCommandType.assertVisible => CockpitIntentAction.assertVisible,
       CockpitCommandType.assertText => CockpitIntentAction.assertText,
+      CockpitCommandType.system => throw UnsupportedError(
+        'System test actions are executed by the system test backend.',
+      ),
     };
   }
 }

@@ -89,6 +89,54 @@ resume support. Gap, terminal, and disconnect states are explicit. Artifacts
 are read with expected size and SHA-256 values and are rejected when response
 metadata or bytes differ.
 
+## Suites And Black-Box Targets
+
+Suites reuse indexed cases and add dependency DAGs, scoped fixtures, matrix
+rows, concurrency, retries, fail-fast behavior, recovery, and aggregate
+JSON/JUnit/HTML/AI summary reports.
+
+```bash
+dart run cockpit suite validate --file example/suites/regression.yaml
+dart run cockpit suite run \
+  --workspace-id <workspaceId> \
+  --document-id <documentId> \
+  --suite-id regression \
+  --idempotency-key ci-regression-001
+dart run cockpit suite report --run-id <runId>
+```
+
+Register installed native applications and other system-controlled surfaces as
+workspace-owned targets. Each case supplies its platform app/package id in the
+target requirements. Android uses ADB accessibility and device controls. iOS
+uses WebDriverAgent for accessibility and interaction; assign a distinct WDA
+endpoint when multiple devices or workspaces run concurrently.
+
+```bash
+dart run cockpit target register \
+  --workspace-id <workspaceId> \
+  --platform android \
+  --device-id emulator-5554 \
+  --target-kind nativeApp \
+  --environment test \
+  --mode automation \
+  --idempotency-key android-target-001
+
+dart run cockpit target register \
+  --workspace-id <workspaceId> \
+  --platform ios \
+  --device-id <deviceUdid> \
+  --target-kind nativeApp \
+  --wda-url http://127.0.0.1:8101 \
+  --environment test \
+  --mode automation \
+  --idempotency-key ios-target-001
+```
+
+Case `setup`, main steps, `finally`, and suite fixtures can use `type: system`
+with an advertised system action name and parameters. This keeps install,
+activation, permissions, device state, and cleanup inside the same safety,
+timeout, event, and report pipeline as UI actions.
+
 ## Foreground CI
 
 CI uses the same HTTP API and worker boundary as interactive mode. Foreground

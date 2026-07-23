@@ -8,7 +8,7 @@ void main() {
   const compiler = CockpitTestDocumentCompiler();
 
   test('binding preserves types, interpolation, and explicit JSON null', () {
-    final compiled = compiler.compile(_bindingCase()).requireCompiled();
+    final compiled = compiler.compile(_bindingCase()).requireCase();
     final plan = CockpitTestVariableBinder().bind(
       compiled,
       inputs: const <String, Object?>{'username': 'operator'},
@@ -24,7 +24,7 @@ void main() {
   test('missing, unknown, and ill-typed runtime inputs fail binding', () {
     final compiled = compiler
         .compile(_bindingCase(requiredInput: true))
-        .requireCompiled();
+        .requireCase();
     final binder = CockpitTestVariableBinder();
 
     expect(
@@ -43,7 +43,7 @@ void main() {
   });
 
   test('secret plans contain only opaque dispatch tokens and references', () {
-    final compiled = compiler.compile(_secretCase()).requireCompiled();
+    final compiled = compiler.compile(_secretCase()).requireCase();
     final plan = CockpitTestVariableBinder().bind(compiled);
     final action =
         (plan.steps.single.operation as CockpitTestActionPlanOperation).action;

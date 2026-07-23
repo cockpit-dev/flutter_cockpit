@@ -46,8 +46,8 @@ final class CockpitRpcCancellation {
   CockpitRpcCancellation._();
 
   final Completer<void> _cancelled = Completer<void>();
-  Future<void> Function()? _forceAbort;
-  Future<void>? _forceAbortFuture;
+  final Set<_CockpitForceAbortRegistration> _forceAbortRegistrations =
+      <_CockpitForceAbortRegistration>{};
   var _forceAbortRequested = false;
   var _requiresCancellationReply = false;
 
@@ -57,19 +57,18 @@ final class CockpitRpcCancellation {
 
   void cancel() => _cancel();
 
-  void registerForceAbort(Future<void> Function() forceAbort) {
-    if (_forceAbort != null) {
-      throw StateError('A force-abort callback is already registered.');
-    }
-    _forceAbort = forceAbort;
-    if (_forceAbortRequested) unawaited(requestForceAbort());
+  void Function() registerForceAbort(Future<void> Function() forceAbort) {
+    final registration = _CockpitForceAbortRegistration(forceAbort);
+    _forceAbortRegistrations.add(registration);
+    if (_forceAbortRequested) unawaited(registration.invoke());
+    return () => _forceAbortRegistrations.remove(registration);
   }
 
   Future<void> requestForceAbort() {
     _forceAbortRequested = true;
-    final callback = _forceAbort;
-    if (callback == null) return Future<void>.value();
-    return _forceAbortFuture ??= Future<void>.sync(callback);
+    return Future.wait<void>(
+      _forceAbortRegistrations.map((registration) => registration.invoke()),
+    );
   }
 
   void throwIfCancelled() {
@@ -81,6 +80,15 @@ final class CockpitRpcCancellation {
         _requiresCancellationReply || requiresCancellationReply;
     if (!_cancelled.isCompleted) _cancelled.complete();
   }
+}
+
+final class _CockpitForceAbortRegistration {
+  _CockpitForceAbortRegistration(this._callback);
+
+  final Future<void> Function() _callback;
+  Future<void>? _invocation;
+
+  Future<void> invoke() => _invocation ??= Future<void>.sync(_callback);
 }
 
 final class CockpitRpcCancelledException implements Exception {

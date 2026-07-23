@@ -4,7 +4,7 @@
   "info": {
     "title": "Cockpit Supervisor API",
     "version": "2.0.0",
-    "description": "Authenticated loopback API for Cockpit 2.0 discovery, workspaces, typed operations, standalone cases, durable events, and immutable artifacts."
+    "description": "Authenticated loopback API for Cockpit 2.0 discovery, workspaces, typed operations, case and suite runs, durable events, immutable artifacts, and aggregate reports."
   },
   "servers": [
     {
@@ -768,7 +768,7 @@
       ],
       "get": {
         "operationId": "listDocuments",
-        "summary": "List indexed standalone case documents",
+        "summary": "List indexed case, suite, and project documents",
         "parameters": [
           {
             "$ref": "#/components/parameters/ApiVersion"
@@ -844,7 +844,7 @@
       ],
       "post": {
         "operationId": "validateDocument",
-        "summary": "Compile and validate an inline standalone case document",
+        "summary": "Compile and validate an inline test document",
         "parameters": [
           {
             "$ref": "#/components/parameters/ApiVersion"
@@ -1152,9 +1152,8 @@
         }
       ],
       "post": {
-        "operationId": "submitStandaloneRun",
-        "summary": "Submit one inline or indexed standalone case",
-        "description": "Only one case is accepted. Suite, matrix, and multi-case fields are invalid.",
+        "operationId": "submitRun",
+        "summary": "Submit one inline or indexed case or suite",
         "parameters": [
           {
             "$ref": "#/components/parameters/ApiVersion"
@@ -1175,7 +1174,7 @@
         },
         "responses": {
           "202": {
-            "description": "Accepted standalone run.",
+            "description": "Accepted run.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1234,7 +1233,7 @@
       ],
       "get": {
         "operationId": "getRun",
-        "summary": "Read a standalone run projection",
+        "summary": "Read a run projection",
         "parameters": [
           {
             "$ref": "#/components/parameters/ApiVersion"
@@ -1459,6 +1458,76 @@
         }
       }
     },
+    "/api/v2/runs/{runId}/report": {
+      "parameters": [
+        {
+          "name": "runId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,127}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getSuiteReport",
+        "summary": "Read the finalized canonical suite report",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/RequiredFeatures"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Finalized cockpit.report/v2 aggregate report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../schema/cockpit.test.v2.schema.json#/$defs/suiteReport"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMedia"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/ResourceBusy"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
     "/api/v2/runs/{runId}/cases": {
       "parameters": [
         {
@@ -1473,7 +1542,7 @@
       ],
       "get": {
         "operationId": "listRunCases",
-        "summary": "Read the single-case run collection",
+        "summary": "Read cases executed by a case or suite run",
         "parameters": [
           {
             "$ref": "#/components/parameters/ApiVersion"
@@ -1490,7 +1559,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Single-case collection.",
+            "description": "Run case collection.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2087,9 +2156,6 @@
   "x-cockpit-json-maximum-nodes": 1048576,
   "x-cockpit-cors": "deny",
   "x-cockpit-deferred-capabilities": [
-    "suite",
-    "matrix",
-    "aggregateReport",
     "nativeBlackBoxDriver",
     "aiExploration"
   ],

@@ -4,13 +4,29 @@ import 'cockpit_test_diagnostic.dart';
 import 'cockpit_test_policy.dart';
 import 'cockpit_test_value_reader.dart';
 
-enum CockpitTestLifecycle { queued, running, completed }
+enum CockpitTestLifecycle { queued, running, finalizing, completed }
 
-enum CockpitTestOutcome { passed, failed, blocked, cancelled }
+enum CockpitTestOutcome {
+  passed,
+  failed,
+  blocked,
+  skipped,
+  cancelled,
+  interrupted,
+  internalError,
+}
 
 enum CockpitTestStability { stable, flaky, unknown }
 
-enum CockpitTestStepStatus { passed, failed, blocked, cancelled, skipped }
+enum CockpitTestStepStatus {
+  pending,
+  running,
+  passed,
+  failed,
+  blocked,
+  cancelled,
+  skipped,
+}
 
 final class CockpitTestRunContext {
   CockpitTestRunContext({
@@ -186,7 +202,10 @@ final class CockpitTestStepResult {
       CockpitTestStepStatus.failed ||
       CockpitTestStepStatus.blocked ||
       CockpitTestStepStatus.cancelled => true,
-      CockpitTestStepStatus.passed || CockpitTestStepStatus.skipped => false,
+      CockpitTestStepStatus.pending ||
+      CockpitTestStepStatus.running ||
+      CockpitTestStepStatus.passed ||
+      CockpitTestStepStatus.skipped => false,
     };
     if (requiresError != (error != null)) {
       throw const FormatException(

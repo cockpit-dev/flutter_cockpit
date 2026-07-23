@@ -31,6 +31,7 @@ enum CockpitTestActionKind {
   waitFor,
   assertVisible,
   assertText,
+  system,
   captureScreenshot,
   collectSnapshot,
 }
@@ -62,6 +63,8 @@ enum CockpitTestActionField {
   matchMode('matchMode', CockpitTestValueType.string),
   artifactName('artifactName', CockpitTestValueType.string),
   captureOptions('captureOptions', CockpitTestValueType.json),
+  systemName('name', CockpitTestValueType.string),
+  systemParameters('parameters', CockpitTestValueType.json),
   snapshotOptions('snapshotOptions', CockpitTestValueType.json);
 
   const CockpitTestActionField(this.wireName, this.valueType);
@@ -310,6 +313,17 @@ cockpitTestActionSpecs = <CockpitTestActionKind, CockpitTestActionSpec>{
     },
     requiredFields: <CockpitTestActionField>{CockpitTestActionField.text},
     settlement: CockpitTestSettlement.none,
+  ),
+  CockpitTestActionKind.system: CockpitTestActionSpec(
+    locator: CockpitTestLocatorRequirement.forbidden,
+    allowedFields: <CockpitTestActionField>{
+      CockpitTestActionField.systemName,
+      CockpitTestActionField.systemParameters,
+    },
+    requiredFields: <CockpitTestActionField>{
+      CockpitTestActionField.systemName,
+    },
+    settlement: CockpitTestSettlement.uiIdle,
   ),
   CockpitTestActionKind.captureScreenshot: CockpitTestActionSpec(
     locator: CockpitTestLocatorRequirement.forbidden,

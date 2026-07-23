@@ -1,9 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/cockpit-dev/flutter_cockpit/packages/cockpit_protocol/schema/cockpit.test.v2.schema.json",
-  "title": "Cockpit standalone E2E case",
-  "description": "Canonical authored cockpit.test/v2 standalone case document.",
-  "$ref": "#/$defs/case",
+  "title": "Cockpit E2E test document",
+  "description": "Canonical authored cockpit.test/v2 project, suite, or case document.",
+  "oneOf": [
+    { "$ref": "#/$defs/project" },
+    { "$ref": "#/$defs/suite" },
+    { "$ref": "#/$defs/case" }
+  ],
   "$defs": {
     "nonEmptyString": {
       "type": "string",
@@ -103,6 +107,18 @@
       "oneOf": [
         {
           "type": "boolean"
+        },
+        {
+          "$ref": "#/$defs/variableReference"
+        }
+      ]
+    },
+    "jsonTemplate": {
+      "oneOf": [
+        {
+          "not": {
+            "$ref": "#/$defs/variableReference"
+          }
         },
         {
           "$ref": "#/$defs/variableReference"
@@ -994,6 +1010,9 @@
           "$ref": "#/$defs/assertTextAction"
         },
         {
+          "$ref": "#/$defs/systemAction"
+        },
+        {
           "$ref": "#/$defs/captureScreenshotAction"
         },
         {
@@ -1534,6 +1553,25 @@
       "required": ["type", "artifactName"],
       "additionalProperties": false
     },
+    "systemAction": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "system"
+        },
+        "name": {
+          "$ref": "#/$defs/stringTemplate"
+        },
+        "parameters": {
+          "$ref": "#/$defs/jsonTemplate"
+        }
+      },
+      "patternProperties": {
+        "^x-[A-Za-z0-9][A-Za-z0-9._-]*$": true
+      },
+      "required": ["type", "name"],
+      "additionalProperties": false
+    },
     "collectSnapshotAction": {
       "type": "object",
       "properties": {
@@ -1750,6 +1788,500 @@
         }
       },
       "required": ["fragment"],
+      "additionalProperties": false
+    },
+    "suiteRetryPolicy": {
+      "type": "object",
+      "properties": {
+        "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "delayMs": { "type": "integer", "minimum": 0, "maximum": 3600000 },
+        "retryOn": {
+          "type": "array",
+          "items": { "enum": ["blocked", "interrupted", "internalError"] },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "suiteExecutionPolicy": {
+      "type": "object",
+      "properties": {
+        "maxConcurrency": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "failFast": { "type": "boolean" },
+        "isolation": { "enum": ["sharedSession", "restartApp", "resetAppData"] },
+        "retry": { "$ref": "#/$defs/suiteRetryPolicy" }
+      },
+      "additionalProperties": false
+    },
+    "suiteReportPolicy": {
+      "type": "object",
+      "properties": {
+        "formats": {
+          "type": "array",
+          "items": { "enum": ["json", "junit", "html", "aiSummary"] },
+          "contains": { "const": "json" },
+          "minContains": 1,
+          "uniqueItems": true
+        },
+        "includePassedAttempts": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "suiteInlineCaseSource": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "inline" },
+        "case": { "$ref": "#/$defs/case" }
+      },
+      "required": ["kind", "case"],
+      "additionalProperties": false
+    },
+    "suiteFileCaseSource": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "file" },
+        "relativePath": { "$ref": "#/$defs/nonEmptyString" },
+        "caseId": { "$ref": "#/$defs/id" }
+      },
+      "required": ["kind", "relativePath", "caseId"],
+      "additionalProperties": false
+    },
+    "suiteCaseSource": {
+      "oneOf": [
+        { "$ref": "#/$defs/suiteInlineCaseSource" },
+        { "$ref": "#/$defs/suiteFileCaseSource" }
+      ]
+    },
+    "suiteCaseEntry": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "source": { "$ref": "#/$defs/suiteCaseSource" },
+        "dependsOn": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        },
+        "fixtures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        },
+        "matrixAxes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        },
+        "targetIds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        },
+        "inputs": { "type": "object" },
+        "retry": { "$ref": "#/$defs/suiteRetryPolicy" },
+        "tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        }
+      },
+      "required": ["id", "source"],
+      "additionalProperties": false
+    },
+    "fixture": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "setup": { "$ref": "#/$defs/suiteCaseSource" },
+        "teardown": { "$ref": "#/$defs/suiteCaseSource" },
+        "scope": { "enum": ["suite", "caseAttempt"] },
+        "targetId": { "$ref": "#/$defs/id" },
+        "inputs": { "type": "object" },
+        "dependsOn": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        }
+      },
+      "required": ["id", "setup"],
+      "additionalProperties": false
+    },
+    "matrix": {
+      "type": "object",
+      "properties": {
+        "axes": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 128,
+            "uniqueItems": true
+          }
+        },
+        "include": {
+          "type": "array",
+          "items": { "type": "object" },
+          "uniqueItems": true
+        },
+        "exclude": {
+          "type": "array",
+          "items": { "type": "object" },
+          "uniqueItems": true
+        },
+        "maxCombinations": { "type": "integer", "minimum": 1, "maximum": 4096 }
+      },
+      "additionalProperties": false
+    },
+    "suite": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": { "const": "cockpit.test/v2" },
+        "kind": { "const": "suite" },
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "description": { "$ref": "#/$defs/nonEmptyString" },
+        "tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": { "$ref": "#/$defs/suiteCaseEntry" }
+        },
+        "fixtures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fixture" }
+        },
+        "matrix": { "$ref": "#/$defs/matrix" },
+        "execution": { "$ref": "#/$defs/suiteExecutionPolicy" },
+        "report": { "$ref": "#/$defs/suiteReportPolicy" },
+        "includeTags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        },
+        "excludeTags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        }
+      },
+      "patternProperties": {
+        "^x-[A-Za-z0-9][A-Za-z0-9._-]*$": true
+      },
+      "required": ["schemaVersion", "kind", "id", "cases"],
+      "additionalProperties": false
+    },
+    "projectTarget": {
+      "type": "object",
+      "properties": {
+        "requirements": { "$ref": "#/$defs/targetRequirements" },
+        "deviceIds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        },
+        "labels": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": { "$ref": "#/$defs/nonEmptyString" }
+        }
+      },
+      "required": ["requirements"],
+      "additionalProperties": false
+    },
+    "project": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": { "const": "cockpit.test/v2" },
+        "kind": { "const": "project" },
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "description": { "$ref": "#/$defs/nonEmptyString" },
+        "suiteSources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        },
+        "targets": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": { "$ref": "#/$defs/projectTarget" }
+        },
+        "allowedSecretProviders": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        },
+        "executionDefaults": { "$ref": "#/$defs/suiteExecutionPolicy" },
+        "reportDefaults": { "$ref": "#/$defs/suiteReportPolicy" }
+      },
+      "patternProperties": {
+        "^x-[A-Za-z0-9][A-Za-z0-9._-]*$": true
+      },
+      "required": ["schemaVersion", "kind", "id", "suiteSources"],
+      "additionalProperties": false
+    },
+    "reportSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "reportTimestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "runOutcome": {
+      "enum": [
+        "passed",
+        "failed",
+        "blocked",
+        "skipped",
+        "cancelled",
+        "interrupted",
+        "internalError"
+      ]
+    },
+    "runStability": {
+      "enum": ["stable", "flaky", "unknown"]
+    },
+    "artifactReference": {
+      "type": "object",
+      "properties": {
+        "artifactId": { "$ref": "#/$defs/id" },
+        "runId": { "$ref": "#/$defs/id" },
+        "sha256": { "$ref": "#/$defs/reportSha256" }
+      },
+      "required": ["artifactId", "runId"],
+      "additionalProperties": false
+    },
+    "reportApiError": {
+      "type": "object",
+      "properties": {
+        "code": { "$ref": "#/$defs/id" },
+        "category": {
+          "enum": [
+            "invalidInput",
+            "unsupported",
+            "environment",
+            "resource",
+            "driver",
+            "locator",
+            "assertion",
+            "application",
+            "evidence",
+            "cancelled",
+            "interrupted",
+            "internal"
+          ]
+        },
+        "message": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "retryable": { "type": "boolean" },
+        "responsibleLayer": {
+          "enum": [
+            "client",
+            "supervisor",
+            "worker",
+            "provider",
+            "driver",
+            "application"
+          ]
+        },
+        "redactedDetails": { "type": "object" },
+        "artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifactReference" },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "code",
+        "category",
+        "message",
+        "retryable",
+        "responsibleLayer"
+      ],
+      "additionalProperties": false
+    },
+    "reportApiWarning": {
+      "type": "object",
+      "properties": {
+        "stage": { "enum": ["cleanup", "evidence"] },
+        "error": { "$ref": "#/$defs/reportApiError" }
+      },
+      "required": ["stage", "error"],
+      "additionalProperties": false
+    },
+    "reportFailure": {
+      "type": "object",
+      "properties": {
+        "primary": { "$ref": "#/$defs/reportApiError" },
+        "warnings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reportApiWarning" }
+        }
+      },
+      "required": ["primary"],
+      "additionalProperties": false
+    },
+    "attemptReport": {
+      "type": "object",
+      "properties": {
+        "attemptId": { "$ref": "#/$defs/id" },
+        "number": { "type": "integer", "minimum": 1 },
+        "outcome": { "$ref": "#/$defs/runOutcome" },
+        "startedAt": { "$ref": "#/$defs/reportTimestamp" },
+        "finishedAt": { "$ref": "#/$defs/reportTimestamp" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "targetId": { "$ref": "#/$defs/id" },
+        "failure": { "$ref": "#/$defs/reportFailure" },
+        "artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifactReference" },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "attemptId",
+        "number",
+        "outcome",
+        "startedAt",
+        "finishedAt",
+        "durationMs",
+        "targetId"
+      ],
+      "allOf": [
+        {
+          "if": { "properties": { "outcome": { "const": "passed" } } },
+          "then": { "not": { "required": ["failure"] } },
+          "else": { "required": ["failure"] }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "caseReport": {
+      "type": "object",
+      "properties": {
+        "entryId": { "$ref": "#/$defs/id" },
+        "caseId": { "$ref": "#/$defs/id" },
+        "sourceSha256": { "$ref": "#/$defs/reportSha256" },
+        "outcome": { "$ref": "#/$defs/runOutcome" },
+        "stability": { "$ref": "#/$defs/runStability" },
+        "targetId": { "$ref": "#/$defs/id" },
+        "matrix": { "type": "object" },
+        "attempts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/attemptReport" }
+        }
+      },
+      "required": [
+        "entryId",
+        "caseId",
+        "sourceSha256",
+        "outcome",
+        "stability",
+        "targetId",
+        "attempts"
+      ],
+      "additionalProperties": false
+    },
+    "reportCounts": {
+      "type": "object",
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "cancelled": { "type": "integer", "minimum": 0 },
+        "interrupted": { "type": "integer", "minimum": 0 },
+        "internalError": { "type": "integer", "minimum": 0 },
+        "flaky": { "type": "integer", "minimum": 0 }
+      },
+      "required": [
+        "total",
+        "passed",
+        "failed",
+        "blocked",
+        "skipped",
+        "cancelled",
+        "interrupted",
+        "internalError",
+        "flaky"
+      ],
+      "additionalProperties": false
+    },
+    "suiteReport": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": { "const": "cockpit.report/v2" },
+        "projectId": { "$ref": "#/$defs/id" },
+        "workspaceId": { "$ref": "#/$defs/id" },
+        "runId": { "$ref": "#/$defs/id" },
+        "suiteId": { "$ref": "#/$defs/id" },
+        "sourceSha256": { "$ref": "#/$defs/reportSha256" },
+        "lifecycle": { "const": "completed" },
+        "outcome": { "$ref": "#/$defs/runOutcome" },
+        "stability": { "$ref": "#/$defs/runStability" },
+        "startedAt": { "$ref": "#/$defs/reportTimestamp" },
+        "finishedAt": { "$ref": "#/$defs/reportTimestamp" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "execution": { "$ref": "#/$defs/suiteExecutionPolicy" },
+        "reportPolicy": { "$ref": "#/$defs/suiteReportPolicy" },
+        "environment": { "type": "object" },
+        "matrix": {
+          "type": "object",
+          "properties": {
+            "axes": {
+              "type": "object",
+              "propertyNames": { "$ref": "#/$defs/id" },
+              "additionalProperties": { "type": "array" }
+            }
+          },
+          "required": ["axes"],
+          "additionalProperties": false
+        },
+        "counts": { "$ref": "#/$defs/reportCounts" },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": { "$ref": "#/$defs/caseReport" }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifactReference" },
+          "uniqueItems": true
+        },
+        "complete": { "const": true }
+      },
+      "required": [
+        "schemaVersion",
+        "projectId",
+        "workspaceId",
+        "runId",
+        "suiteId",
+        "sourceSha256",
+        "lifecycle",
+        "outcome",
+        "stability",
+        "startedAt",
+        "finishedAt",
+        "durationMs",
+        "execution",
+        "reportPolicy",
+        "environment",
+        "matrix",
+        "counts",
+        "cases",
+        "complete"
+      ],
       "additionalProperties": false
     },
     "case": {

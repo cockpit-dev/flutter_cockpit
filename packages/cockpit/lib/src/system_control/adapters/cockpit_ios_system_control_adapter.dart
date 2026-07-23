@@ -624,6 +624,13 @@ final class CockpitIosSystemControlAdapter
             ],
           ),
           CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.readDeviceInfo,
+            plane: CockpitPlaneKind.nativeUiPlane,
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.device.info',
+            requires: wdaRequires,
+          ),
+          CockpitSystemControlCapability(
             action: CockpitSystemControlAction.readSystemLogs,
             plane: CockpitPlaneKind.deviceSystemPlane,
             availability: CockpitSystemControlAvailability.available,
@@ -674,58 +681,71 @@ final class CockpitIosSystemControlAdapter
         ],
       );
     }
+    final wdaBaseUri = _readWdaBaseUri(target.metadata);
+    final wdaReachable = target.metadata['wdaReachable'] == true;
+    final wdaAvailability = wdaBaseUri == null || !wdaReachable
+        ? CockpitSystemControlAvailability.blocked
+        : CockpitSystemControlAvailability.available;
+    final wdaRequires = _wdaRequires(
+      hasEndpoint: wdaBaseUri != null,
+      reachable: wdaReachable,
+      deviceRequirement: 'connected iOS device',
+    );
     return CockpitSystemControlProfile(
       platform: platform,
       deviceId: deviceId,
       appId: target.appId,
       processId: target.processId,
-      adapter: 'ios.physical',
-      preferredPlane: CockpitPlaneKind.flutterSemanticPlane,
+      adapter: 'ios.physical+wda+devicectl',
+      preferredPlane: CockpitPlaneKind.nativeUiPlane,
       fallbackOrder: const <CockpitPlaneKind>[
-        CockpitPlaneKind.flutterSemanticPlane,
         CockpitPlaneKind.nativeUiPlane,
+        CockpitPlaneKind.deviceSystemPlane,
       ],
-      recommendedNextStep: 'preferFlutterSemanticPlane',
+      recommendedNextStep:
+          wdaAvailability == CockpitSystemControlAvailability.available
+          ? 'runNativeAutomation'
+          : 'startWebDriverAgent',
       capabilities: cockpitCompleteSystemControlCapabilities(
-        const <CockpitSystemControlCapability>[
+        <CockpitSystemControlCapability>[
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.tap,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.webdriveragent',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.w3c.actions.tap',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.coordinate,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.longPress,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.webdriveragent',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.w3c.actions.longPress',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.longPress,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.drag,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.webdriveragent',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.w3c.actions.drag',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.drag,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.typeText,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.webdriveragent',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.w3c.actions.typeText',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.text,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.pressKey,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.webdriveragent.key',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.w3c.actions.key',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.key,
           ),
           CockpitSystemControlCapability(
@@ -740,23 +760,23 @@ final class CockpitIosSystemControlAdapter
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.pressHome,
             plane: CockpitPlaneKind.deviceSystemPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.device.home',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.homescreen',
+            requires: wdaRequires,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.pressVolumeUp,
             plane: CockpitPlaneKind.deviceSystemPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.device.volumeUp',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.pressButton.volumeUp',
+            requires: wdaRequires,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.pressVolumeDown,
             plane: CockpitPlaneKind.deviceSystemPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.device.volumeDown',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.pressButton.volumeDown',
+            requires: wdaRequires,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.pressVolumeMute,
@@ -770,33 +790,49 @@ final class CockpitIosSystemControlAdapter
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.activateWindow,
             plane: CockpitPlaneKind.deviceSystemPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'developer-device-launch',
-            requires: <String>['developer signing and device launch tooling'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.apps.activate',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.iosApp,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.terminateApp,
             plane: CockpitPlaneKind.deviceSystemPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'developer-device-terminate',
-            requires: <String>['developer signing and device process tooling'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.apps.terminate',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.iosApp,
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.installApp,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.devicectl.device.install.app',
+            requires: <String>['Xcode devicectl', 'connected iOS device'],
+            parameters: CockpitSystemControlParameterSets.installApp,
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.uninstallApp,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.devicectl.device.uninstall.app',
+            requires: <String>['Xcode devicectl', 'connected iOS device'],
+            parameters: CockpitSystemControlParameterSets.uninstallApp,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.dismissSystemDialog,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.springboard',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.alert',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.systemDialogDecision,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.dismissKeyboard,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.keyboard.dismiss',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.keyboard.dismiss',
+            requires: wdaRequires,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.grantPermission,
@@ -867,9 +903,9 @@ final class CockpitIosSystemControlAdapter
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.setOrientation,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.device.orientation',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.orientation',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.iosOrientation,
           ),
           CockpitSystemControlCapability(
@@ -908,23 +944,23 @@ final class CockpitIosSystemControlAdapter
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.expandNotifications,
             plane: CockpitPlaneKind.deviceSystemPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'developer-device-notification-center',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.notification-center.drag',
+            requires: wdaRequires,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.expandQuickSettings,
             plane: CockpitPlaneKind.deviceSystemPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'developer-device-control-center',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.control-center.drag',
+            requires: wdaRequires,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.collapseSystemUi,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.device.home',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.system-ui-collapse-gesture',
+            requires: wdaRequires,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.postNotification,
@@ -944,33 +980,33 @@ final class CockpitIosSystemControlAdapter
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.tapNotification,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.notification-center.tap-text',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.notification-center.tap-text',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.tapNotification,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.recoverToApp,
             plane: CockpitPlaneKind.deviceSystemPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'developer-device-launch',
-            requires: <String>['developer signing and device launch tooling'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.apps.activate',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.recoverToApp,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.resolveBlockers,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.alert+keyboard+launch',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.alert+keyboard+activate',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.resolveBlockers,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.stabilizeForScreenshot,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.stabilize-screenshot',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.stabilize-screenshot',
+            requires: wdaRequires,
             parameters:
                 CockpitSystemControlParameterSets.stabilizeForScreenshot,
           ),
@@ -996,9 +1032,9 @@ final class CockpitIosSystemControlAdapter
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.captureScreenshot,
             plane: CockpitPlaneKind.deviceSystemPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'developer-device-capture',
-            requires: <String>['developer signing and device capture tooling'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.screenshot',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.screenshot,
           ),
           CockpitSystemControlCapability(
@@ -1022,9 +1058,9 @@ final class CockpitIosSystemControlAdapter
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.readUiTree,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.webdriveragent.tree',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.source',
+            requires: wdaRequires,
             parameters: CockpitSystemControlParameterSets.readUiTree,
           ),
           CockpitSystemControlCapability(
@@ -1057,9 +1093,9 @@ final class CockpitIosSystemControlAdapter
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.readFocusState,
             plane: CockpitPlaneKind.nativeUiPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'xctest.keyboard+source',
-            requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.keyboard+source',
+            requires: wdaRequires,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.runShell,
@@ -1089,15 +1125,11 @@ final class CockpitIosSystemControlAdapter
     if (deviceId == null || deviceId.isEmpty) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'missingDeviceId',
-        message: 'iOS simulator system actions require --device-id.',
+        message: 'iOS system actions require --device-id.',
       );
     }
     if (!_looksLikeIosSimulatorDeviceId(deviceId)) {
-      return const CockpitResolvedSystemControlCommand.error(
-        code: 'systemActionBlocked',
-        message:
-            'This iOS physical-device action requires XCTest/WebDriverAgent or developer device tooling.',
-      );
+      return _resolvePhysicalCommand(request, deviceId);
     }
     return switch (request.action) {
       CockpitSystemControlAction.activateWindow => _appScopedCommand(
@@ -1468,6 +1500,192 @@ final class CockpitIosSystemControlAdapter
     };
   }
 
+  CockpitResolvedSystemControlCommand _resolvePhysicalCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    switch (request.action) {
+      case CockpitSystemControlAction.tap:
+        return _wdaCommand(request, CockpitIosWdaAction.tap);
+      case CockpitSystemControlAction.longPress:
+        return _wdaCommand(request, CockpitIosWdaAction.longPress);
+      case CockpitSystemControlAction.drag:
+        return _wdaCommand(request, CockpitIosWdaAction.drag);
+      case CockpitSystemControlAction.typeText:
+        return _wdaCommand(request, CockpitIosWdaAction.typeText);
+      case CockpitSystemControlAction.pressKey:
+        return _wdaCommand(request, CockpitIosWdaAction.pressKey);
+      case CockpitSystemControlAction.pressHome:
+        return _wdaCommand(request, CockpitIosWdaAction.pressHome);
+      case CockpitSystemControlAction.pressVolumeUp:
+        return _wdaButtonCommand(request, 'volumeUp');
+      case CockpitSystemControlAction.pressVolumeDown:
+        return _wdaButtonCommand(request, 'volumeDown');
+      case CockpitSystemControlAction.activateWindow:
+      case CockpitSystemControlAction.recoverToApp:
+        return _wdaAppCommand(request, CockpitIosWdaAction.activateApp);
+      case CockpitSystemControlAction.terminateApp:
+        return _wdaAppCommand(request, CockpitIosWdaAction.terminateApp);
+      case CockpitSystemControlAction.installApp:
+        return _iosPhysicalInstallAppCommand(request, deviceId);
+      case CockpitSystemControlAction.uninstallApp:
+        return _iosPhysicalUninstallAppCommand(request, deviceId);
+      case CockpitSystemControlAction.dismissSystemDialog:
+        return _wdaCommand(request, CockpitIosWdaAction.dismissSystemDialog);
+      case CockpitSystemControlAction.dismissKeyboard:
+        return _wdaCommand(request, CockpitIosWdaAction.dismissKeyboard);
+      case CockpitSystemControlAction.setOrientation:
+        return _wdaCommand(request, CockpitIosWdaAction.setOrientation);
+      case CockpitSystemControlAction.expandNotifications:
+        return _wdaCommand(request, CockpitIosWdaAction.expandNotifications);
+      case CockpitSystemControlAction.expandQuickSettings:
+        return _wdaCommand(request, CockpitIosWdaAction.expandQuickSettings);
+      case CockpitSystemControlAction.collapseSystemUi:
+        return _wdaCommand(request, CockpitIosWdaAction.collapseSystemUi);
+      case CockpitSystemControlAction.tapNotification:
+        return _wdaCommand(request, CockpitIosWdaAction.tapNotification);
+      case CockpitSystemControlAction.resolveBlockers:
+        return _iosResolveBlockersCommand(request);
+      case CockpitSystemControlAction.readUiTree:
+        return _wdaCommand(request, CockpitIosWdaAction.readUiTree);
+      case CockpitSystemControlAction.readDeviceInfo:
+        return _wdaCommand(request, CockpitIosWdaAction.readDeviceInfo);
+      case CockpitSystemControlAction.readFocusState:
+        return _wdaCommand(request, CockpitIosWdaAction.readFocusState);
+      case CockpitSystemControlAction.preparePermissions:
+      case CockpitSystemControlAction.stabilizeForScreenshot:
+        return const CockpitResolvedSystemControlCommand.error(
+          code: 'systemMacroAction',
+          message: 'Macro actions are executed through the action service.',
+        );
+      case CockpitSystemControlAction.captureScreenshot:
+      case CockpitSystemControlAction.startRecording:
+      case CockpitSystemControlAction.stopRecording:
+        return const CockpitResolvedSystemControlCommand.error(
+          code: 'systemEvidenceAction',
+          message: 'Evidence actions are executed through evidence adapters.',
+        );
+      default:
+        return CockpitResolvedSystemControlCommand.error(
+          code: 'systemActionBlocked',
+          message:
+              '${request.action.name} has no reliable iOS physical-device implementation.',
+        );
+    }
+  }
+
+  CockpitResolvedSystemControlCommand _wdaButtonCommand(
+    CockpitSystemControlActionRequest request,
+    String name,
+  ) => _wdaCommand(
+    CockpitSystemControlActionRequest(
+      platform: request.platform,
+      deviceId: request.deviceId,
+      appId: request.appId,
+      processId: request.processId,
+      metadata: request.metadata,
+      action: request.action,
+      parameters: <String, Object?>{'name': name},
+      timeout: request.timeout,
+    ),
+    CockpitIosWdaAction.pressButton,
+  );
+
+  CockpitResolvedSystemControlCommand _wdaAppCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitIosWdaAction action,
+  ) {
+    final appId = _readAppId(request);
+    if (!appId.isValid) {
+      return CockpitResolvedSystemControlCommand.error(
+        code: appId.isInvalid
+            ? 'invalidSystemActionParameter'
+            : 'missingSystemActionParameter',
+        message: '${request.action.name} requires --app-id or appId.',
+      );
+    }
+    return _wdaCommand(
+      CockpitSystemControlActionRequest(
+        platform: request.platform,
+        deviceId: request.deviceId,
+        appId: request.appId,
+        processId: request.processId,
+        metadata: request.metadata,
+        action: request.action,
+        parameters: <String, Object?>{'bundleId': appId.value!},
+        timeout: request.timeout,
+      ),
+      action,
+    );
+  }
+
+  CockpitResolvedSystemControlCommand _iosPhysicalInstallAppCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    final appPath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'appPath',
+    );
+    final grantPermissions = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'grantPermissions',
+    );
+    if (!appPath.isValid || grantPermissions.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'installApp requires a valid appPath.',
+      );
+    }
+    if (grantPermissions.value == true) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'unsupportedSystemActionParameter',
+        message: 'iOS physical-device install cannot pre-grant permissions.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('xcrun', <String>[
+      'devicectl',
+      'device',
+      'install',
+      'app',
+      '--device',
+      deviceId,
+      appPath.value!,
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _iosPhysicalUninstallAppCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    final appId = _readAppId(request);
+    final keepData = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'keepData',
+    );
+    if (!appId.isValid || keepData.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'uninstallApp requires a valid appId.',
+      );
+    }
+    if (keepData.value == true) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'unsupportedSystemActionParameter',
+        message: 'iOS physical-device uninstall cannot retain app data.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('xcrun', <String>[
+      'devicectl',
+      'device',
+      'uninstall',
+      'app',
+      '--device',
+      deviceId,
+      appId.value!,
+    ]);
+  }
+
   CockpitResolvedSystemControlCommand _wdaCommand(
     CockpitSystemControlActionRequest request,
     CockpitIosWdaAction action,
@@ -1477,7 +1695,7 @@ final class CockpitIosSystemControlAdapter
       return const CockpitResolvedSystemControlCommand.error(
         code: 'missingWebDriverAgentEndpoint',
         message:
-            'This iOS simulator native action requires --wda-url or FLUTTER_COCKPIT_IOS_WDA_URL.',
+            'This iOS native action requires a reachable WebDriverAgent endpoint.',
       );
     }
     return CockpitIosWebDriverAgentClient.resolvedCommand(
@@ -2138,20 +2356,18 @@ final class CockpitIosSystemControlAdapter
   List<String> _wdaRequires({
     required bool hasEndpoint,
     required bool reachable,
+    String deviceRequirement = 'booted simulator',
   }) {
     if (!hasEndpoint) {
-      return const <String>[
-        'booted simulator',
+      return <String>[
+        deviceRequirement,
         'reachable WebDriverAgent endpoint (default probe http://127.0.0.1:8100, --wda-url, or FLUTTER_COCKPIT_IOS_WDA_URL)',
       ];
     }
     if (!reachable) {
-      return const <String>[
-        'booted simulator',
-        'reachable WebDriverAgent endpoint',
-      ];
+      return <String>[deviceRequirement, 'reachable WebDriverAgent endpoint'];
     }
-    return const <String>['booted simulator', 'WebDriverAgent endpoint'];
+    return <String>[deviceRequirement, 'WebDriverAgent endpoint'];
   }
 }
 

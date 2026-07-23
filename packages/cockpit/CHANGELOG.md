@@ -2,6 +2,18 @@
 
 ## 2.0.0
 
+- Added durable suite campaigns with DAG dependencies, scoped fixtures,
+  matrices, bounded concurrency, retries, fail-fast policy, recovery, and
+  JSON/JUnit/HTML/AI summary reports.
+- Added registered black-box targets for Android, iOS, desktop, browser, and
+  system surfaces, with native accessibility locators, system setup/cleanup
+  actions, screenshots, and capability-truthful failures.
+- Added Android ADB execution and iOS simulator/physical-device WDA execution,
+  including per-target WDA endpoints for concurrent workspaces and iOS
+  physical-device install/uninstall through `devicectl`.
+- Added a durable per-user Supervisor with isolated workspace workers,
+  authenticated HTTP/SSE clients, idempotent admission, cancellation, and
+  canonical artifact retention.
 - Migrated host CLI and MCP protocol imports to the platform-neutral
   `cockpit_protocol` package.
 - Removed the `flutter_cockpit_protocol` dependency and established the 2.0
