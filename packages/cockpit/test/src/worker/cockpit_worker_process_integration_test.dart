@@ -8,11 +8,12 @@ import 'package:cockpit/src/foundation/cockpit_locked_json_store.dart';
 import 'package:cockpit/src/foundation/cockpit_permissions.dart';
 import 'package:cockpit/src/session/cockpit_remote_session_handle.dart';
 import 'package:cockpit/src/supervisor/cockpit_local_worker_launcher.dart';
+import 'package:cockpit/src/supervisor/cockpit_supervisor_run_projection.dart';
 import 'package:cockpit/src/supervisor/cockpit_worker_pool.dart';
 import 'package:cockpit/src/supervisor/cockpit_worker_resource_authority.dart';
 import 'package:cockpit/src/test/cockpit_test_safety_policy.dart';
 import 'package:cockpit/src/worker/cockpit_json_rpc_peer.dart';
-import 'package:cockpit/src/worker/cockpit_worker_memory_event_exchange.dart';
+import 'package:cockpit/src/worker/cockpit_worker_case_completion.dart';
 import 'package:cockpit/src/worker/cockpit_worker_operation_journal.dart';
 import 'package:cockpit/src/worker/cockpit_worker_protocol_result.dart';
 import 'package:cockpit/src/worker/cockpit_worker_resource_grant.dart';
@@ -57,22 +58,27 @@ steps:
         throw StateError('Unable to resolve the cockpit package root.');
       }
       final packageRoot = p.dirname(p.dirname(packageLibrary.toFilePath()));
+      final completionCrashControl = File(
+        p.join(temporary.path, 'completion-crash-control.json'),
+      );
       final workerEntrypoint = p.join(
         packageRoot,
-        'bin',
-        'cockpit_worker.dart',
+        'test',
+        'support',
+        'cockpit_worker_completion_probe.dart',
       );
       final authority = _GrantingAuthority();
       final launcher = CockpitLocalWorkerLauncher(
         dartExecutable: Platform.resolvedExecutable,
         workerEntrypoint: workerEntrypoint,
-        eventExchangeFactory: (_) => CockpitWorkerMemoryEventExchange(),
+        retentionIndex: const _RunRetentionIndex(),
         resourceAuthorityFactory: (_, _) => authority,
         environment: <String, String>{
           'PATH': ?Platform.environment['PATH'],
           'HOME': ?Platform.environment['HOME'],
           'SystemRoot': ?Platform.environment['SystemRoot'],
           'API_TOKEN': environmentSecret,
+          'COCKPIT_COMPLETION_CRASH_CONTROL': completionCrashControl.path,
         },
         allowedEnvironmentSecretNames: const <String>['API_TOKEN'],
       );
@@ -503,7 +509,7 @@ steps:
       expect(
         bundleBinding.retainedPath,
         startsWith(
-          p.join(spec.stateRoot, 'retained_artifacts', 'run', successfulRunId),
+          p.join(spec.stateRoot, 'runs', successfulRunId, 'artifacts'),
         ),
       );
       final retainedArtifact = File(
@@ -511,10 +517,11 @@ steps:
       );
       expect(await retainedArtifact.readAsBytes(), <int>[1, 2, 3, 4]);
       final sourceArtifact = await _singleFileNamed(
-        Directory(p.join(spec.stateRoot, 'runs', successfulRunId)),
+        Directory(p.join(spec.stateRoot, 'runs', successfulRunId, 'cases')),
         'dispatch.png',
       );
       await sourceArtifact.writeAsBytes(<int>[9, 9, 9], flush: true);
+      expect(await sourceArtifact.readAsBytes(), <int>[9, 9, 9]);
       expect(await retainedArtifact.readAsBytes(), <int>[1, 2, 3, 4]);
 
       final preparations = await state
@@ -682,78 +689,97 @@ steps:
       expect(authority.acquiredKinds, hasLength(8));
       expect(authority.releaseCount, 4);
 
-      authority.resetObservations();
-      final completedConnection = await pool.connectionFor(spec);
-      final completedPid = completedConnection.processId;
-      var killedInCompletedWindow = false;
-      authority.onRelease = () async {
-        if (killedInCompletedWindow) return;
-        killedInCompletedWindow = true;
-        await completedConnection.terminate(force: true);
-      };
-      final completedWindowCall = _callOperation(
-        pool,
-        spec,
-        kind: 'case.run',
-        idempotencyKey: 'case-run-completed-window',
-        input: _submission(
-          liveTargetId,
-          idempotencyKey: 'case-run-completed-window',
-        ).toJson(),
-      );
-      await expectLater(completedWindowCall, throwsA(anything));
-      authority.onRelease = null;
-      expect(killedInCompletedWindow, isTrue);
-      final completedCaseBeforeReplay = await _readCaseRecord(
-        state,
-        'case-run-completed-window',
-      );
-      final completedOperationBeforeReplay = await _readOperationRecord(
-        state,
-        'case-run-completed-window',
-      );
-      final completedAttemptsBeforeReplay =
-          completedCaseBeforeReplay['attempts']! as List<Object?>;
-      expect(completedAttemptsBeforeReplay, hasLength(1));
-      expect(
-        (completedAttemptsBeforeReplay.single!
-            as Map<String, Object?>)['status'],
-        'completed',
-      );
-      expect(completedOperationBeforeReplay['state'], 'running');
-      final remoteExecutionsBeforeReplay = remoteSession.commands.length;
-      await _waitForWorkerRestart(pool, spec, previousPid: completedPid);
-      final completedReplay = await _callOperation(
-        pool,
-        spec,
-        kind: 'case.run',
-        idempotencyKey: 'case-run-completed-window',
-        input: _submission(
-          liveTargetId,
-          idempotencyKey: 'case-run-completed-window',
-        ).toJson(),
-      );
-      expect(completedReplay.outcome, CockpitOperationOutcome.succeeded);
-      expect(
-        completedReplay.operationId,
-        completedOperationBeforeReplay['operationId'],
-      );
-      expect(
-        completedReplay.output!['runId'],
-        completedCaseBeforeReplay['runId'],
-      );
-      expect(
-        completedReplay.output!['attemptId'],
-        (completedAttemptsBeforeReplay.single!
-            as Map<String, Object?>)['attemptId'],
-      );
-      expect(remoteSession.commands, hasLength(remoteExecutionsBeforeReplay));
-      expect(
-        (await _readCaseRecord(state, 'case-run-completed-window'))['attempts'],
-        hasLength(1),
-      );
-      expect(authority.acquiredKinds, hasLength(4));
-      expect(authority.releaseCount, 1);
+      for (final phase in CockpitWorkerCaseCompletionPhase.values) {
+        authority.resetObservations();
+        final key = 'case-run-crash-${phase.name}';
+        await completionCrashControl.writeAsString(
+          jsonEncode(<String, Object?>{
+            'phase': phase.name,
+            'idempotencyKey': key,
+            'consumed': false,
+          }),
+          flush: true,
+        );
+        final connection = await pool.connectionFor(spec);
+        final processId = connection.processId;
+        final commandsBeforeRun = remoteSession.commands.length;
+        await expectLater(
+          _callOperation(
+            pool,
+            spec,
+            kind: 'case.run',
+            idempotencyKey: key,
+            input: _submission(liveTargetId, idempotencyKey: key).toJson(),
+          ),
+          throwsA(anything),
+        );
+        final control =
+            jsonDecode(await completionCrashControl.readAsString())
+                as Map<String, Object?>;
+        expect(control['consumed'], isTrue, reason: phase.name);
+        final caseBeforeReplay = await _readCaseRecord(state, key);
+        final operationBeforeReplay = await _readOperationRecord(state, key);
+        final attemptsBeforeReplay =
+            caseBeforeReplay['attempts']! as List<Object?>;
+        expect(attemptsBeforeReplay, hasLength(1), reason: phase.name);
+        final attemptBeforeReplay =
+            attemptsBeforeReplay.single! as Map<String, Object?>;
+        expect(operationBeforeReplay['state'], 'running', reason: phase.name);
+        expect(
+          remoteSession.commands,
+          hasLength(commandsBeforeRun + 1),
+          reason: phase.name,
+        );
+        if (phase == CockpitWorkerCaseCompletionPhase.completionCommitted) {
+          expect(attemptBeforeReplay['status'], 'completed');
+          expect(attemptBeforeReplay, isNot(contains('completionIntent')));
+        } else {
+          expect(attemptBeforeReplay['status'], 'running');
+          expect(attemptBeforeReplay, contains('completionIntent'));
+        }
+        final eventsBeforeReplay = await _readRunEvents(
+          state,
+          caseBeforeReplay['runId']! as String,
+        );
+        expect(
+          eventsBeforeReplay.any((event) => event.kind == 'run.completed'),
+          phase != CockpitWorkerCaseCompletionPhase.intentPersisted,
+          reason: phase.name,
+        );
+
+        await _waitForWorkerRestart(pool, spec, previousPid: processId);
+        final replay = await _callOperation(
+          pool,
+          spec,
+          kind: 'case.run',
+          idempotencyKey: key,
+          input: _submission(liveTargetId, idempotencyKey: key).toJson(),
+        );
+        expect(replay.outcome, CockpitOperationOutcome.succeeded);
+        expect(
+          replay.operationId,
+          operationBeforeReplay['operationId'],
+          reason: phase.name,
+        );
+        expect(replay.output!['runId'], caseBeforeReplay['runId']);
+        expect(
+          replay.output!['attemptId'],
+          attemptBeforeReplay['attemptId'],
+          reason: phase.name,
+        );
+        expect(
+          remoteSession.commands,
+          hasLength(commandsBeforeRun + 1),
+          reason: 'runner executed more than once at ${phase.name}',
+        );
+        final completedCase = await _readCaseRecord(state, key);
+        final completedAttempt =
+            (completedCase['attempts']! as List<Object?>).single!
+                as Map<String, Object?>;
+        expect(completedAttempt['status'], 'completed', reason: phase.name);
+        expect(completedAttempt, isNot(contains('completionIntent')));
+        expect(completedAttempt, contains('completionReceipt'));
+      }
       await _expectTreeExcludes(state, environmentSecret);
 
       final commandsBeforeDeniedRun = remoteSession.commands.length;
@@ -950,6 +976,18 @@ Future<Map<String, Object?>> _readCaseRecord(
   throw StateError('Case record $idempotencyKey was not found.');
 }
 
+Future<List<CockpitRunEvent>> _readRunEvents(
+  Directory state,
+  String runId,
+) async {
+  final file = File(p.join(state.path, 'runs', runId, 'events.ndjson'));
+  return const LineSplitter()
+      .convert(await file.readAsString())
+      .where((line) => line.isNotEmpty)
+      .map((line) => CockpitRunEvent.fromJson(jsonDecode(line)))
+      .toList(growable: false);
+}
+
 Future<Map<String, Object?>> _readOperationRecord(
   Directory state,
   String idempotencyKey,
@@ -1012,6 +1050,24 @@ final class _RemoteCommandBlock {
   void release() {
     if (!_released.isCompleted) _released.complete();
   }
+}
+
+final class _RunRetentionIndex implements CockpitSupervisorRunRetentionIndex {
+  const _RunRetentionIndex();
+
+  @override
+  Future<void> releaseRun({
+    required String workspaceId,
+    required String runId,
+  }) async {}
+
+  @override
+  Future<void> retainRun({
+    required String workspaceId,
+    required String runId,
+    required bool active,
+    required int artifactCount,
+  }) async {}
 }
 
 final class _RemoteSessionServer {

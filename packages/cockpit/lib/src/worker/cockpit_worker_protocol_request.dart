@@ -51,6 +51,8 @@ sealed class CockpitWorkerProtocolRequest {
       'publishEventBatch' => CockpitWorkerPublishEventBatchRequest.fromJson(
         value,
       ),
+      'publishArtifactBatch' =>
+        CockpitWorkerPublishArtifactBatchRequest.fromJson(value),
       _ => throw const FormatException('Unsupported worker method.'),
     };
   }
@@ -449,6 +451,89 @@ final class CockpitWorkerPublishEventBatchRequest
       events: <CockpitRunEvent>[
         for (var index = 0; index < rawEvents.length; index += 1)
           CockpitRunEvent.fromJson(rawEvents[index], path: '\$.events[$index]'),
+      ],
+    );
+  }
+}
+
+final class CockpitWorkerPublishArtifactBatchRequest
+    extends CockpitWorkerProtocolRequest {
+  CockpitWorkerPublishArtifactBatchRequest({
+    required super.protocolVersion,
+    required super.workspaceId,
+    required super.requestId,
+    required super.deadline,
+    required super.idempotencyKey,
+    required this.projectId,
+    required this.runId,
+    required this.caseId,
+    required Iterable<CockpitArtifactResource> artifacts,
+  }) : artifacts = List<CockpitArtifactResource>.unmodifiable(artifacts) {
+    workerId(projectId, r'$.projectId');
+    workerId(runId, r'$.runId');
+    workerId(caseId, r'$.caseId');
+    if (this.artifacts.isEmpty || this.artifacts.length > 256) {
+      throw const FormatException(
+        'Artifact publication batch size is invalid.',
+      );
+    }
+    final ids = <String>{};
+    for (final artifact in this.artifacts) {
+      if (artifact.workspaceId != workspaceId ||
+          artifact.runId != runId ||
+          !ids.add(artifact.artifactId)) {
+        throw const FormatException(
+          'Artifact publication ownership is inconsistent.',
+        );
+      }
+    }
+  }
+
+  final String projectId;
+  final String runId;
+  final String caseId;
+  final List<CockpitArtifactResource> artifacts;
+
+  @override
+  String get method => 'publishArtifactBatch';
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    ...metadataJson(),
+    'projectId': projectId,
+    'runId': runId,
+    'caseId': caseId,
+    'artifacts': artifacts.map((artifact) => artifact.toJson()).toList(),
+  };
+
+  factory CockpitWorkerPublishArtifactBatchRequest.fromJson(Object? value) {
+    final json = _requestObject(value, const <String>{
+      'projectId',
+      'runId',
+      'caseId',
+      'artifacts',
+    });
+    final rawArtifacts = workerList(
+      json['artifacts'],
+      r'$.artifacts',
+      maximum: 256,
+    );
+    final metadata = _metadata(json);
+    return CockpitWorkerPublishArtifactBatchRequest(
+      protocolVersion: metadata.protocolVersion,
+      workspaceId: metadata.workspaceId,
+      requestId: metadata.requestId,
+      deadline: metadata.deadline,
+      idempotencyKey: metadata.idempotencyKey,
+      projectId: workerId(json['projectId'], r'$.projectId'),
+      runId: workerId(json['runId'], r'$.runId'),
+      caseId: workerId(json['caseId'], r'$.caseId'),
+      artifacts: <CockpitArtifactResource>[
+        for (var index = 0; index < rawArtifacts.length; index += 1)
+          CockpitArtifactResource.fromJson(
+            rawArtifacts[index],
+            path: '\$.artifacts[$index]',
+          ),
       ],
     );
   }

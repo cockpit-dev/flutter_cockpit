@@ -3457,6 +3457,17 @@
         "kind": {
           "$ref": "#/$defs/Kind"
         },
+        "entityKind": {
+          "type": "string",
+          "enum": [
+            "run",
+            "case",
+            "attempt",
+            "step",
+            "artifact"
+          ],
+          "minLength": 1
+        },
         "projectId": {
           "$ref": "#/$defs/Identifier"
         },
@@ -3476,6 +3487,17 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 512
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed",
+            "blocked",
+            "cancelled",
+            "skipped"
+          ],
+          "minLength": 1
         },
         "lifecycle": {
           "type": "string",
@@ -3559,91 +3581,369 @@
         "sequence",
         "timestamp",
         "kind",
+        "entityKind",
         "projectId",
         "workspaceId",
         "runId",
         "caseId"
       ],
       "additionalProperties": false,
-      "dependentRequired": {
-        "stepExecutionId": [
-          "attemptId"
-        ],
-        "outcome": [
-          "lifecycle",
-          "stability"
-        ],
-        "stability": [
-          "lifecycle",
-          "outcome"
-        ]
-      },
       "allOf": [
         {
           "if": {
             "properties": {
-              "lifecycle": {
-                "const": "completed"
+              "entityKind": {
+                "const": "run"
               }
             },
             "required": [
-              "lifecycle"
+              "entityKind"
             ]
           },
           "then": {
             "required": [
-              "outcome",
-              "stability"
-            ]
-          },
-          "else": {
-            "not": {
-              "anyOf": [
-                {
-                  "required": [
-                    "outcome"
-                  ]
-                },
-                {
-                  "required": [
-                    "stability"
-                  ]
-                }
-              ]
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "outcome": {
-                "const": "passed"
-              }
-            }
-          },
-          "then": {
-            "not": {
-              "required": [
-                "failure"
-              ]
-            }
-          },
-          "else": {
-            "if": {
-              "required": [
+              "lifecycle"
+            ],
+            "dependentRequired": {
+              "outcome": [
+                "stability"
+              ],
+              "stability": [
                 "outcome"
               ]
             },
-            "then": {
+            "allOf": [
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "lifecycle": {
+                      "const": "completed"
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "outcome",
+                    "stability"
+                  ]
+                },
+                "else": {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "outcome"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "stability"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "outcome": {
+                      "const": "passed"
+                    }
+                  }
+                },
+                "then": {
+                  "not": {
+                    "required": [
+                      "failure"
+                    ]
+                  }
+                },
+                "else": {
+                  "if": {
+                    "required": [
+                      "outcome"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "failure"
+                    ]
+                  },
+                  "else": {
+                    "not": {
+                      "required": [
+                        "failure"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "entityKind": {
+                  "const": "case"
+                }
+              },
               "required": [
-                "failure"
+                "entityKind"
+              ]
+            },
+            "then": {
+              "dependentRequired": {
+                "outcome": [
+                  "stability"
+                ],
+                "stability": [
+                  "outcome"
+                ]
+              },
+              "allOf": [
+                {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "lifecycle"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "status"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "outcome": {
+                        "const": "passed"
+                      }
+                    }
+                  },
+                  "then": {
+                    "not": {
+                      "required": [
+                        "failure"
+                      ]
+                    }
+                  },
+                  "else": {
+                    "if": {
+                      "required": [
+                        "outcome"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "failure"
+                      ]
+                    },
+                    "else": {
+                      "not": {
+                        "required": [
+                          "failure"
+                        ]
+                      }
+                    }
+                  }
+                }
               ]
             },
             "else": {
-              "not": {
+              "if": {
+                "properties": {
+                  "entityKind": {
+                    "const": "attempt"
+                  }
+                },
                 "required": [
-                  "failure"
+                  "entityKind"
                 ]
+              },
+              "then": {
+                "required": [
+                  "attemptId"
+                ],
+                "allOf": [
+                  {
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "lifecycle"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "stability"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "status"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "outcome": {
+                          "const": "passed"
+                        }
+                      }
+                    },
+                    "then": {
+                      "not": {
+                        "required": [
+                          "failure"
+                        ]
+                      }
+                    },
+                    "else": {
+                      "if": {
+                        "required": [
+                          "outcome"
+                        ]
+                      },
+                      "then": {
+                        "required": [
+                          "failure"
+                        ]
+                      },
+                      "else": {
+                        "not": {
+                          "required": [
+                            "failure"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "else": {
+                "if": {
+                  "properties": {
+                    "entityKind": {
+                      "const": "step"
+                    }
+                  },
+                  "required": [
+                    "entityKind"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "attemptId",
+                    "stepExecutionId",
+                    "status"
+                  ],
+                  "allOf": [
+                    {
+                      "not": {
+                        "anyOf": [
+                          {
+                            "required": [
+                              "lifecycle"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "outcome"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "stability"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "if": {
+                        "properties": {
+                          "status": {
+                            "enum": [
+                              "failed",
+                              "blocked",
+                              "cancelled"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "status"
+                        ]
+                      },
+                      "then": {
+                        "required": [
+                          "failure"
+                        ]
+                      },
+                      "else": {
+                        "not": {
+                          "anyOf": [
+                            {
+                              "required": [
+                                "failure"
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "else": {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "lifecycle"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "outcome"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "stability"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "status"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "failure"
+                        ]
+                      }
+                    ]
+                  }
+                }
               }
             }
           }

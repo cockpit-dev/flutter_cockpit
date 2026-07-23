@@ -11,7 +11,9 @@ import 'package:cockpit/src/worker/cockpit_json_rpc_peer.dart';
 import 'package:cockpit/src/worker/cockpit_worker_case_run_store.dart';
 import 'package:cockpit/src/worker/cockpit_worker_memory_event_exchange.dart';
 import 'package:cockpit/src/worker/cockpit_worker_operation_journal.dart';
+import 'package:cockpit/src/worker/cockpit_worker_protocol_request.dart';
 import 'package:cockpit/src/worker/cockpit_worker_protocol_result.dart';
+import 'package:cockpit/src/worker/cockpit_worker_protocol_schema.dart';
 import 'package:cockpit/src/worker/cockpit_worker_resource_grant.dart';
 import 'package:cockpit/src/worker/cockpit_worker_server.dart';
 import 'package:cockpit/src/worker/cockpit_worker_value_reader.dart';
@@ -346,21 +348,116 @@ void main() {
         );
         expect(first.highestContiguousSequence, 1);
         expect(first.replayAfterSequence, isNull);
-        final gap = CockpitWorkerPublishEventBatchResult.fromJson(
-          await harness.peer.call(
-            method: 'publishEventBatch',
-            params: _publishParams(
-              key: 'event-gap',
-              runId: 'runGap',
-              afterSequence: 2,
-              eventSequence: 3,
-            ),
-            deadline: _deadline(),
+        final gapCall = harness.peer.call(
+          method: 'publishEventBatch',
+          params: _publishParams(
+            key: 'event-gap',
+            runId: 'runGap',
+            afterSequence: 2,
+            eventSequence: 3,
           ),
+          deadline: _deadline(),
         );
-        expect(gap.highestContiguousSequence, 1);
-        expect(gap.replayAfterSequence, 1);
+        if (direction.worker) {
+          final gap = CockpitWorkerPublishEventBatchResult.fromJson(
+            await gapCall,
+          );
+          expect(gap.highestContiguousSequence, 1);
+          expect(gap.replayAfterSequence, 1);
+        } else {
+          await expectLater(
+            gapCall,
+            throwsA(_remoteCode('eventReplayUnavailable')),
+          );
+        }
       });
+
+      test('${direction.name} enforces event replay direction', () async {
+        final harness = direction.open();
+        await harness.start();
+        addTearDown(harness.close);
+        await harness.peer.call(
+          method: 'publishEventBatch',
+          params: _publishParams(
+            key: 'replay-source',
+            runId: 'runReplayDirection',
+            afterSequence: 0,
+            eventSequence: 1,
+          ),
+          deadline: _deadline(),
+        );
+        final replay = harness.peer.call(
+          method: 'replayEvents',
+          params: <String, Object?>{
+            'protocolVersion': cockpitWorkerProtocolVersion,
+            'workspaceId': 'workspaceA',
+            'idempotencyKey': 'replay-direction',
+            'runId': 'runReplayDirection',
+            'afterSequence': 0,
+          },
+          deadline: _deadline(),
+        );
+        if (direction.worker) {
+          expect(
+            CockpitWorkerReplayEventsResult.fromJson(await replay).events,
+            hasLength(1),
+          );
+        } else {
+          await expectLater(replay, throwsA(_remoteCode('methodUnavailable')));
+        }
+      });
+
+      test(
+        '${direction.name} enforces artifact publication direction',
+        () async {
+          final harness = direction.open();
+          await harness.start();
+          addTearDown(harness.close);
+          final publication = harness.peer.call(
+            method: 'publishArtifactBatch',
+            params: _artifactPublishParams(),
+            deadline: _deadline(),
+          );
+          if (direction.worker) {
+            await expectLater(
+              publication,
+              throwsA(_remoteCode('methodUnavailable')),
+            );
+          } else {
+            final result = CockpitWorkerPublishArtifactBatchResult.fromJson(
+              await publication,
+            );
+            expect(result.runId, 'runArtifactDirection');
+            expect(result.artifactIds, <String>['artifactDirection']);
+          }
+        },
+      );
+    }
+  });
+
+  test('artifact publication requires strict project and case identity', () {
+    final params = <String, Object?>{
+      ..._artifactPublishParams(),
+      'requestId': 'artifact-strict',
+      'deadline': _deadline().toIso8601String(),
+    };
+    final decoded = CockpitWorkerPublishArtifactBatchRequest.fromJson(params);
+    expect(decoded.projectId, 'projectA');
+    expect(decoded.caseId, 'caseA');
+    CockpitWorkerProtocolSchema.validateRequest('publishArtifactBatch', params);
+    for (final field in const <String>['projectId', 'caseId']) {
+      final missing = <String, Object?>{...params}..remove(field);
+      expect(
+        () => CockpitWorkerPublishArtifactBatchRequest.fromJson(missing),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => CockpitWorkerProtocolSchema.validateRequest(
+          'publishArtifactBatch',
+          missing,
+        ),
+        throwsA(isA<FormatException>()),
+      );
     }
   });
 
@@ -401,6 +498,188 @@ void main() {
       expect(result.operationKinds, isNot(contains('worker.port.bind')));
     },
   );
+
+  test(
+    'worker keeps recovery atomic across concurrent initialization',
+    () async {
+      final recoveryEntered = Completer<void>();
+      final releaseRecovery = Completer<void>();
+      var recoveryCalls = 0;
+      final server = CockpitWorkerServer(
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        supportedFeatures: const <String>['featureA', 'featureB'],
+        operations: const _TestOperationDispatcher(),
+        events: CockpitWorkerMemoryEventExchange(),
+        onInitialized: () async {
+          recoveryCalls += 1;
+          recoveryEntered.complete();
+          await releaseRecovery.future;
+        },
+      );
+      final harness = _PeerHarness(server.handle);
+      server.bindPeer(harness.server);
+      harness.start();
+      addTearDown(harness.close);
+
+      final primary = _initialize(
+        harness.client,
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        idempotencyKey: 'initialize-primary',
+      );
+      await recoveryEntered.future;
+      expect(server.isInitialized, isFalse);
+      final recoveryReplay = CockpitWorkerReplayEventsResult.fromJson(
+        await harness.client.call(
+          method: 'replayEvents',
+          params: const <String, Object?>{
+            'protocolVersion': cockpitWorkerProtocolVersion,
+            'workspaceId': workspaceId,
+            'idempotencyKey': 'replay-during-recovery',
+            'runId': 'runRecovery',
+            'afterSequence': 0,
+          },
+          deadline: _deadline(),
+        ),
+      );
+      expect(recoveryReplay.runId, 'runRecovery');
+      expect(recoveryReplay.events, isEmpty);
+      await expectLater(
+        harness.client.call(
+          method: 'capabilities',
+          params: const <String, Object?>{
+            'protocolVersion': cockpitWorkerProtocolVersion,
+            'workspaceId': workspaceId,
+            'idempotencyKey': 'capabilities-during-recovery',
+          },
+          deadline: _deadline(),
+        ),
+        throwsA(_remoteCode('notInitialized')),
+      );
+      await expectLater(
+        _callOperation(
+          harness.client,
+          CockpitOperationInvocation(
+            kind: 'analyze.workspace',
+            workspaceId: workspaceId,
+            idempotencyKey: CockpitIdempotencyKey('operation-during-recovery'),
+            deadline: _deadline(),
+          ),
+        ),
+        throwsA(_remoteCode('notInitialized')),
+      );
+      await expectLater(
+        harness.client.call(
+          method: 'drain',
+          params: <String, Object?>{
+            'protocolVersion': cockpitWorkerProtocolVersion,
+            'workspaceId': workspaceId,
+            'idempotencyKey': 'drain-during-recovery',
+            'deadline': _deadline().toIso8601String(),
+          },
+          deadline: _deadline(),
+        ),
+        throwsA(_remoteCode('notInitialized')),
+      );
+
+      final follower = _initialize(
+        harness.client,
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        idempotencyKey: 'initialize-follower',
+      );
+      await expectLater(
+        _initialize(
+          harness.client,
+          workspaceId: workspaceId,
+          engineVersion: engineVersion,
+          workspaceRoot: workspaceRoot,
+          supportedFeatures: const <String>['featureB'],
+          idempotencyKey: 'initialize-conflict',
+        ),
+        throwsA(_remoteCode('initializeConflict')),
+      );
+      await expectLater(
+        _initialize(
+          harness.client,
+          workspaceId: workspaceId,
+          engineVersion: 'engineB',
+          workspaceRoot: workspaceRoot,
+          idempotencyKey: 'initialize-identity-conflict',
+        ),
+        throwsA(_remoteCode('workerIdentityMismatch')),
+      );
+      expect(recoveryCalls, 1);
+
+      releaseRecovery.complete();
+      await Future.wait<void>(<Future<void>>[primary, follower]);
+      expect(server.isInitialized, isTrue);
+      expect(recoveryCalls, 1);
+    },
+  );
+
+  test('worker retries initialization after recovery fails', () async {
+    var failRecovery = true;
+    var recoveryCalls = 0;
+    final server = CockpitWorkerServer(
+      workspaceId: workspaceId,
+      engineVersion: engineVersion,
+      workspaceRoot: workspaceRoot,
+      supportedFeatures: const <String>['featureA'],
+      operations: const _TestOperationDispatcher(),
+      events: CockpitWorkerMemoryEventExchange(),
+      onInitialized: () {
+        recoveryCalls += 1;
+        if (failRecovery) throw StateError('simulated recovery failure');
+      },
+    );
+    final harness = _PeerHarness(server.handle);
+    server.bindPeer(harness.server);
+    harness.start();
+    addTearDown(harness.close);
+
+    await expectLater(
+      _initialize(
+        harness.client,
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        idempotencyKey: 'initialize-failing-recovery',
+      ),
+      throwsA(_remoteCode('internalError')),
+    );
+    expect(server.isInitialized, isFalse);
+    expect(recoveryCalls, 1);
+    await expectLater(
+      harness.client.call(
+        method: 'replayEvents',
+        params: const <String, Object?>{
+          'protocolVersion': cockpitWorkerProtocolVersion,
+          'workspaceId': workspaceId,
+          'idempotencyKey': 'replay-after-failed-recovery',
+          'runId': 'runRecovery',
+          'afterSequence': 0,
+        },
+        deadline: _deadline(),
+      ),
+      throwsA(_remoteCode('notInitialized')),
+    );
+
+    failRecovery = false;
+    await _initialize(
+      harness.client,
+      workspaceId: workspaceId,
+      engineVersion: engineVersion,
+      workspaceRoot: workspaceRoot,
+      idempotencyKey: 'initialize-retry',
+    );
+    expect(server.isInitialized, isTrue);
+    expect(recoveryCalls, 2);
+  });
 
   test('worker rejects operation features that were not negotiated', () async {
     final server = CockpitWorkerServer(
@@ -932,13 +1211,14 @@ Future<void> _initialize(
   required String engineVersion,
   required String workspaceRoot,
   List<String> supportedFeatures = const <String>['featureA'],
+  String idempotencyKey = 'initialize',
 }) async {
   final raw = await peer.call(
     method: 'initialize',
     params: <String, Object?>{
       'protocolVersion': cockpitWorkerProtocolVersion,
       'workspaceId': workspaceId,
-      'idempotencyKey': 'initialize',
+      'idempotencyKey': idempotencyKey,
       'engineVersion': engineVersion,
       'workspaceRoot': workspaceRoot,
       'supportedFeatures': supportedFeatures,
@@ -1042,10 +1322,38 @@ Map<String, Object?> _publishParams({
       sequence: eventSequence,
       timestamp: DateTime.utc(2026, 7, 22),
       kind: 'run.progress',
+      entityKind: CockpitRunEventEntityKind.run,
       projectId: 'projectA',
       workspaceId: 'workspaceA',
       runId: runId,
       caseId: 'caseA',
+      lifecycle: CockpitRunLifecycle.running,
+    ).toJson(),
+  ],
+};
+
+Map<String, Object?> _artifactPublishParams() => <String, Object?>{
+  'protocolVersion': cockpitWorkerProtocolVersion,
+  'workspaceId': 'workspaceA',
+  'idempotencyKey': 'artifact-direction',
+  'projectId': 'projectA',
+  'runId': 'runArtifactDirection',
+  'caseId': 'caseA',
+  'artifacts': <Object?>[
+    CockpitArtifactResource(
+      artifactId: 'artifactDirection',
+      workspaceId: 'workspaceA',
+      runId: 'runArtifactDirection',
+      attemptId: 'attemptDirection',
+      kind: 'attempt.screenshot',
+      relativePath: 'artifacts/bundleDirection/screenshot.png',
+      mediaType: 'image/png',
+      sizeBytes: 4,
+      sha256:
+          'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      createdAt: DateTime.utc(2026, 7, 22),
+      downloadUrl:
+          '/api/v2/runs/runArtifactDirection/artifacts/artifactDirection',
     ).toJson(),
   ],
 };
@@ -1125,6 +1433,7 @@ final class _ContractDirection {
       base = CockpitSupervisorWorkerEndpoint(
         workspaceId: 'workspaceA',
         events: events,
+        artifacts: events,
         resourceAuthority: const _TestResourceAuthority(),
       ).handle;
     }
@@ -1157,6 +1466,7 @@ final class _ContractDirection {
       handler = CockpitSupervisorWorkerEndpoint(
         workspaceId: 'workspaceA',
         events: events,
+        artifacts: events,
         resourceAuthority: const _TestResourceAuthority(),
       ).handle;
     }

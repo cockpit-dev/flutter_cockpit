@@ -8,6 +8,43 @@ import '../foundation/cockpit_locked_json_store.dart';
 import '../foundation/cockpit_permissions.dart';
 import 'cockpit_worker_value_reader.dart';
 
+final class CockpitWorkerRetainedBundle {
+  const CockpitWorkerRetainedBundle._({
+    required this.path,
+    required this.newlyCreated,
+  });
+
+  final String path;
+  final bool newlyCreated;
+}
+
+final class CockpitWorkerCommittedBundlePlan {
+  const CockpitWorkerCommittedBundlePlan._({
+    required this.sourcePath,
+    required this.retainedPath,
+    required Object retainerIdentity,
+    required String stateRoot,
+    required String ownerKind,
+    required String ownerId,
+    required bool newlyCreated,
+    required List<_CommittedBundleEntry> entries,
+  }) : _retainerIdentity = retainerIdentity,
+       _stateRoot = stateRoot,
+       _ownerKind = ownerKind,
+       _ownerId = ownerId,
+       _newlyCreated = newlyCreated,
+       _entries = entries;
+
+  final String sourcePath;
+  final String retainedPath;
+  final Object _retainerIdentity;
+  final String _stateRoot;
+  final String _ownerKind;
+  final String _ownerId;
+  final bool _newlyCreated;
+  final List<_CommittedBundleEntry> _entries;
+}
+
 final class CockpitWorkerArtifactRetainer {
   CockpitWorkerArtifactRetainer({
     required String stateRoot,
@@ -39,6 +76,7 @@ final class CockpitWorkerArtifactRetainer {
   final CockpitPermissionHardener _permissionHardener;
   final CockpitDirectorySyncer _directorySyncer;
   final CockpitTokenGenerator _tokenGenerator;
+  final Object _identity = Object();
   final Map<String, String> _committedCopies = <String, String>{};
 
   Future<String> retain({
@@ -83,12 +121,13 @@ final class CockpitWorkerArtifactRetainer {
         root: canonicalCommittedRoot,
         allowDirectory: true,
       );
-      return _retainCommittedBundle(
+      final plan = await _planCommittedBundle(
         canonicalCommittedRoot,
         stateRoot: root,
         ownerKind: ownerKind,
         ownerId: ownerId,
       );
+      return (await commitCommittedBundle(plan)).path;
     }
     if (committedRoot != null) {
       final canonicalCommittedRoot = await _canonicalCommittedRoot(
@@ -111,12 +150,13 @@ final class CockpitWorkerArtifactRetainer {
         root: canonicalCommittedRoot,
         allowDirectory: false,
       );
-      final retainedRoot = await _retainCommittedBundle(
+      final plan = await _planCommittedBundle(
         canonicalCommittedRoot,
         stateRoot: root,
         ownerKind: ownerKind,
         ownerId: ownerId,
       );
+      final retainedRoot = (await commitCommittedBundle(plan)).path;
       final relative = p.relative(
         normalizedSource,
         from: canonicalCommittedRoot,
@@ -139,6 +179,177 @@ final class CockpitWorkerArtifactRetainer {
       ownerKind: ownerKind,
       ownerId: ownerId,
     );
+  }
+
+  Future<CockpitWorkerCommittedBundlePlan> planCommittedBundle({
+    required String ownerId,
+    required String sourcePath,
+  }) async {
+    workerId(ownerId, r'$.ownerId');
+    if (!p.isAbsolute(sourcePath)) {
+      throw const FormatException('Artifact source path must be absolute.');
+    }
+    final root = await _canonicalStateRoot();
+    final canonicalCommittedRoot = await _canonicalCommittedRoot(
+      sourcePath,
+      stateRoot: root,
+    );
+    _validateCommittedRunAuthority(
+      canonicalCommittedRoot,
+      stateRoot: root,
+      ownerKind: 'run',
+      ownerId: ownerId,
+    );
+    await _validateInStateSource(
+      canonicalCommittedRoot,
+      root: canonicalCommittedRoot,
+      allowDirectory: true,
+    );
+    return _planCommittedBundle(
+      canonicalCommittedRoot,
+      stateRoot: root,
+      ownerKind: 'run',
+      ownerId: ownerId,
+    );
+  }
+
+  Future<CockpitWorkerRetainedBundle> commitCommittedBundle(
+    CockpitWorkerCommittedBundlePlan plan,
+  ) async {
+    if (!identical(plan._retainerIdentity, _identity)) {
+      throw StateError('Committed bundle plan belongs to another retainer.');
+    }
+    final root = await _canonicalStateRoot();
+    if (!p.equals(root, plan._stateRoot)) {
+      throw StateError('Committed bundle plan state authority is stale.');
+    }
+    final sourceRoot = await _canonicalCommittedRoot(
+      plan.sourcePath,
+      stateRoot: root,
+    );
+    _validateCommittedRunAuthority(
+      sourceRoot,
+      stateRoot: root,
+      ownerKind: plan._ownerKind,
+      ownerId: plan._ownerId,
+    );
+    final currentSource = await _snapshotDirectory(sourceRoot);
+    if (!_sameDirectorySnapshot(plan._entries, currentSource)) {
+      throw const FileSystemException(
+        'Committed bundle changed after publication preflight.',
+      );
+    }
+    final ownerRoot = _retainedOwnerRoot(
+      root,
+      ownerKind: plan._ownerKind,
+      ownerId: plan._ownerId,
+    );
+    _validatePlannedRetainedPath(plan.retainedPath, ownerRoot: ownerRoot);
+    if (!plan._newlyCreated) {
+      if (_committedCopies[sourceRoot] != plan.retainedPath) {
+        throw StateError('Committed bundle plan identity is stale.');
+      }
+      await _validateInStateSource(
+        plan.retainedPath,
+        root: ownerRoot,
+        allowDirectory: true,
+      );
+      final retained = await _snapshotDirectory(plan.retainedPath);
+      if (!_sameDirectorySnapshot(plan._entries, retained)) {
+        throw const FileSystemException(
+          'Previously retained bundle does not match its source plan.',
+        );
+      }
+      return CockpitWorkerRetainedBundle._(
+        path: plan.retainedPath,
+        newlyCreated: false,
+      );
+    }
+    if (_committedCopies.containsKey(sourceRoot)) {
+      throw StateError('Committed bundle plan was superseded.');
+    }
+    final parent = await _retainedOwnerDirectory(
+      root,
+      ownerKind: plan._ownerKind,
+      ownerId: plan._ownerId,
+    );
+    if (!p.equals(parent.path, ownerRoot) ||
+        !p.equals(p.dirname(plan.retainedPath), parent.path)) {
+      throw StateError('Committed bundle plan target authority is stale.');
+    }
+    final target = Directory(plan.retainedPath);
+    final staging = Directory('${plan.retainedPath}.tmp');
+    if (await FileSystemEntity.type(target.path, followLinks: false) !=
+            FileSystemEntityType.notFound ||
+        await FileSystemEntity.type(staging.path, followLinks: false) !=
+            FileSystemEntityType.notFound) {
+      throw FileSystemException(
+        'Committed bundle plan target already exists.',
+        target.path,
+      );
+    }
+    var renamed = false;
+    try {
+      await staging.create();
+      await _permissionHardener.hardenDirectory(staging);
+      for (final entry in plan._entries.where((entry) => entry.directory)) {
+        final directory = await Directory(
+          p.join(staging.path, entry.relativePath),
+        ).create(recursive: true);
+        await _permissionHardener.hardenDirectory(directory);
+        await _directorySyncer.sync(directory.parent.path);
+      }
+      for (final entry in plan._entries.where((entry) => !entry.directory)) {
+        await _copyVerifiedFile(
+          File(p.join(sourceRoot, entry.relativePath)),
+          File(p.join(staging.path, entry.relativePath)),
+          expected: entry,
+        );
+      }
+      final after = await _snapshotDirectory(sourceRoot);
+      if (!_sameDirectorySnapshot(plan._entries, after)) {
+        throw const FileSystemException(
+          'Committed bundle changed while being retained.',
+        );
+      }
+      final staged = await _snapshotDirectory(staging.path);
+      if (!_sameDirectorySnapshot(plan._entries, staged)) {
+        throw const FileSystemException(
+          'Retained bundle does not match its publication plan.',
+        );
+      }
+      for (final entry in plan._entries.reversed.where(
+        (entry) => entry.directory,
+      )) {
+        await _directorySyncer.sync(p.join(staging.path, entry.relativePath));
+      }
+      await _directorySyncer.sync(staging.path);
+      await staging.rename(target.path);
+      renamed = true;
+      await _directorySyncer.sync(parent.path);
+      await _validateInStateSource(
+        target.path,
+        root: parent.path,
+        allowDirectory: true,
+      );
+      final retained = await _snapshotDirectory(target.path);
+      if (!_sameDirectorySnapshot(plan._entries, retained)) {
+        throw const FileSystemException(
+          'Committed retained bundle failed post-rename verification.',
+        );
+      }
+      _committedCopies[sourceRoot] = target.path;
+      return CockpitWorkerRetainedBundle._(
+        path: target.path,
+        newlyCreated: true,
+      );
+    } catch (_) {
+      if (await staging.exists()) await staging.delete(recursive: true);
+      if (renamed && await target.exists()) {
+        await target.delete(recursive: true);
+      }
+      rethrow;
+    }
   }
 
   void _validateCommittedRunAuthority(
@@ -365,69 +576,57 @@ final class CockpitWorkerArtifactRetainer {
     }
   }
 
-  Future<String> _retainCommittedBundle(
+  Future<CockpitWorkerCommittedBundlePlan> _planCommittedBundle(
     String sourceRoot, {
     required String stateRoot,
     required String ownerKind,
     required String ownerId,
   }) async {
-    if (_committedCopies[sourceRoot] case final retained?) {
-      await _validateInStateSource(
-        retained,
-        root: p.join(stateRoot, 'retained_artifacts', ownerKind, ownerId),
-        allowDirectory: true,
-      );
-      return retained;
-    }
-    final entries = await _snapshotDirectory(sourceRoot);
-    final parent = await _retainedOwnerDirectory(
+    final entries = List<_CommittedBundleEntry>.unmodifiable(
+      await _snapshotDirectory(sourceRoot),
+    );
+    final ownerRoot = _retainedOwnerRoot(
       stateRoot,
       ownerKind: ownerKind,
       ownerId: ownerId,
     );
-    final token = _tokenGenerator.nextToken(byteLength: 24);
-    final target = Directory(p.join(parent.path, 'bundle_$token'));
-    final staging = Directory(p.join(parent.path, '.bundle_$token.tmp'));
-    var renamed = false;
-    try {
-      await staging.create();
-      await _permissionHardener.hardenDirectory(staging);
-      for (final entry in entries.where((entry) => entry.directory)) {
-        final directory = await Directory(
-          p.join(staging.path, entry.relativePath),
-        ).create(recursive: true);
-        await _permissionHardener.hardenDirectory(directory);
-        await _directorySyncer.sync(directory.parent.path);
-      }
-      for (final entry in entries.where((entry) => !entry.directory)) {
-        await _copyVerifiedFile(
-          File(p.join(sourceRoot, entry.relativePath)),
-          File(p.join(staging.path, entry.relativePath)),
-        );
-      }
-      final after = await _snapshotDirectory(sourceRoot);
-      if (!_sameDirectorySnapshot(entries, after)) {
+    if (_committedCopies[sourceRoot] case final retained?) {
+      _validatePlannedRetainedPath(retained, ownerRoot: ownerRoot);
+      await _validateInStateSource(
+        retained,
+        root: ownerRoot,
+        allowDirectory: true,
+      );
+      final retainedEntries = await _snapshotDirectory(retained);
+      if (!_sameDirectorySnapshot(entries, retainedEntries)) {
         throw const FileSystemException(
-          'Committed bundle changed while being retained.',
+          'Previously retained bundle does not match its committed source.',
         );
       }
-      for (final entry in entries.reversed.where((entry) => entry.directory)) {
-        await _directorySyncer.sync(p.join(staging.path, entry.relativePath));
-      }
-      await _directorySyncer.sync(staging.path);
-      await staging.rename(target.path);
-      renamed = true;
-      await _directorySyncer.sync(parent.path);
-      final retained = p.normalize(target.path);
-      _committedCopies[sourceRoot] = retained;
-      return retained;
-    } catch (_) {
-      if (await staging.exists()) await staging.delete(recursive: true);
-      if (renamed && await target.exists()) {
-        await target.delete(recursive: true);
-      }
-      rethrow;
+      return CockpitWorkerCommittedBundlePlan._(
+        sourcePath: sourceRoot,
+        retainedPath: retained,
+        retainerIdentity: _identity,
+        stateRoot: stateRoot,
+        ownerKind: ownerKind,
+        ownerId: ownerId,
+        newlyCreated: false,
+        entries: entries,
+      );
     }
+    final token = _tokenGenerator.nextToken(byteLength: 24);
+    final retained = p.normalize(p.join(ownerRoot, 'bundle_$token'));
+    _validatePlannedRetainedPath(retained, ownerRoot: ownerRoot);
+    return CockpitWorkerCommittedBundlePlan._(
+      sourcePath: sourceRoot,
+      retainedPath: retained,
+      retainerIdentity: _identity,
+      stateRoot: stateRoot,
+      ownerKind: ownerKind,
+      ownerId: ownerId,
+      newlyCreated: true,
+      entries: entries,
+    );
   }
 
   Future<List<_CommittedBundleEntry>> _snapshotDirectory(String root) async {
@@ -459,6 +658,12 @@ final class CockpitWorkerArtifactRetainer {
         _CommittedBundleEntry(
           relativePath: p.relative(entity.path, from: root),
           directory: type == FileSystemEntityType.directory,
+          sizeBytes: type == FileSystemEntityType.file
+              ? await File(entity.path).length()
+              : null,
+          sha256: type == FileSystemEntityType.file
+              ? (await _digest(File(entity.path))).toString()
+              : null,
         ),
       );
     }
@@ -481,14 +686,20 @@ final class CockpitWorkerArtifactRetainer {
     if (before.length != after.length) return false;
     for (var index = 0; index < before.length; index += 1) {
       if (before[index].relativePath != after[index].relativePath ||
-          before[index].directory != after[index].directory) {
+          before[index].directory != after[index].directory ||
+          before[index].sizeBytes != after[index].sizeBytes ||
+          before[index].sha256 != after[index].sha256) {
         return false;
       }
     }
     return true;
   }
 
-  Future<void> _copyVerifiedFile(File source, File target) async {
+  Future<void> _copyVerifiedFile(
+    File source,
+    File target, {
+    required _CommittedBundleEntry expected,
+  }) async {
     final canonicalSource = p.normalize(await source.resolveSymbolicLinks());
     if (!p.equals(canonicalSource, p.normalize(source.path))) {
       throw FileSystemException(
@@ -522,11 +733,15 @@ final class CockpitWorkerArtifactRetainer {
       final afterCanonical = afterType == FileSystemEntityType.file
           ? p.normalize(await source.resolveSymbolicLinks())
           : null;
-      if (copied != length ||
+      final targetDigest = await _digest(target);
+      if (expected.directory ||
+          expected.sizeBytes != length ||
+          expected.sha256 != targetDigest.toString() ||
+          copied != length ||
           finalLength != length ||
           afterCanonical == null ||
           !p.equals(afterCanonical, canonicalSource) ||
-          await _digest(source) != await _digest(target)) {
+          await _digest(source) != targetDigest) {
         throw FileSystemException(
           'Committed artifact changed while being retained.',
           source.path,
@@ -542,17 +757,31 @@ final class CockpitWorkerArtifactRetainer {
 
   Future<Digest> _digest(File file) => sha256.bind(file.openRead()).first;
 
+  void _validatePlannedRetainedPath(
+    String retainedPath, {
+    required String ownerRoot,
+  }) {
+    final normalized = p.normalize(retainedPath);
+    final name = p.basename(normalized);
+    if (!p.equals(normalized, retainedPath) ||
+        !p.equals(p.dirname(normalized), ownerRoot) ||
+        !RegExp(r'^bundle_[A-Za-z0-9_-]{32}$').hasMatch(name)) {
+      throw const FileSystemException(
+        'Committed bundle plan has invalid retained authority.',
+      );
+    }
+  }
+
   Future<Directory> _retainedOwnerDirectory(
     String root, {
     required String ownerKind,
     required String ownerId,
   }) async {
     var parent = Directory(root);
-    for (final component in <String>[
-      'retained_artifacts',
-      ownerKind,
-      ownerId,
-    ]) {
+    final components = ownerKind == 'run'
+        ? <String>['runs', ownerId, 'artifacts']
+        : <String>['retained_artifacts', ownerKind, ownerId];
+    for (final component in components) {
       final directory = Directory(p.join(parent.path, component));
       final type = await FileSystemEntity.type(
         directory.path,
@@ -581,14 +810,26 @@ final class CockpitWorkerArtifactRetainer {
     }
     return parent;
   }
+
+  String _retainedOwnerRoot(
+    String root, {
+    required String ownerKind,
+    required String ownerId,
+  }) => ownerKind == 'run'
+      ? p.join(root, 'runs', ownerId, 'artifacts')
+      : p.join(root, 'retained_artifacts', ownerKind, ownerId);
 }
 
 final class _CommittedBundleEntry {
   const _CommittedBundleEntry({
     required this.relativePath,
     required this.directory,
+    required this.sizeBytes,
+    required this.sha256,
   });
 
   final String relativePath;
   final bool directory;
+  final int? sizeBytes;
+  final String? sha256;
 }

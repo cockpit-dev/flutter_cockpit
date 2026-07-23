@@ -320,6 +320,7 @@ void main() {
           sequence: 1,
           timestamp: finishedAt,
           kind: 'run.completed',
+          entityKind: CockpitRunEventEntityKind.run,
           projectId: run.projectId,
           workspaceId: run.workspaceId,
           runId: run.runId,
@@ -335,6 +336,63 @@ void main() {
         );
         _expectRoundTrip(event, CockpitRunEvent.fromJson);
         CockpitRunEvent.validateSequence(<CockpitRunEvent>[event]);
+        final stepEvent = CockpitRunEvent(
+          eventId: 'stepEventA',
+          sequence: 2,
+          timestamp: finishedAt,
+          kind: 'step.completed',
+          entityKind: CockpitRunEventEntityKind.step,
+          projectId: run.projectId,
+          workspaceId: run.workspaceId,
+          runId: run.runId,
+          caseId: run.caseId,
+          attemptId: 'attemptA',
+          stepExecutionId: 'main/goBack',
+          stepStatus: CockpitTestStepStatus.passed,
+          sourceLocation: CockpitTestSourceLocation(line: 7, column: 3),
+          requestedPlane: CockpitTestPlane.semantic,
+          actualPlane: CockpitTestPlane.semantic,
+          driverId: 'flutterDriver',
+          degradation: 'semanticTargetRecovered',
+          locatorSummary: const <String, Object?>{
+            'matchedKind': 'cockpitId',
+            'matchedValue': 'backButton',
+          },
+          artifacts: <CockpitArtifactReference>[artifact.reference],
+        );
+        _expectRoundTrip(stepEvent, CockpitRunEvent.fromJson);
+        expect(stepEvent.toJson(), containsPair('status', 'passed'));
+        expect(stepEvent.toJson(), isNot(contains('lifecycle')));
+        expect(stepEvent.toJson(), isNot(contains('outcome')));
+        _expectRoundTrip(
+          CockpitRunEvent(
+            eventId: 'caseEventA',
+            sequence: 1,
+            timestamp: submittedAt,
+            kind: 'case.queued',
+            entityKind: CockpitRunEventEntityKind.testCase,
+            projectId: run.projectId,
+            workspaceId: run.workspaceId,
+            runId: run.runId,
+            caseId: run.caseId,
+          ),
+          CockpitRunEvent.fromJson,
+        );
+        _expectRoundTrip(
+          CockpitRunEvent(
+            eventId: 'attemptEventA',
+            sequence: 1,
+            timestamp: startedAt,
+            kind: 'attempt.running',
+            entityKind: CockpitRunEventEntityKind.attempt,
+            projectId: run.projectId,
+            workspaceId: run.workspaceId,
+            runId: run.runId,
+            caseId: run.caseId,
+            attemptId: 'attemptA',
+          ),
+          CockpitRunEvent.fromJson,
+        );
 
         _expectRoundTrip(
           CockpitLeaseRequest(
@@ -898,6 +956,7 @@ void main() {
             sequence: 1,
             timestamp: DateTime.utc(2026, 7, 20),
             kind: 'run.completed',
+            entityKind: CockpitRunEventEntityKind.run,
             projectId: 'projectA',
             workspaceId: 'workspaceA',
             runId: 'runA',
@@ -1108,10 +1167,12 @@ CockpitRunEvent _event({
   sequence: sequence,
   timestamp: DateTime.utc(2026, 7, 20),
   kind: 'run.progress',
+  entityKind: CockpitRunEventEntityKind.run,
   projectId: projectId,
   workspaceId: workspaceId,
   runId: runId,
   caseId: caseId,
+  lifecycle: CockpitRunLifecycle.running,
 );
 
 CockpitApiError _errorWithArtifacts(

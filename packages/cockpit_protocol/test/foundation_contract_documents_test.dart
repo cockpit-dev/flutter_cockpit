@@ -177,6 +177,7 @@ void main() {
             sequence: 1,
             timestamp: now,
             kind: 'run.completed',
+            entityKind: CockpitRunEventEntityKind.run,
             projectId: 'projectA',
             workspaceId: 'workspaceA',
             runId: 'runA',
@@ -314,6 +315,72 @@ void main() {
       startedAt: now,
     ).toJson()..['startedAt'] = nonCanonicalUtc;
     expect(() => CockpitServerInfo.fromJson(serverJson), throwsFormatException);
+
+    final caseEventJson = CockpitRunEvent(
+      eventId: 'caseEventA',
+      sequence: 1,
+      timestamp: now,
+      kind: 'case.queued',
+      entityKind: CockpitRunEventEntityKind.testCase,
+      projectId: 'projectA',
+      workspaceId: 'workspaceA',
+      runId: 'runA',
+      caseId: 'caseA',
+    ).toJson();
+    final stepEventJson = CockpitRunEvent(
+      eventId: 'stepEventA',
+      sequence: 2,
+      timestamp: now,
+      kind: 'step.completed',
+      entityKind: CockpitRunEventEntityKind.step,
+      projectId: 'projectA',
+      workspaceId: 'workspaceA',
+      runId: 'runA',
+      caseId: 'caseA',
+      attemptId: 'attemptA',
+      stepExecutionId: 'main/final',
+      stepStatus: CockpitTestStepStatus.passed,
+    ).toJson();
+    for (final validEvent in <Map<String, Object?>>[
+      caseEventJson,
+      stepEventJson,
+    ]) {
+      _expectDefinition(
+        foundationSchema,
+        'RunEvent',
+        validEvent,
+        isValid: true,
+      );
+      expect(() => CockpitRunEvent.fromJson(validEvent), returnsNormally);
+    }
+    for (final invalidEvent in <Map<String, Object?>>[
+      <String, Object?>{...caseEventJson, 'entityKind': 'session'},
+      <String, Object?>{...caseEventJson, 'lifecycle': 'running'},
+      <String, Object?>{
+        ...caseEventJson,
+        'kind': 'attempt.running',
+        'entityKind': 'attempt',
+      },
+      <String, Object?>{...stepEventJson, 'outcome': 'passed'},
+      <String, Object?>{
+        ...caseEventJson,
+        'kind': 'artifact.published',
+        'entityKind': 'artifact',
+        'outcome': 'passed',
+      },
+      <String, Object?>{...stepEventJson, 'status': 'failed'},
+    ]) {
+      _expectDefinition(
+        foundationSchema,
+        'RunEvent',
+        invalidEvent,
+        isValid: false,
+      );
+      expect(
+        () => CockpitRunEvent.fromJson(invalidEvent),
+        throwsFormatException,
+      );
+    }
 
     final artifact = CockpitArtifactResource(
       artifactId: 'artifactA',

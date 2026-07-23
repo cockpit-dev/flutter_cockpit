@@ -55,8 +55,10 @@ CockpitRunEvent _event(int sequence) => CockpitRunEvent(
   sequence: sequence,
   timestamp: DateTime.utc(2026, 7, 22),
   kind: 'run.progress',
+  entityKind: CockpitRunEventEntityKind.run,
   projectId: 'projectA',
   workspaceId: 'workspaceA',
   runId: 'runA',
   caseId: 'caseA',
+  lifecycle: CockpitRunLifecycle.running,
 );

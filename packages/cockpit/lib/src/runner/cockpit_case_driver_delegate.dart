@@ -166,11 +166,15 @@ final class CockpitCaseDriverDelegate implements CockpitCaseExecutionDelegate {
     return effectiveError == null
         ? CockpitTestKernelOperationResult.success(
             actualPlane: lowered.actualPlane,
+            locatorResolution: execution.result.locatorResolution,
+            degradationReason: execution.result.degradationReason,
             evidence: allEvidence,
           )
         : CockpitTestKernelOperationResult.failure(
             effectiveError,
             actualPlane: lowered.actualPlane,
+            locatorResolution: execution.result.locatorResolution,
+            degradationReason: execution.result.degradationReason,
             evidence: allEvidence,
           );
   }
@@ -218,6 +222,8 @@ final class CockpitCaseDriverDelegate implements CockpitCaseExecutionDelegate {
         return CockpitTestKernelConditionResult(
           evaluation: const CockpitTestConditionEvaluation.matched(),
           actualPlane: lowered.actualPlane,
+          locatorResolution: execution.result.locatorResolution,
+          degradationReason: execution.result.degradationReason,
           evidence: evidence,
         );
       }
@@ -228,6 +234,8 @@ final class CockpitCaseDriverDelegate implements CockpitCaseExecutionDelegate {
         return CockpitTestKernelConditionResult(
           evaluation: const CockpitTestConditionEvaluation.notMatched(),
           actualPlane: lowered.actualPlane,
+          locatorResolution: execution.result.locatorResolution,
+          degradationReason: execution.result.degradationReason,
           evidence: evidence,
         );
       }
@@ -236,6 +244,8 @@ final class CockpitCaseDriverDelegate implements CockpitCaseExecutionDelegate {
           _commandError(execution.result, node.stepId),
         ),
         actualPlane: lowered.actualPlane,
+        locatorResolution: execution.result.locatorResolution,
+        degradationReason: execution.result.degradationReason,
         evidence: evidence,
       );
     } catch (_) {

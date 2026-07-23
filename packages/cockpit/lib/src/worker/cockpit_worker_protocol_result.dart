@@ -23,6 +23,8 @@ sealed class CockpitWorkerProtocolResult {
       'publishEventBatch' => CockpitWorkerPublishEventBatchResult.fromJson(
         value,
       ),
+      'publishArtifactBatch' =>
+        CockpitWorkerPublishArtifactBatchResult.fromJson(value),
       _ => throw const FormatException('Unsupported worker method.'),
     };
   }
@@ -420,6 +422,40 @@ final class CockpitWorkerPublishEventBatchResult
               r'$.replayAfterSequence',
               minimum: 0,
             ),
+    );
+  }
+}
+
+final class CockpitWorkerPublishArtifactBatchResult
+    extends CockpitWorkerProtocolResult {
+  CockpitWorkerPublishArtifactBatchResult({
+    required this.runId,
+    required Iterable<String> artifactIds,
+  }) : artifactIds = List<String>.unmodifiable(artifactIds) {
+    workerId(runId, r'$.runId');
+    if (this.artifactIds.isEmpty || this.artifactIds.length > 256) {
+      throw const FormatException('Published artifact result size is invalid.');
+    }
+    _validateIds(this.artifactIds, r'$.artifactIds');
+  }
+
+  final String runId;
+  final List<String> artifactIds;
+
+  @override
+  String get method => 'publishArtifactBatch';
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    'runId': runId,
+    'artifactIds': artifactIds,
+  };
+
+  factory CockpitWorkerPublishArtifactBatchResult.fromJson(Object? value) {
+    final json = _resultObject(value, const <String>{'runId', 'artifactIds'});
+    return CockpitWorkerPublishArtifactBatchResult(
+      runId: workerId(json['runId'], r'$.runId'),
+      artifactIds: _ids(json['artifactIds'], r'$.artifactIds'),
     );
   }
 }

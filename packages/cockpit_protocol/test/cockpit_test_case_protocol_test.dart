@@ -46,6 +46,13 @@ void main() {
       sourceLocation: location,
       requestedPlane: CockpitTestPlane.semantic,
       actualPlane: CockpitTestPlane.semantic,
+      driverId: 'flutterDriver',
+      locatorResolution: const CockpitLocatorResolution(
+        matchedKind: CockpitLocatorKind.cockpitId,
+        matchedValue: 'continueButton',
+        matchedSignals: <String, String>{'cockpitId': 'continueButton'},
+      ),
+      degradationReason: 'semanticTargetRecovered',
       evidence: const <String>['artifact000001'],
     );
     _expectRoundTrip(step, CockpitTestStepResult.fromJson);
@@ -206,6 +213,18 @@ void main() {
         'durationMs': 1,
         'occurrence': <String, Object?>{},
       }),
+      throwsFormatException,
+    );
+    expect(
+      () => CockpitTestStepResult(
+        stepId: 'badStep',
+        executionId: 'main/badStep',
+        section: 'main',
+        status: CockpitTestStepStatus.passed,
+        startedAt: DateTime.utc(2026, 7, 20),
+        durationMs: 1,
+        degradationReason: List<String>.filled(513, 'x').join(),
+      ),
       throwsFormatException,
     );
   });

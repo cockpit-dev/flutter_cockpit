@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:cockpit/src/application/cockpit_application_service_exception.dart';
 import 'package:cockpit/src/foundation/cockpit_locked_json_store.dart';
 import 'package:cockpit/src/foundation/cockpit_permissions.dart';
+import 'package:cockpit/src/worker/cockpit_worker_case_completion.dart';
 import 'package:cockpit/src/worker/cockpit_worker_case_run_store.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -190,6 +192,139 @@ void main() {
       ),
     );
   });
+
+  test(
+    'recovers a versioned completion intent without exposing pending output',
+    () async {
+      final temporary = await Directory.systemTemp.createTemp(
+        'cockpit-case-completion-intent-',
+      );
+      addTearDown(() => temporary.delete(recursive: true));
+      final path = p.join(await temporary.resolveSymbolicLinks(), 'case_runs');
+      final hardener = Platform.isWindows
+          ? const CockpitWindowsInheritedAclPermissionHardener()
+          : const CockpitPosixPermissionHardener();
+      final observed = <CockpitWorkerCaseCompletionPhase>[];
+      CockpitWorkerCaseRunStore open() => CockpitWorkerCaseRunStore.file(
+        workspaceId: 'workspaceA',
+        path: path,
+        permissionHardener: hardener,
+        directorySyncer: const _NoopDirectorySyncer(),
+        completionObserver: (observation) {
+          observed.add(observation.phase);
+          throw StateError('telemetry failure');
+        },
+      );
+
+      final now = DateTime.utc(2026, 7, 22, 2, 30);
+      final first = open();
+      final reservation = await first.reserve(
+        idempotencyKey: 'case-completion-intent',
+        requestFingerprint: _fingerprint('9'),
+        caseId: 'caseA',
+        proposedRunId: 'run_completion',
+        proposedAttemptId: 'attempt_completion',
+        now: now,
+      );
+      await first.markRunning(
+        idempotencyKey: 'case-completion-intent',
+        runId: reservation.runId,
+        attemptId: reservation.attemptId,
+        now: now.add(const Duration(seconds: 1)),
+      );
+      final events = _completionEvents(
+        runId: reservation.runId,
+        attemptId: reservation.attemptId,
+        firstSequence: 7,
+      );
+      final output = <String, Object?>{
+        'runId': reservation.runId,
+        'attemptId': reservation.attemptId,
+        'result': const <String, Object?>{'outcome': 'passed'},
+      };
+      final intent = await first.prepareCompletionIntent(
+        idempotencyKey: 'case-completion-intent',
+        runId: reservation.runId,
+        attemptId: reservation.attemptId,
+        intentId: 'completion_intentA',
+        output: output,
+        events: events,
+        now: now.add(const Duration(seconds: 2)),
+      );
+
+      final pending = await _singleRecord(path);
+      expect(pending['schemaVersion'], 'cockpit.worker.case-run/v3');
+      final pendingAttempt =
+          (pending['attempts']! as List<Object?>).single!
+              as Map<String, Object?>;
+      expect(pendingAttempt['status'], 'running');
+      expect(pendingAttempt, isNot(contains('completedOutput')));
+      expect(
+        pendingAttempt['completionIntent'],
+        containsPair('schemaVersion', 'cockpit.worker.case-completion/v1'),
+      );
+      await expectLater(
+        first.reserve(
+          idempotencyKey: 'case-completion-intent',
+          requestFingerprint: _fingerprint('9'),
+          caseId: 'caseA',
+          proposedRunId: 'run_other',
+          proposedAttemptId: 'attempt_other',
+          now: now.add(const Duration(seconds: 3)),
+        ),
+        throwsStateError,
+      );
+
+      final reconciled = <CockpitRunEvent>[];
+      final reopened = open();
+      expect(
+        await reopened.recover(
+          now: now.add(const Duration(seconds: 4)),
+          reconcileCompletion: (pendingIntent) async {
+            reconciled.addAll(pendingIntent.events);
+          },
+        ),
+        1,
+      );
+      expect(
+        reconciled.map((event) => event.toJson()),
+        events.map((event) => event.toJson()),
+      );
+      final completed = await _singleRecord(path);
+      final completedAttempt =
+          (completed['attempts']! as List<Object?>).single!
+              as Map<String, Object?>;
+      expect(completedAttempt['status'], 'completed');
+      expect(completedAttempt, isNot(contains('completionIntent')));
+      expect(completedAttempt['completedOutput'], output);
+      expect(
+        completedAttempt['completionReceipt'],
+        containsPair(
+          'schemaVersion',
+          'cockpit.worker.case-completion-receipt/v1',
+        ),
+      );
+      await reopened.commitCompletionIntent(
+        intent: intent,
+        now: now.add(const Duration(seconds: 5)),
+      );
+      final replay = await reopened.reserve(
+        idempotencyKey: 'case-completion-intent',
+        requestFingerprint: _fingerprint('9'),
+        caseId: 'caseA',
+        proposedRunId: 'run_replay',
+        proposedAttemptId: 'attempt_replay',
+        now: now.add(const Duration(seconds: 6)),
+      );
+      expect(replay.replayed, isTrue);
+      expect(replay.completedOutput, output);
+      expect(observed, <CockpitWorkerCaseCompletionPhase>[
+        CockpitWorkerCaseCompletionPhase.intentPersisted,
+        CockpitWorkerCaseCompletionPhase.completionCommitted,
+        CockpitWorkerCaseCompletionPhase.completionCommitted,
+      ]);
+    },
+  );
 
   test(
     'shards completed case runs beyond the former global capacity',
@@ -632,6 +767,55 @@ void main() {
 }
 
 String _fingerprint(String character) => List.filled(64, character).join();
+
+List<CockpitRunEvent> _completionEvents({
+  required String runId,
+  required String attemptId,
+  required int firstSequence,
+}) => <CockpitRunEvent>[
+  CockpitRunEvent(
+    eventId: 'event_${firstSequence}_attempt',
+    sequence: firstSequence,
+    timestamp: DateTime.utc(2026, 7, 22, 2, 30, 2),
+    kind: 'attempt.completed',
+    entityKind: CockpitRunEventEntityKind.attempt,
+    projectId: 'projectA',
+    workspaceId: 'workspaceA',
+    runId: runId,
+    caseId: 'caseA',
+    attemptId: attemptId,
+    outcome: CockpitRunOutcome.passed,
+  ),
+  CockpitRunEvent(
+    eventId: 'event_${firstSequence}_case',
+    sequence: firstSequence + 1,
+    timestamp: DateTime.utc(2026, 7, 22, 2, 30, 2),
+    kind: 'case.completed',
+    entityKind: CockpitRunEventEntityKind.testCase,
+    projectId: 'projectA',
+    workspaceId: 'workspaceA',
+    runId: runId,
+    caseId: 'caseA',
+    attemptId: attemptId,
+    outcome: CockpitRunOutcome.passed,
+    stability: CockpitRunStability.stable,
+  ),
+  CockpitRunEvent(
+    eventId: 'event_${firstSequence}_run',
+    sequence: firstSequence + 2,
+    timestamp: DateTime.utc(2026, 7, 22, 2, 30, 2),
+    kind: 'run.completed',
+    entityKind: CockpitRunEventEntityKind.run,
+    projectId: 'projectA',
+    workspaceId: 'workspaceA',
+    runId: runId,
+    caseId: 'caseA',
+    attemptId: attemptId,
+    lifecycle: CockpitRunLifecycle.completed,
+    outcome: CockpitRunOutcome.passed,
+    stability: CockpitRunStability.stable,
+  ),
+];
 
 Future<Map<Object?, Object?>> _singleRecord(String root) async {
   final records = await _recordFiles(root);

@@ -78,6 +78,9 @@ final class CockpitTestAttemptRecorder {
     required CockpitTestStepStatus status,
     CockpitTestPlane? requestedPlane,
     CockpitTestPlane? actualPlane,
+    String? driverId,
+    CockpitLocatorResolution? locatorResolution,
+    String? degradationReason,
     CockpitTestError? error,
     Iterable<String> evidence = const <String>[],
   }) {
@@ -95,6 +98,9 @@ final class CockpitTestAttemptRecorder {
       sourceLocation: handle.node.sourceLocation,
       requestedPlane: requestedPlane,
       actualPlane: actualPlane,
+      driverId: driverId,
+      locatorResolution: locatorResolution,
+      degradationReason: degradationReason,
       error: error,
       evidence: evidence,
     );

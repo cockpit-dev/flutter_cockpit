@@ -9,17 +9,26 @@ import 'cockpit_case_operation_lease.dart';
 final class CockpitTestKernelOperationResult {
   const CockpitTestKernelOperationResult.success({
     this.actualPlane,
+    this.driverId,
+    this.locatorResolution,
+    this.degradationReason,
     this.evidence = const <String>[],
   }) : error = null;
 
   const CockpitTestKernelOperationResult.failure(
     this.error, {
     this.actualPlane,
+    this.driverId,
+    this.locatorResolution,
+    this.degradationReason,
     this.evidence = const <String>[],
   });
 
   final CockpitTestError? error;
   final CockpitTestPlane? actualPlane;
+  final String? driverId;
+  final CockpitLocatorResolution? locatorResolution;
+  final String? degradationReason;
   final List<String> evidence;
 
   bool get isSuccess => error == null;
@@ -29,11 +38,17 @@ final class CockpitTestKernelConditionResult {
   const CockpitTestKernelConditionResult({
     required this.evaluation,
     this.actualPlane,
+    this.driverId,
+    this.locatorResolution,
+    this.degradationReason,
     this.evidence = const <String>[],
   });
 
   final CockpitTestConditionEvaluation evaluation;
   final CockpitTestPlane? actualPlane;
+  final String? driverId;
+  final CockpitLocatorResolution? locatorResolution;
+  final String? degradationReason;
   final List<String> evidence;
 }
 
@@ -261,6 +276,9 @@ final class CockpitCaseExecutionKernel {
           handle,
           status: CockpitTestStepStatus.passed,
           actualPlane: result.actualPlane,
+          driverId: result.driverId,
+          locatorResolution: result.locatorResolution,
+          degradationReason: result.degradationReason,
           evidence: result.evidence,
         );
       } else {
@@ -269,6 +287,9 @@ final class CockpitCaseExecutionKernel {
           error,
           plan.target.plane,
           actualPlane: result.actualPlane,
+          driverId: result.driverId,
+          locatorResolution: result.locatorResolution,
+          degradationReason: result.degradationReason,
           evidence: result.evidence,
         );
       }
@@ -340,6 +361,9 @@ final class CockpitCaseExecutionKernel {
           status: CockpitTestStepStatus.passed,
           requestedPlane: _requestedPlane(node, plan),
           actualPlane: outcome.actualPlane,
+          driverId: outcome.driverId,
+          locatorResolution: outcome.locatorResolution,
+          degradationReason: outcome.degradationReason,
           evidence: outcome.evidence,
         );
       } else {
@@ -348,6 +372,9 @@ final class CockpitCaseExecutionKernel {
           error,
           plan.target.plane,
           actualPlane: outcome.actualPlane,
+          driverId: outcome.driverId,
+          locatorResolution: outcome.locatorResolution,
+          degradationReason: outcome.degradationReason,
           evidence: outcome.evidence,
         );
       }
@@ -411,6 +438,9 @@ final class CockpitCaseExecutionKernel {
         return _KernelNodeOutcome(
           error: result.error,
           actualPlane: result.actualPlane,
+          driverId: result.driverId,
+          locatorResolution: result.locatorResolution,
+          degradationReason: result.degradationReason,
           evidence: result.evidence,
         );
       case CockpitTestStartRecordingPlanOperation():
@@ -429,6 +459,9 @@ final class CockpitCaseExecutionKernel {
         return _KernelNodeOutcome(
           error: result.error,
           actualPlane: result.actualPlane,
+          driverId: result.driverId,
+          locatorResolution: result.locatorResolution,
+          degradationReason: result.degradationReason,
           evidence: result.evidence,
         );
       case CockpitTestStopRecordingPlanOperation():
@@ -455,6 +488,9 @@ final class CockpitCaseExecutionKernel {
         return _KernelNodeOutcome(
           error: result.error,
           actualPlane: result.actualPlane,
+          driverId: result.driverId,
+          locatorResolution: result.locatorResolution,
+          degradationReason: result.degradationReason,
           evidence: result.evidence,
         );
       case CockpitTestIfPlanOperation():
@@ -486,6 +522,9 @@ final class CockpitCaseExecutionKernel {
         return _KernelNodeOutcome(
           error: error,
           actualPlane: conditionResult.actualPlane,
+          driverId: conditionResult.driverId,
+          locatorResolution: conditionResult.locatorResolution,
+          degradationReason: conditionResult.degradationReason,
           evidence: conditionResult.evidence,
         );
       case CockpitTestRetryPlanOperation():
@@ -534,6 +573,9 @@ final class CockpitCaseExecutionKernel {
               CockpitTestConditionState.notMatched) {
             return _KernelNodeOutcome(
               actualPlane: conditionResult.actualPlane,
+              driverId: conditionResult.driverId,
+              locatorResolution: conditionResult.locatorResolution,
+              degradationReason: conditionResult.degradationReason,
               evidence: conditionResult.evidence,
             );
           }
@@ -632,6 +674,9 @@ final class CockpitCaseExecutionKernel {
     CockpitTestError error,
     CockpitTestPlane requestedPlane, {
     CockpitTestPlane? actualPlane,
+    String? driverId,
+    CockpitLocatorResolution? locatorResolution,
+    String? degradationReason,
     Iterable<String> evidence = const <String>[],
   }) {
     final blocked =
@@ -646,6 +691,9 @@ final class CockpitCaseExecutionKernel {
           : CockpitTestStepStatus.failed,
       requestedPlane: requestedPlane,
       actualPlane: actualPlane,
+      driverId: driverId,
+      locatorResolution: locatorResolution,
+      degradationReason: degradationReason,
       error: error,
       evidence: evidence,
     );
@@ -682,11 +730,17 @@ final class _KernelNodeOutcome {
   const _KernelNodeOutcome({
     this.error,
     this.actualPlane,
+    this.driverId,
+    this.locatorResolution,
+    this.degradationReason,
     this.evidence = const <String>[],
   });
 
   final CockpitTestError? error;
   final CockpitTestPlane? actualPlane;
+  final String? driverId;
+  final CockpitLocatorResolution? locatorResolution;
+  final String? degradationReason;
   final List<String> evidence;
 }
 

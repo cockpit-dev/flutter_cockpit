@@ -295,12 +295,24 @@ Map<String, Object?> _runEventSchema() => objectSchema(
     'sequence': integerSchema(minimum: 1),
     'timestamp': schemaRef('UtcTimestamp'),
     'kind': schemaRef('Kind'),
+    'entityKind': stringSchema(
+      values: const <String>['run', 'case', 'attempt', 'step', 'artifact'],
+    ),
     'projectId': schemaRef('Identifier'),
     'workspaceId': schemaRef('Identifier'),
     'runId': schemaRef('Identifier'),
     'caseId': schemaRef('Identifier'),
     'attemptId': schemaRef('Identifier'),
     'stepExecutionId': stringSchema(maxLength: 512),
+    'status': stringSchema(
+      values: const <String>[
+        'passed',
+        'failed',
+        'blocked',
+        'cancelled',
+        'skipped',
+      ],
+    ),
     'lifecycle': stringSchema(
       values: const <String>['queued', 'running', 'completed'],
     ),
@@ -319,6 +331,7 @@ Map<String, Object?> _runEventSchema() => objectSchema(
   optional: const <String>{
     'attemptId',
     'stepExecutionId',
+    'status',
     'lifecycle',
     'outcome',
     'stability',
@@ -333,39 +346,120 @@ Map<String, Object?> _runEventSchema() => objectSchema(
     'artifacts',
   },
   extra: <String, Object?>{
-    'dependentRequired': <String, Object?>{
-      'stepExecutionId': <String>['attemptId'],
-      'outcome': <String>['lifecycle', 'stability'],
-      'stability': <String>['lifecycle', 'outcome'],
-    },
     'allOf': <Object?>[
       <String, Object?>{
-        'if': <String, Object?>{
-          'properties': <String, Object?>{
-            'lifecycle': <String, Object?>{'const': 'completed'},
-          },
-          'required': <String>['lifecycle'],
-        },
+        'if': _entityKindCondition('run'),
         'then': <String, Object?>{
-          'required': <String>['outcome', 'stability'],
+          'required': <String>['lifecycle'],
+          'dependentRequired': <String, Object?>{
+            'outcome': <String>['stability'],
+            'stability': <String>['outcome'],
+          },
+          'allOf': <Object?>[
+            _forbidEventFields(const <String>['status']),
+            <String, Object?>{
+              'if': <String, Object?>{
+                'properties': <String, Object?>{
+                  'lifecycle': <String, Object?>{'const': 'completed'},
+                },
+              },
+              'then': <String, Object?>{
+                'required': <String>['outcome', 'stability'],
+              },
+              'else': _forbidEventFields(const <String>[
+                'outcome',
+                'stability',
+              ]),
+            },
+            _successFailureRule('passed', requireOutcome: false),
+          ],
         },
         'else': <String, Object?>{
-          'not': <String, Object?>{
-            'anyOf': <Object?>[
-              <String, Object?>{
-                'required': <String>['outcome'],
-              },
-              <String, Object?>{
-                'required': <String>['stability'],
-              },
+          'if': _entityKindCondition('case'),
+          'then': <String, Object?>{
+            'dependentRequired': <String, Object?>{
+              'outcome': <String>['stability'],
+              'stability': <String>['outcome'],
+            },
+            'allOf': <Object?>[
+              _forbidEventFields(const <String>['lifecycle', 'status']),
+              _successFailureRule('passed', requireOutcome: false),
             ],
+          },
+          'else': <String, Object?>{
+            'if': _entityKindCondition('attempt'),
+            'then': <String, Object?>{
+              'required': <String>['attemptId'],
+              'allOf': <Object?>[
+                _forbidEventFields(const <String>[
+                  'lifecycle',
+                  'stability',
+                  'status',
+                ]),
+                _successFailureRule('passed', requireOutcome: false),
+              ],
+            },
+            'else': <String, Object?>{
+              'if': _entityKindCondition('step'),
+              'then': <String, Object?>{
+                'required': <String>['attemptId', 'stepExecutionId', 'status'],
+                'allOf': <Object?>[
+                  _forbidEventFields(const <String>[
+                    'lifecycle',
+                    'outcome',
+                    'stability',
+                  ]),
+                  _stepStatusFailureRule(),
+                ],
+              },
+              'else': _forbidEventFields(const <String>[
+                'lifecycle',
+                'outcome',
+                'stability',
+                'status',
+                'failure',
+              ]),
+            },
           },
         },
       },
-      _successFailureRule('passed', requireOutcome: false),
     ],
   },
 );
+
+Map<String, Object?> _entityKindCondition(String value) => <String, Object?>{
+  'properties': <String, Object?>{
+    'entityKind': <String, Object?>{'const': value},
+  },
+  'required': <String>['entityKind'],
+};
+
+Map<String, Object?> _forbidEventFields(Iterable<String> fields) =>
+    <String, Object?>{
+      'not': <String, Object?>{
+        'anyOf': <Object?>[
+          for (final field in fields)
+            <String, Object?>{
+              'required': <String>[field],
+            },
+        ],
+      },
+    };
+
+Map<String, Object?> _stepStatusFailureRule() => <String, Object?>{
+  'if': <String, Object?>{
+    'properties': <String, Object?>{
+      'status': <String, Object?>{
+        'enum': <String>['failed', 'blocked', 'cancelled'],
+      },
+    },
+    'required': <String>['status'],
+  },
+  'then': <String, Object?>{
+    'required': <String>['failure'],
+  },
+  'else': _forbidEventFields(const <String>['failure']),
+};
 
 Map<String, Object?> _leaseResourceSchema() => objectSchema(
   <String, Object?>{

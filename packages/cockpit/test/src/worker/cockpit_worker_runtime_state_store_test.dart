@@ -35,9 +35,9 @@ void main() {
             'mediaType': 'image/png',
             'retainedPath': p.join(
               fixture.stateRoot,
-              'retained_artifacts',
-              'run',
+              'runs',
               'run_A',
+              'artifacts',
               'capture_$index.png',
             ),
             'createdAt': DateTime.utc(2026, 7, 22).toIso8601String(),
@@ -700,9 +700,9 @@ void main() {
       },
       (state) => _firstRecord(state, 'artifacts')['retainedPath'] = p.join(
         fixture.stateRoot,
-        'retained_artifacts',
-        'run',
+        'runs',
         'run_other',
+        'artifacts',
         'base.bin',
       ),
       (state) => _firstRecord(state, 'probes')['sessionId'] = 'session_missing',
@@ -1037,7 +1037,7 @@ final class _RuntimeGraphFixture {
       ),
     );
     final artifact = await File(
-      p.join(stateRoot, 'retained_artifacts', 'run', 'run_A', 'base.bin'),
+      p.join(stateRoot, 'runs', 'run_A', 'artifacts', 'base.bin'),
     ).create(recursive: true);
     await registry.registerArtifact(
       ownerKind: 'run',
@@ -1098,7 +1098,7 @@ final class _RuntimeGraphFixture {
         return;
       case 'artifacts':
         final artifact = await File(
-          p.join(stateRoot, 'retained_artifacts', 'run', 'run_A', 'new.bin'),
+          p.join(stateRoot, 'runs', 'run_A', 'artifacts', 'new.bin'),
         ).create(recursive: true);
         await registry.registerArtifact(
           ownerKind: 'run',

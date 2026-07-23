@@ -3,11 +3,17 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../foundation/cockpit_home.dart';
 import '../infrastructure/cockpit_process_manager.dart';
 import '../foundation/cockpit_ids.dart';
+import '../foundation/cockpit_locked_json_store.dart';
+import '../foundation/cockpit_permissions.dart';
 import '../worker/cockpit_json_rpc_peer.dart';
 import '../worker/cockpit_worker_logger.dart';
+import '../worker/cockpit_worker_protocol_result.dart';
 import '../worker/cockpit_worker_server.dart';
+import '../worker/cockpit_worker_value_reader.dart';
+import 'cockpit_supervisor_run_projection.dart';
 import 'cockpit_supervisor_worker_endpoint.dart';
 import 'cockpit_supervisor_port_ownership_inspector.dart';
 import 'cockpit_supervisor_worker_port_bridge.dart';
@@ -27,8 +33,11 @@ final class CockpitLocalWorkerLauncher
   CockpitLocalWorkerLauncher({
     required this.dartExecutable,
     required this.workerEntrypoint,
-    required CockpitSupervisorEventExchangeFactory eventExchangeFactory,
+    required CockpitSupervisorRunRetentionIndex retentionIndex,
     required CockpitSupervisorResourceAuthorityFactory resourceAuthorityFactory,
+    CockpitSupervisorEventExchangeFactory? eventExchangeFactory,
+    CockpitPermissionHardener? permissionHardener,
+    CockpitDirectorySyncer? directorySyncer,
     CockpitProcessManager processManager = const LocalCockpitProcessManager(),
     CockpitWorkerLogger? logger,
     CockpitTokenGenerator? tokenGenerator,
@@ -36,6 +45,9 @@ final class CockpitLocalWorkerLauncher
     Iterable<String> allowedEnvironmentSecretNames = const <String>[],
   }) : _eventExchangeFactory = eventExchangeFactory,
        _resourceAuthorityFactory = resourceAuthorityFactory,
+       _retentionIndex = retentionIndex,
+       _permissionHardener = permissionHardener ?? _systemPermissionHardener(),
+       _directorySyncer = directorySyncer ?? _systemDirectorySyncer(),
        _processManager = processManager,
        _logger = logger ?? CockpitWorkerLogger(),
        _tokenGenerator = tokenGenerator ?? CockpitSecureTokenGenerator(),
@@ -62,8 +74,11 @@ final class CockpitLocalWorkerLauncher
 
   final String dartExecutable;
   final String workerEntrypoint;
-  final CockpitSupervisorEventExchangeFactory _eventExchangeFactory;
+  final CockpitSupervisorEventExchangeFactory? _eventExchangeFactory;
   final CockpitSupervisorResourceAuthorityFactory _resourceAuthorityFactory;
+  final CockpitSupervisorRunRetentionIndex _retentionIndex;
+  final CockpitPermissionHardener _permissionHardener;
+  final CockpitDirectorySyncer _directorySyncer;
   final CockpitProcessManager _processManager;
   final CockpitWorkerLogger _logger;
   final CockpitTokenGenerator _tokenGenerator;
@@ -82,6 +97,18 @@ final class CockpitLocalWorkerLauncher
       'producer_artifacts',
       'tmp',
     );
+    final events =
+        _eventExchangeFactory?.call(spec) ??
+        CockpitSupervisorRunProjection(
+          workspaceId: spec.key.workspaceId,
+          stateRoot: spec.stateRoot,
+          permissionHardener: _permissionHardener,
+          directorySyncer: _directorySyncer,
+          retentionIndex: _retentionIndex,
+        );
+    if (events case final CockpitSupervisorRunProjection projection) {
+      await projection.resumePendingRetentionReleases();
+    }
     final process = await _processManager.start(
       dartExecutable,
       <String>[
@@ -136,7 +163,10 @@ final class CockpitLocalWorkerLauncher
     );
     final endpoint = CockpitSupervisorWorkerEndpoint(
       workspaceId: spec.key.workspaceId,
-      events: _eventExchangeFactory(spec),
+      events: events,
+      artifacts: events is CockpitWorkerArtifactExchange
+          ? events as CockpitWorkerArtifactExchange
+          : null,
       resourceAuthority: _resourceAuthorityFactory(spec, portBridge),
     );
     peer = CockpitJsonRpcPeer(
@@ -153,6 +183,34 @@ final class CockpitLocalWorkerLauncher
           },
         );
       },
+    );
+    final replayConnectionIdentity = Object();
+    endpoint.bindReplayClient(
+      connectionIdentity: replayConnectionIdentity,
+      replay: ({required runId, required afterSequence, required deadline}) {
+        if (peer.isClosed) {
+          throw const CockpitJsonRpcPeerClosedException();
+        }
+        return peer
+            .call(
+              method: 'replayEvents',
+              params: <String, Object?>{
+                'protocolVersion': cockpitWorkerProtocolVersion,
+                'workspaceId': spec.key.workspaceId,
+                'idempotencyKey':
+                    'event-replay-${_tokenGenerator.nextToken(byteLength: 16)}',
+                'runId': runId,
+                'afterSequence': afterSequence,
+              },
+              deadline: deadline,
+            )
+            .then(CockpitWorkerReplayEventsResult.fromJson);
+      },
+    );
+    unawaited(
+      peer.done.whenComplete(
+        () => endpoint.unbindReplayClient(replayConnectionIdentity),
+      ),
     );
     peer.start();
     final stderrSubscription = process.stderr
@@ -281,3 +339,15 @@ Map<String, String> _minimumWorkerEnvironment() {
       if (allowed.contains(entry.key)) entry.key: entry.value,
   };
 }
+
+CockpitPermissionHardener _systemPermissionHardener() => Platform.isWindows
+    ? const CockpitWindowsAclPermissionHardener()
+    : const CockpitPosixPermissionHardener();
+
+CockpitDirectorySyncer _systemDirectorySyncer() => CockpitSystemDirectorySyncer(
+  Platform.isWindows
+      ? CockpitHostPlatform.windows
+      : Platform.isMacOS
+      ? CockpitHostPlatform.macos
+      : CockpitHostPlatform.linux,
+);

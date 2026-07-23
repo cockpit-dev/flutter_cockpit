@@ -98,15 +98,15 @@ void main() {
     expect(binding.ownerId, 'run_A');
     expect(
       binding.retainedPath,
-      startsWith(p.join(stateRootPath, 'retained_artifacts')),
+      startsWith(p.join(stateRootPath, 'runs', 'run_A', 'artifacts')),
     );
     expect(await File(binding.retainedPath).readAsBytes(), <int>[1, 2, 3]);
 
     final unknownPath = p.join(
       stateRootPath,
-      'retained_artifacts',
-      'run',
+      'runs',
       'run_unknown',
+      'artifacts',
       'unknown.png',
     );
     await File(unknownPath).create(recursive: true);
@@ -306,7 +306,7 @@ void main() {
     expect(bundleBinding.mediaType, 'application/vnd.cockpit.attempt-bundle');
     expect(
       bundleBinding.retainedPath,
-      startsWith(p.join(stateRootPath, 'retained_artifacts', 'run', 'run_A')),
+      startsWith(p.join(stateRootPath, 'runs', 'run_A', 'artifacts')),
     );
     expect(
       bundleBinding.retainedPath,

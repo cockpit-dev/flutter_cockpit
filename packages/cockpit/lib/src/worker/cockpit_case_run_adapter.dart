@@ -20,9 +20,11 @@ import '../test/cockpit_test_safety_policy.dart';
 import '../test/cockpit_test_secret_resolver.dart';
 import '../test/cockpit_test_variable_binder.dart';
 import 'cockpit_json_rpc_peer.dart';
+import 'cockpit_worker_artifact_publisher.dart';
 import 'cockpit_worker_resource_grant.dart';
 import 'cockpit_worker_case_run_store.dart';
 import 'cockpit_worker_logger.dart';
+import 'cockpit_worker_run_event_store.dart';
 import 'cockpit_workspace_operation_registry.dart';
 
 abstract interface class CockpitWorkerCaseIndex {
@@ -433,6 +435,8 @@ final class CockpitCaseRunAdapterFactory {
     CockpitWorkerLogRedactor? redactor,
     CockpitTokenGenerator? tokenGenerator,
     CockpitWorkerCaseRunStore? runStore,
+    CockpitWorkerRunEventStore? eventStore,
+    CockpitWorkerArtifactPublisher? artifactPublisher,
     CockpitWorkerCaseResultSanitizer? resultSanitizer,
     DateTime Function()? utcNow,
   }) : _caseIndex = caseIndex,
@@ -444,6 +448,8 @@ final class CockpitCaseRunAdapterFactory {
        _runStore =
            runStore ??
            CockpitWorkerCaseRunStore.memory(workspaceId: workspaceId),
+       _eventStore = eventStore,
+       _artifactPublisher = artifactPublisher,
        _resultSanitizer = resultSanitizer,
        _utcNow = utcNow ?? (() => DateTime.now().toUtc());
 
@@ -458,6 +464,8 @@ final class CockpitCaseRunAdapterFactory {
   final CockpitWorkerLogRedactor _redactor;
   final CockpitTokenGenerator _tokenGenerator;
   final CockpitWorkerCaseRunStore _runStore;
+  final CockpitWorkerRunEventStore? _eventStore;
+  final CockpitWorkerArtifactPublisher? _artifactPublisher;
   final CockpitWorkerCaseResultSanitizer? _resultSanitizer;
   final DateTime Function() _utcNow;
 
@@ -534,6 +542,32 @@ final class CockpitCaseRunAdapterFactory {
       final attemptRoot = _attemptRoot(runId, attemptId);
       late final CockpitWorkerHealthySession session;
       try {
+        await _appendEvent(
+          runId,
+          CockpitWorkerEventDraft(
+            kind: 'run.queued',
+            entityKind: CockpitRunEventEntityKind.run,
+            caseId: compiled.testCase.id,
+            lifecycle: CockpitRunLifecycle.queued,
+          ),
+        );
+        await _appendEvent(
+          runId,
+          CockpitWorkerEventDraft(
+            kind: 'case.queued',
+            entityKind: CockpitRunEventEntityKind.testCase,
+            caseId: compiled.testCase.id,
+          ),
+        );
+        await _appendEvent(
+          runId,
+          CockpitWorkerEventDraft(
+            kind: 'attempt.prepared',
+            entityKind: CockpitRunEventEntityKind.attempt,
+            caseId: compiled.testCase.id,
+            attemptId: attemptId,
+          ),
+        );
         await _persistPreparation(
           submission: submission,
           compiled: compiled,
@@ -546,14 +580,25 @@ final class CockpitCaseRunAdapterFactory {
           targetId: submission.targetId,
           requirements: compiled.testCase.target,
         );
-      } on Object {
-        await _runStore.markInterrupted(
-          idempotencyKey: context.idempotencyKey,
-          runId: runId,
-          attemptId: attemptId,
-          now: _utcNow(),
-        );
-        rethrow;
+      } on Object catch (error, stackTrace) {
+        try {
+          await _appendInterrupted(
+            runId: runId,
+            caseId: compiled.testCase.id,
+            attemptId: attemptId,
+            error: error,
+            cancelled: context.cancellation.isCancelled,
+          );
+          await _runStore.markInterrupted(
+            idempotencyKey: context.idempotencyKey,
+            runId: runId,
+            attemptId: attemptId,
+            now: _utcNow(),
+          );
+        } on Object {
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+        Error.throwWithStackTrace(error, stackTrace);
       }
       return CockpitPreparedWorkspaceOperation(
         resources: <CockpitWorkerResourceRequest>[
@@ -641,6 +686,8 @@ final class CockpitCaseRunAdapterFactory {
     required CockpitWorkerHealthySession session,
     required List<CockpitWorkerResourceGrant> grants,
   }) async {
+    var terminalEventsAppended = false;
+    var completionIntentPersisted = false;
     try {
       for (final kind in const <CockpitLeaseResourceKind>[
         CockpitLeaseResourceKind.device,
@@ -665,6 +712,39 @@ final class CockpitCaseRunAdapterFactory {
           'Worker-owned Flutter session is unhealthy.',
         );
       }
+      await _appendEvent(
+        runId,
+        CockpitWorkerEventDraft(
+          kind: 'run.running',
+          entityKind: CockpitRunEventEntityKind.run,
+          caseId: compiled.testCase.id,
+          lifecycle: CockpitRunLifecycle.running,
+          targetId: session.targetId,
+          requestedPlane: compiled.testCase.target.plane,
+        ),
+      );
+      await _appendEvent(
+        runId,
+        CockpitWorkerEventDraft(
+          kind: 'case.running',
+          entityKind: CockpitRunEventEntityKind.testCase,
+          caseId: compiled.testCase.id,
+          attemptId: attemptId,
+          targetId: session.targetId,
+          requestedPlane: compiled.testCase.target.plane,
+        ),
+      );
+      await _appendEvent(
+        runId,
+        CockpitWorkerEventDraft(
+          kind: 'attempt.running',
+          entityKind: CockpitRunEventEntityKind.attempt,
+          caseId: compiled.testCase.id,
+          attemptId: attemptId,
+          targetId: session.targetId,
+          requestedPlane: compiled.testCase.target.plane,
+        ),
+      );
       await _runStore.markRunning(
         idempotencyKey: context.idempotencyKey,
         runId: runId,
@@ -727,6 +807,24 @@ final class CockpitCaseRunAdapterFactory {
         }
       }
       final result = successfulResult;
+      var artifacts = const <CockpitArtifactResource>[];
+      Object? artifactPublicationError;
+      final artifactPublisher = _artifactPublisher;
+      if (artifactPublisher != null && result.bundlePath != null) {
+        try {
+          artifacts = await artifactPublisher.publishAttemptBundle(
+            runId: runId,
+            caseId: compiled.testCase.id,
+            attemptId: attemptId,
+            bundleRoot: result.bundlePath!,
+            deadline: context.deadline,
+            cancellation: context.cancellation,
+          );
+        } on Object catch (error) {
+          if (result.primaryError == null) rethrow;
+          artifactPublicationError = error;
+        }
+      }
       var json = Map<String, Object?>.from(
         _redactor.redact(result.toJson()) as Map<String, Object?>,
       );
@@ -745,24 +843,318 @@ final class CockpitCaseRunAdapterFactory {
         'attemptId': attemptId,
         'result': json,
       };
-      await _runStore.markCompleted(
-        idempotencyKey: context.idempotencyKey,
-        runId: runId,
-        attemptId: attemptId,
-        output: output,
-        now: _utcNow(),
+      final terminalDrafts = _resultEventDrafts(
+        result,
+        artifacts: artifacts,
+        artifactPublicationError: artifactPublicationError,
       );
+      final eventStore = _eventStore;
+      if (eventStore == null) {
+        for (final draft in terminalDrafts) {
+          await _appendEvent(runId, draft);
+        }
+        terminalEventsAppended = true;
+        await _runStore.markCompleted(
+          idempotencyKey: context.idempotencyKey,
+          runId: runId,
+          attemptId: attemptId,
+          output: output,
+          now: _utcNow(),
+        );
+      } else {
+        final intent = await eventStore.appendCompletionBatch(
+          runId: runId,
+          drafts: terminalDrafts,
+          persistIntent: (events) async {
+            completionIntentPersisted = true;
+            final durableIntent = await _runStore.prepareCompletionIntent(
+              idempotencyKey: context.idempotencyKey,
+              runId: runId,
+              attemptId: attemptId,
+              intentId: _newId('completion'),
+              output: output,
+              events: events,
+              now: _utcNow(),
+            );
+            return durableIntent;
+          },
+        );
+        terminalEventsAppended = true;
+        await _runStore.commitCompletionIntent(intent: intent, now: _utcNow());
+        await eventStore.publishRun(runId);
+      }
       return output;
-    } on Object {
-      await _runStore.markInterrupted(
-        idempotencyKey: context.idempotencyKey,
-        runId: runId,
-        attemptId: attemptId,
-        now: _utcNow(),
-      );
-      rethrow;
+    } on Object catch (error, stackTrace) {
+      try {
+        if (!terminalEventsAppended && !completionIntentPersisted) {
+          await _appendInterrupted(
+            runId: runId,
+            caseId: compiled.testCase.id,
+            attemptId: attemptId,
+            error: error,
+            cancelled: context.cancellation.isCancelled,
+          );
+        }
+        if (!terminalEventsAppended && !completionIntentPersisted) {
+          await _runStore.markInterrupted(
+            idempotencyKey: context.idempotencyKey,
+            runId: runId,
+            attemptId: attemptId,
+            now: _utcNow(),
+          );
+        }
+      } on Object {
+        Error.throwWithStackTrace(error, stackTrace);
+      }
+      Error.throwWithStackTrace(error, stackTrace);
     }
   }
+
+  Future<void> _appendEvent(String runId, CockpitWorkerEventDraft draft) async {
+    final events = _eventStore;
+    if (events == null) return;
+    await events.append(runId, draft);
+  }
+
+  Future<void> _appendInterrupted({
+    required String runId,
+    required String caseId,
+    required String attemptId,
+    required Object error,
+    required bool cancelled,
+  }) async {
+    final outcome = cancelled
+        ? CockpitRunOutcome.cancelled
+        : CockpitRunOutcome.interrupted;
+    final kind = cancelled ? 'cancelled' : 'interrupted';
+    final failure = CockpitFailure(
+      primary: CockpitApiError(
+        code: cancelled
+            ? CockpitErrorCode.cancelled
+            : CockpitErrorCode.interrupted,
+        category: cancelled
+            ? CockpitErrorCategory.cancelled
+            : CockpitErrorCategory.interrupted,
+        message: '$error',
+        retryable: !cancelled,
+        responsibleLayer: CockpitResponsibleLayer.worker,
+      ),
+    );
+    await _appendEvent(
+      runId,
+      CockpitWorkerEventDraft(
+        kind: 'attempt.$kind',
+        entityKind: CockpitRunEventEntityKind.attempt,
+        caseId: caseId,
+        attemptId: attemptId,
+        outcome: outcome,
+        failure: failure,
+      ),
+    );
+    await _appendEvent(
+      runId,
+      CockpitWorkerEventDraft(
+        kind: 'case.$kind',
+        entityKind: CockpitRunEventEntityKind.testCase,
+        caseId: caseId,
+        attemptId: attemptId,
+        outcome: outcome,
+        stability: CockpitRunStability.unknown,
+        failure: failure,
+      ),
+    );
+    await _appendEvent(
+      runId,
+      CockpitWorkerEventDraft(
+        kind: 'run.$kind',
+        entityKind: CockpitRunEventEntityKind.run,
+        caseId: caseId,
+        attemptId: attemptId,
+        lifecycle: CockpitRunLifecycle.completed,
+        outcome: outcome,
+        stability: CockpitRunStability.unknown,
+        failure: failure,
+      ),
+    );
+  }
+
+  List<CockpitWorkerEventDraft> _resultEventDrafts(
+    CockpitTestAttemptResult result, {
+    required List<CockpitArtifactResource> artifacts,
+    required Object? artifactPublicationError,
+  }) {
+    final caseId = result.context.caseId;
+    final attemptId = result.context.attemptId;
+    final drafts = <CockpitWorkerEventDraft>[];
+    for (final step in result.steps) {
+      final stepArtifacts = artifacts
+          .where((artifact) => artifact.stepExecutionId == step.executionId)
+          .map((artifact) => artifact.reference)
+          .toList(growable: false);
+      final stepFailure = step.error == null
+          ? null
+          : CockpitFailure(primary: _apiError(step.error!));
+      drafts.add(
+        CockpitWorkerEventDraft(
+          kind: 'step.${step.status.name}',
+          entityKind: CockpitRunEventEntityKind.step,
+          caseId: caseId,
+          attemptId: attemptId,
+          stepExecutionId: step.executionId,
+          stepStatus: step.status,
+          sourceLocation: step.sourceLocation,
+          targetId: result.targetId,
+          requestedPlane: step.requestedPlane ?? result.requestedPlane,
+          actualPlane: step.actualPlane ?? result.actualPlane,
+          driverId: step.driverId,
+          locatorSummary:
+              step.locatorResolution?.toJson() ?? const <String, Object?>{},
+          degradation: step.degradationReason,
+          failure: stepFailure,
+          artifacts: stepArtifacts,
+        ),
+      );
+    }
+    final outcome = _runOutcome(result.outcome);
+    final stability = _runStability(result.stability);
+    final failure = result.primaryError == null
+        ? null
+        : CockpitFailure(
+            primary: _apiError(result.primaryError!),
+            warnings: <CockpitApiWarning>[
+              for (final warning in result.cleanupErrors)
+                CockpitApiWarning(
+                  stage: CockpitWarningStage.cleanup,
+                  error: _apiError(warning),
+                ),
+              if (artifactPublicationError != null)
+                CockpitApiWarning(
+                  stage: CockpitWarningStage.evidence,
+                  error: CockpitApiError(
+                    code: CockpitErrorCode.evidenceFailed,
+                    category: CockpitErrorCategory.evidence,
+                    message: '$artifactPublicationError',
+                    retryable: true,
+                    responsibleLayer: CockpitResponsibleLayer.worker,
+                  ),
+                ),
+            ],
+          );
+    final terminalArtifacts = artifacts
+        .where((artifact) => artifact.kind == 'attempt.manifest')
+        .map((artifact) => artifact.reference)
+        .toList(growable: false);
+    for (final entity in const <String>['attempt', 'case', 'run']) {
+      final entityKind = switch (entity) {
+        'attempt' => CockpitRunEventEntityKind.attempt,
+        'case' => CockpitRunEventEntityKind.testCase,
+        'run' => CockpitRunEventEntityKind.run,
+        _ => throw StateError('Unknown terminal event entity.'),
+      };
+      drafts.add(
+        CockpitWorkerEventDraft(
+          kind: '$entity.completed',
+          entityKind: entityKind,
+          caseId: caseId,
+          attemptId: attemptId,
+          lifecycle: entityKind == CockpitRunEventEntityKind.run
+              ? CockpitRunLifecycle.completed
+              : null,
+          outcome: outcome,
+          stability:
+              entityKind == CockpitRunEventEntityKind.run ||
+                  entityKind == CockpitRunEventEntityKind.testCase
+              ? stability
+              : null,
+          targetId: result.targetId,
+          requestedPlane: result.requestedPlane,
+          actualPlane: result.actualPlane,
+          failure: failure,
+          artifacts: terminalArtifacts,
+        ),
+      );
+    }
+    return List<CockpitWorkerEventDraft>.unmodifiable(drafts);
+  }
+
+  CockpitApiError _apiError(CockpitTestError error) => CockpitApiError(
+    code: _apiErrorCode(error.code),
+    category: _apiErrorCategory(error.code),
+    message: error.message,
+    retryable: const <CockpitTestErrorCode>{
+      CockpitTestErrorCode.timeout,
+      CockpitTestErrorCode.hardShutdown,
+      CockpitTestErrorCode.driverFailed,
+      CockpitTestErrorCode.recordingFailed,
+      CockpitTestErrorCode.evidenceFailed,
+      CockpitTestErrorCode.bundlePublicationFailed,
+      CockpitTestErrorCode.bundleIntegrityFailed,
+    }.contains(error.code),
+    responsibleLayer: switch (error.code) {
+      CockpitTestErrorCode.driverFailed ||
+      CockpitTestErrorCode.recordingFailed => CockpitResponsibleLayer.driver,
+      _ => CockpitResponsibleLayer.worker,
+    },
+    redactedDetails: <String, Object?>{
+      ...error.details,
+      if (error.path != null) 'path': error.path,
+      if (error.stepId != null) 'stepId': error.stepId,
+      if (error.location != null) 'location': error.location!.toJson(),
+    },
+  );
+
+  String _apiErrorCode(CockpitTestErrorCode code) => switch (code) {
+    CockpitTestErrorCode.assertionFailed => CockpitErrorCode.assertionFailed,
+    CockpitTestErrorCode.cancelled => CockpitErrorCode.cancelled,
+    CockpitTestErrorCode.driverFailed ||
+    CockpitTestErrorCode.hardShutdown => CockpitErrorCode.driverUnavailable,
+    CockpitTestErrorCode.evidenceFailed ||
+    CockpitTestErrorCode.recordingFailed ||
+    CockpitTestErrorCode.bundlePublicationFailed ||
+    CockpitTestErrorCode.bundleIntegrityFailed =>
+      CockpitErrorCode.evidenceFailed,
+    CockpitTestErrorCode.unsupportedAction ||
+    CockpitTestErrorCode.unsupportedLocator ||
+    CockpitTestErrorCode.schemaUnsupported =>
+      CockpitErrorCode.unsupportedOperation,
+    CockpitTestErrorCode.targetMismatch => CockpitErrorCode.staleReference,
+    CockpitTestErrorCode.internalFailure => CockpitErrorCode.internalError,
+    _ => CockpitErrorCode.invalidRequest,
+  };
+
+  CockpitErrorCategory _apiErrorCategory(
+    CockpitTestErrorCode code,
+  ) => switch (code) {
+    CockpitTestErrorCode.assertionFailed => CockpitErrorCategory.assertion,
+    CockpitTestErrorCode.cancelled => CockpitErrorCategory.cancelled,
+    CockpitTestErrorCode.driverFailed ||
+    CockpitTestErrorCode.hardShutdown => CockpitErrorCategory.driver,
+    CockpitTestErrorCode.evidenceFailed ||
+    CockpitTestErrorCode.recordingFailed ||
+    CockpitTestErrorCode.bundlePublicationFailed ||
+    CockpitTestErrorCode.bundleIntegrityFailed => CockpitErrorCategory.evidence,
+    CockpitTestErrorCode.unsupportedAction ||
+    CockpitTestErrorCode.unsupportedLocator ||
+    CockpitTestErrorCode.schemaUnsupported => CockpitErrorCategory.unsupported,
+    CockpitTestErrorCode.targetMismatch => CockpitErrorCategory.environment,
+    CockpitTestErrorCode.internalFailure => CockpitErrorCategory.internal,
+    _ => CockpitErrorCategory.invalidInput,
+  };
+
+  CockpitRunOutcome _runOutcome(CockpitTestOutcome outcome) =>
+      switch (outcome) {
+        CockpitTestOutcome.passed => CockpitRunOutcome.passed,
+        CockpitTestOutcome.failed => CockpitRunOutcome.failed,
+        CockpitTestOutcome.blocked => CockpitRunOutcome.blocked,
+        CockpitTestOutcome.cancelled => CockpitRunOutcome.cancelled,
+      };
+
+  CockpitRunStability _runStability(CockpitTestStability stability) =>
+      switch (stability) {
+        CockpitTestStability.stable => CockpitRunStability.stable,
+        CockpitTestStability.flaky => CockpitRunStability.flaky,
+        CockpitTestStability.unknown => CockpitRunStability.unknown,
+      };
 
   Future<void> _persistPreparation({
     required CockpitRunSubmission submission,

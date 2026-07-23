@@ -1,10 +1,23 @@
 import '../test/cockpit_test_diagnostic.dart';
 import '../test/cockpit_test_policy.dart';
+import '../test/cockpit_test_run.dart';
 import 'cockpit_api_error.dart';
 import 'cockpit_decode_policy.dart';
 import 'cockpit_foundation_artifact.dart';
 import 'cockpit_foundation_value_reader.dart';
 import 'cockpit_run.dart';
+
+enum CockpitRunEventEntityKind {
+  run('run'),
+  testCase('case'),
+  attempt('attempt'),
+  step('step'),
+  artifact('artifact');
+
+  const CockpitRunEventEntityKind(this.wireName);
+
+  final String wireName;
+}
 
 final class CockpitRunEvent {
   CockpitRunEvent({
@@ -12,12 +25,14 @@ final class CockpitRunEvent {
     required this.sequence,
     required this.timestamp,
     required this.kind,
+    required this.entityKind,
     required this.projectId,
     required this.workspaceId,
     required this.runId,
     required this.caseId,
     this.attemptId,
     this.stepExecutionId,
+    this.stepStatus,
     this.lifecycle,
     this.outcome,
     this.stability,
@@ -98,12 +113,14 @@ final class CockpitRunEvent {
   final int sequence;
   final DateTime timestamp;
   final String kind;
+  final CockpitRunEventEntityKind entityKind;
   final String projectId;
   final String workspaceId;
   final String runId;
   final String caseId;
   final String? attemptId;
   final String? stepExecutionId;
+  final CockpitTestStepStatus? stepStatus;
   final CockpitRunLifecycle? lifecycle;
   final CockpitRunOutcome? outcome;
   final CockpitRunStability? stability;
@@ -122,12 +139,14 @@ final class CockpitRunEvent {
     'sequence': sequence,
     'timestamp': timestamp.toIso8601String(),
     'kind': kind,
+    'entityKind': entityKind.wireName,
     'projectId': projectId,
     'workspaceId': workspaceId,
     'runId': runId,
     'caseId': caseId,
     if (attemptId != null) 'attemptId': attemptId,
     if (stepExecutionId != null) 'stepExecutionId': stepExecutionId,
+    if (stepStatus != null) 'status': stepStatus!.name,
     if (lifecycle != null) 'lifecycle': lifecycle!.name,
     if (outcome != null) 'outcome': outcome!.name,
     if (stability != null) 'stability': stability!.name,
@@ -156,12 +175,14 @@ final class CockpitRunEvent {
         'sequence',
         'timestamp',
         'kind',
+        'entityKind',
         'projectId',
         'workspaceId',
         'runId',
         'caseId',
         'attemptId',
         'stepExecutionId',
+        'status',
         'lifecycle',
         'outcome',
         'stability',
@@ -181,6 +202,7 @@ final class CockpitRunEvent {
         'sequence',
         'timestamp',
         'kind',
+        'entityKind',
         'projectId',
         'workspaceId',
         'runId',
@@ -209,6 +231,7 @@ final class CockpitRunEvent {
         '$path.timestamp',
       ),
       kind: CockpitFoundationValueReader.kind(json['kind'], '$path.kind'),
+      entityKind: _entityKind(json['entityKind'], '$path.entityKind'),
       projectId: CockpitFoundationValueReader.id(
         json['projectId'],
         '$path.projectId',
@@ -230,6 +253,9 @@ final class CockpitRunEvent {
         '$path.stepExecutionId',
         maximum: 512,
       ),
+      stepStatus: json['status'] == null
+          ? null
+          : _enum(json['status'], CockpitTestStepStatus.values, '$path.status'),
       lifecycle: json['lifecycle'] == null
           ? null
           : _enum(
@@ -451,18 +477,94 @@ final class CockpitEventReplayBoundary {
 }
 
 void _validateState(CockpitRunEvent event) {
-  if ((event.outcome == null) != (event.stability == null) ||
-      (event.lifecycle == CockpitRunLifecycle.completed) !=
-          (event.outcome != null)) {
-    throw const FormatException(
-      'Event lifecycle and outcome are inconsistent.',
-    );
+  switch (event.entityKind) {
+    case CockpitRunEventEntityKind.run:
+      if (event.lifecycle == null || event.stepStatus != null) {
+        throw const FormatException(
+          'Run event requires lifecycle and forbids step status.',
+        );
+      }
+      if ((event.outcome == null) != (event.stability == null) ||
+          (event.lifecycle == CockpitRunLifecycle.completed) !=
+              (event.outcome != null)) {
+        throw const FormatException(
+          'Run event lifecycle and terminal state are inconsistent.',
+        );
+      }
+      _validateOutcomeFailure(event.outcome, event.failure);
+      break;
+    case CockpitRunEventEntityKind.testCase:
+      if (event.lifecycle != null || event.stepStatus != null) {
+        throw const FormatException(
+          'Case event forbids run lifecycle and step status.',
+        );
+      }
+      if ((event.outcome == null) != (event.stability == null)) {
+        throw const FormatException(
+          'Case event outcome and stability are inconsistent.',
+        );
+      }
+      _validateOutcomeFailure(event.outcome, event.failure);
+      break;
+    case CockpitRunEventEntityKind.attempt:
+      if (event.lifecycle != null ||
+          event.stability != null ||
+          event.stepStatus != null ||
+          event.attemptId == null) {
+        throw const FormatException(
+          'Attempt event has invalid identity or state fields.',
+        );
+      }
+      _validateOutcomeFailure(event.outcome, event.failure);
+      break;
+    case CockpitRunEventEntityKind.step:
+      if (event.attemptId == null ||
+          event.stepExecutionId == null ||
+          event.stepStatus == null ||
+          event.lifecycle != null ||
+          event.outcome != null ||
+          event.stability != null) {
+        throw const FormatException(
+          'Step event has invalid identity or state fields.',
+        );
+      }
+      final failed = const <CockpitTestStepStatus>{
+        CockpitTestStepStatus.failed,
+        CockpitTestStepStatus.blocked,
+        CockpitTestStepStatus.cancelled,
+      }.contains(event.stepStatus);
+      if (failed != (event.failure != null)) {
+        throw const FormatException('Step status and failure disagree.');
+      }
+      break;
+    case CockpitRunEventEntityKind.artifact:
+      if (event.lifecycle != null ||
+          event.outcome != null ||
+          event.stability != null ||
+          event.stepStatus != null ||
+          event.failure != null) {
+        throw const FormatException('Artifact event forbids state fields.');
+      }
+      break;
   }
-  final passed = event.outcome == CockpitRunOutcome.passed;
-  if ((event.outcome != null && !passed) != (event.failure != null) ||
-      (passed && event.failure != null)) {
+}
+
+void _validateOutcomeFailure(
+  CockpitRunOutcome? outcome,
+  CockpitFailure? failure,
+) {
+  final failed = outcome != null && outcome != CockpitRunOutcome.passed;
+  if (failed != (failure != null)) {
     throw const FormatException('Event outcome and failure disagree.');
   }
+}
+
+CockpitRunEventEntityKind _entityKind(Object? value, String path) {
+  final wireName = CockpitFoundationValueReader.string(value, path);
+  return CockpitRunEventEntityKind.values
+          .where((candidate) => candidate.wireName == wireName)
+          .firstOrNull ??
+      (throw FormatException('Unknown event entity kind at $path.'));
 }
 
 T _enum<T extends Enum>(Object? value, List<T> values, String path) {

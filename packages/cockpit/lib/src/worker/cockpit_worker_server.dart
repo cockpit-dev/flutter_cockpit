@@ -30,6 +30,12 @@ abstract interface class CockpitWorkerEventExchange {
   );
 }
 
+abstract interface class CockpitWorkerArtifactExchange {
+  Future<CockpitWorkerPublishArtifactBatchResult> publishArtifacts(
+    CockpitWorkerPublishArtifactBatchRequest request,
+  );
+}
+
 final class CockpitWorkerServer {
   CockpitWorkerServer({
     required this.workspaceId,
@@ -38,11 +44,13 @@ final class CockpitWorkerServer {
     required Iterable<String> supportedFeatures,
     required CockpitWorkerOperationDispatcher operations,
     required CockpitWorkerEventExchange events,
+    FutureOr<void> Function()? onInitialized,
     FutureOr<void> Function()? onShutdown,
     DateTime Function()? utcNow,
   }) : supportedFeatures = Set<String>.unmodifiable(supportedFeatures),
        _operations = operations,
        _events = events,
+       _onInitialized = onInitialized,
        _onShutdown = onShutdown,
        _utcNow = utcNow ?? (() => DateTime.now().toUtc()) {
     workerId(workspaceId, r'$.workspaceId');
@@ -59,17 +67,21 @@ final class CockpitWorkerServer {
   final Set<String> supportedFeatures;
   final CockpitWorkerOperationDispatcher _operations;
   final CockpitWorkerEventExchange _events;
+  final FutureOr<void> Function()? _onInitialized;
   final FutureOr<void> Function()? _onShutdown;
   final DateTime Function() _utcNow;
   final Map<String, _ActiveOperation> _activeOperations =
       <String, _ActiveOperation>{};
   CockpitJsonRpcPeer? _peer;
   Set<String> _negotiatedFeatures = const <String>{};
-  var _initialized = false;
+  var _initializationPhase = _WorkerInitializationPhase.uninitialized;
+  Future<void>? _initialization;
+  Set<String>? _initializingFeatures;
   var _draining = false;
   var _shutdown = false;
 
-  bool get isInitialized => _initialized;
+  bool get isInitialized =>
+      _initializationPhase == _WorkerInitializationPhase.initialized;
   bool get isDraining => _draining;
   int get activeOperationCount => _activeOperations.length;
 
@@ -104,6 +116,10 @@ final class CockpitWorkerServer {
       CockpitWorkerShutdownRequest() => _shutdownWorker(decoded, cancellation),
       CockpitWorkerReplayEventsRequest() => _events.replay(decoded),
       CockpitWorkerPublishEventBatchRequest() => _events.publish(decoded),
+      CockpitWorkerPublishArtifactBatchRequest() => throw _rpcError(
+        'methodUnavailable',
+        'Artifact publication is only accepted by the Supervisor peer.',
+      ),
     };
     final json = result.toJson();
     CockpitWorkerProtocolSchema.validateResult(result.method, json);
@@ -133,7 +149,11 @@ final class CockpitWorkerServer {
     if (_shutdown && request.method != 'health') {
       throw _rpcError('workerShuttingDown', 'Worker shutdown has started.');
     }
-    if (!_initialized &&
+    final recoveringReplay =
+        _initializationPhase == _WorkerInitializationPhase.recovering &&
+        request.method == 'replayEvents';
+    if (!isInitialized &&
+        !recoveringReplay &&
         request.method != 'initialize' &&
         request.method != 'health' &&
         request.method != 'shutdown') {
@@ -154,23 +174,64 @@ final class CockpitWorkerServer {
     final negotiated = request.supportedFeatures
         .where(supportedFeatures.contains)
         .toSet();
-    if (_initialized &&
-        (negotiated.difference(_negotiatedFeatures).isNotEmpty ||
-            _negotiatedFeatures.difference(negotiated).isNotEmpty)) {
+    if (isInitialized && !_sameFeatures(negotiated, _negotiatedFeatures)) {
       throw _rpcError(
         'initializeConflict',
         'Worker was initialized with different negotiated features.',
       );
     }
-    _initialized = true;
-    _negotiatedFeatures = Set<String>.unmodifiable(negotiated);
-    return CockpitWorkerInitializeResult(
-      protocolVersion: cockpitWorkerProtocolVersion,
-      workspaceId: workspaceId,
-      engineVersion: engineVersion,
-      negotiatedFeatures: negotiated,
-    );
+    if (isInitialized) return _initializeResult(negotiated);
+
+    final activeInitialization = _initialization;
+    if (activeInitialization != null) {
+      if (!_sameFeatures(negotiated, _initializingFeatures!)) {
+        throw _rpcError(
+          'initializeConflict',
+          'Worker is initializing with different negotiated features.',
+        );
+      }
+      await activeInitialization;
+      return _initializeResult(negotiated);
+    }
+
+    final features = Set<String>.unmodifiable(negotiated);
+    _initializationPhase = _WorkerInitializationPhase.recovering;
+    final initialization = Future<void>.sync(() async {
+      if (_onInitialized != null) await Future<void>.sync(_onInitialized);
+      if (_shutdown) {
+        throw _rpcError(
+          'workerShuttingDown',
+          'Worker shutdown started before initialization completed.',
+        );
+      }
+      _negotiatedFeatures = features;
+      _initializationPhase = _WorkerInitializationPhase.initialized;
+    });
+    _initializingFeatures = features;
+    _initialization = initialization;
+    try {
+      await initialization;
+    } on Object {
+      if (_initializationPhase == _WorkerInitializationPhase.recovering) {
+        _initializationPhase = _WorkerInitializationPhase.uninitialized;
+      }
+      rethrow;
+    } finally {
+      if (identical(_initialization, initialization)) {
+        _initialization = null;
+        _initializingFeatures = null;
+      }
+    }
+    return _initializeResult(negotiated);
   }
+
+  CockpitWorkerInitializeResult _initializeResult(Set<String> negotiated) =>
+      CockpitWorkerInitializeResult(
+        protocolVersion: cockpitWorkerProtocolVersion,
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        negotiatedFeatures: negotiated,
+      );
 
   Future<CockpitWorkerCapabilitiesResult> _capabilities(
     CockpitWorkerCapabilitiesRequest _,
@@ -296,6 +357,8 @@ final class CockpitWorkerServer {
   }
 }
 
+enum _WorkerInitializationPhase { uninitialized, recovering, initialized }
+
 final class _ActiveOperation {
   _ActiveOperation(this.cancellation);
 
@@ -308,6 +371,9 @@ final class _ActiveOperation {
     if (!_done.isCompleted) _done.complete();
   }
 }
+
+bool _sameFeatures(Set<String> left, Set<String> right) =>
+    left.length == right.length && left.containsAll(right);
 
 CockpitJsonRpcRemoteException _rpcError(
   String workerCode,

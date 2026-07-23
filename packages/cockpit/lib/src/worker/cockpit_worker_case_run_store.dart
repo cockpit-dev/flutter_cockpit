@@ -3,11 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:path/path.dart' as p;
 
 import '../application/cockpit_application_service_exception.dart';
 import '../foundation/cockpit_locked_json_store.dart';
 import '../foundation/cockpit_permissions.dart';
+import 'cockpit_worker_case_completion.dart';
 import 'cockpit_worker_run_ownership_authority.dart';
 import 'cockpit_worker_value_reader.dart';
 
@@ -32,25 +34,75 @@ final class CockpitWorkerCaseAttemptReservation {
   final Map<String, Object?>? completedOutput;
 }
 
+final class CockpitWorkerCaseRecoveryAttempt {
+  const CockpitWorkerCaseRecoveryAttempt({
+    required this.runId,
+    required this.caseId,
+    required this.attemptId,
+  });
+
+  final String runId;
+  final String caseId;
+  final String attemptId;
+}
+
+final class CockpitWorkerCaseCompletionIntent {
+  CockpitWorkerCaseCompletionIntent({
+    required this.idempotencyKey,
+    required this.runId,
+    required this.caseId,
+    required this.attemptId,
+    required this.intentId,
+    required this.intentVersion,
+    required Map<String, Object?> output,
+    required Iterable<CockpitRunEvent> events,
+    required this.eventsSha256,
+    required this.createdAt,
+  }) : output = _deepCopy(output),
+       events = List<CockpitRunEvent>.unmodifiable(events);
+
+  final String idempotencyKey;
+  final String runId;
+  final String caseId;
+  final String attemptId;
+  final String intentId;
+  final int intentVersion;
+  final Map<String, Object?> output;
+  final List<CockpitRunEvent> events;
+  final String eventsSha256;
+  final DateTime createdAt;
+}
+
+typedef CockpitWorkerCaseBeforeInterrupt =
+    Future<void> Function(CockpitWorkerCaseRecoveryAttempt attempt);
+typedef CockpitWorkerCaseCompletionReconciler =
+    Future<void> Function(CockpitWorkerCaseCompletionIntent intent);
+
 final class CockpitWorkerCaseRunStore
     implements CockpitWorkerRunOwnershipAuthority {
   static const int maximumCachedRunOwners = 100000;
 
-  CockpitWorkerCaseRunStore.memory({required this.workspaceId})
-    : _transactions = _MemoryCaseRunTransactions();
+  CockpitWorkerCaseRunStore.memory({
+    required this.workspaceId,
+    CockpitWorkerCaseCompletionObserver? completionObserver,
+  }) : _completionObserver = completionObserver,
+       _transactions = _MemoryCaseRunTransactions();
 
   CockpitWorkerCaseRunStore.file({
     required this.workspaceId,
     required String path,
     required CockpitPermissionHardener permissionHardener,
     required CockpitDirectorySyncer directorySyncer,
-  }) : _transactions = _FileCaseRunTransactions(
+    CockpitWorkerCaseCompletionObserver? completionObserver,
+  }) : _completionObserver = completionObserver,
+       _transactions = _FileCaseRunTransactions(
          root: path,
          permissionHardener: permissionHardener,
          directorySyncer: directorySyncer,
        );
 
   final String workspaceId;
+  final CockpitWorkerCaseCompletionObserver? _completionObserver;
   final _CaseRunTransactions _transactions;
   final Map<String, String> _ownedRunKeys = <String, String>{};
 
@@ -109,28 +161,127 @@ final class CockpitWorkerCaseRunStore
     }
   }
 
-  Future<int> recover({required DateTime now}) =>
-      _transactions.recover((current, recordHash) {
-        final document = _record(current, expectedRecordHash: recordHash);
-        var recovered = 0;
-        for (final attemptValue in document['attempts']! as List<Object?>) {
-          final attempt = attemptValue! as Map<String, Object?>;
-          final status = CockpitWorkerCaseAttemptStatus.values.byName(
-            attempt['status']! as String,
-          );
-          if (status != CockpitWorkerCaseAttemptStatus.prepared &&
-              status != CockpitWorkerCaseAttemptStatus.running) {
-            continue;
+  Future<int> recover({
+    required DateTime now,
+    CockpitWorkerCaseCompletionReconciler? reconcileCompletion,
+    CockpitWorkerCaseBeforeInterrupt? beforeInterrupt,
+  }) async {
+    var recovered = 0;
+    for (final stored in await _transactions.activeRecords()) {
+      final current = stored.value;
+      if (current == null) {
+        await _transactions.markInactive(stored.idempotencyKey);
+        continue;
+      }
+      final document = _record(
+        current,
+        expectedIdempotencyKey: stored.idempotencyKey,
+        expectedRecordHash: stored.recordHash,
+      );
+      final runId = document['runId']! as String;
+      final caseId = document['caseId']! as String;
+      for (final attemptValue in document['attempts']! as List<Object?>) {
+        final attempt = attemptValue! as Map<String, Object?>;
+        final attemptId = attempt['attemptId']! as String;
+        final intentValue = attempt['completionIntent'];
+        if (intentValue != null) {
+          if (reconcileCompletion == null) {
+            throw StateError(
+              'Case completion recovery requires an event reconciler.',
+            );
           }
-          attempt['status'] = CockpitWorkerCaseAttemptStatus.interrupted.name;
-          attempt['updatedAt'] = now.toUtc().toIso8601String();
-          document['updatedAt'] = attempt['updatedAt'];
+          final intent = _completionIntent(
+            intentValue,
+            workspaceId: workspaceId,
+            idempotencyKey: stored.idempotencyKey,
+            runId: runId,
+            caseId: caseId,
+            attemptId: attemptId,
+          );
+          await reconcileCompletion(intent);
+          if (await _commitCompletionIntent(
+            idempotencyKey: stored.idempotencyKey,
+            runId: runId,
+            attemptId: attemptId,
+            intentId: intent.intentId,
+            intentVersion: intent.intentVersion,
+            eventsSha256: intent.eventsSha256,
+            now: now,
+          )) {
+            recovered += 1;
+          }
+          await _observe(
+            CockpitWorkerCaseCompletionPhase.completionCommitted,
+            intent,
+            recovering: true,
+          );
+          continue;
+        }
+        final status = CockpitWorkerCaseAttemptStatus.values.byName(
+          attempt['status']! as String,
+        );
+        if (status != CockpitWorkerCaseAttemptStatus.prepared &&
+            status != CockpitWorkerCaseAttemptStatus.running) {
+          continue;
+        }
+        final recoveryAttempt = CockpitWorkerCaseRecoveryAttempt(
+          runId: runId,
+          caseId: caseId,
+          attemptId: attemptId,
+        );
+        if (beforeInterrupt != null) {
+          await beforeInterrupt(recoveryAttempt);
+        }
+        if (await _markRecoveryInterrupted(
+          idempotencyKey: stored.idempotencyKey,
+          recoveryAttempt: recoveryAttempt,
+          expected: status,
+          now: now,
+        )) {
           recovered += 1;
         }
-        return recovered > 0
-            ? CockpitLockedJsonUpdate.write(document, recovered)
-            : CockpitLockedJsonUpdate.readOnly(document, recovered);
-      });
+      }
+      await _transactions.markInactive(stored.idempotencyKey);
+    }
+    return recovered;
+  }
+
+  Future<bool> _markRecoveryInterrupted({
+    required String idempotencyKey,
+    required CockpitWorkerCaseRecoveryAttempt recoveryAttempt,
+    required CockpitWorkerCaseAttemptStatus expected,
+    required DateTime now,
+  }) => _transact<bool>(idempotencyKey, (current) {
+    final record = _record(current, expectedIdempotencyKey: idempotencyKey);
+    final transition = _attempt(
+      record,
+      recoveryAttempt.runId,
+      recoveryAttempt.attemptId,
+    );
+    if (transition.attempt['status'] != expected.name ||
+        transition.attempt.containsKey('completionIntent')) {
+      return CockpitLockedJsonUpdate.readOnly(record, false);
+    }
+    _setStatus(transition, CockpitWorkerCaseAttemptStatus.interrupted, now);
+    return CockpitLockedJsonUpdate.write(record, true);
+  });
+
+  Future<void> _observe(
+    CockpitWorkerCaseCompletionPhase phase,
+    CockpitWorkerCaseCompletionIntent intent, {
+    required bool recovering,
+  }) => notifyCockpitWorkerCaseCompletion(
+    _completionObserver,
+    CockpitWorkerCaseCompletionObservation(
+      phase: phase,
+      idempotencyKey: intent.idempotencyKey,
+      runId: intent.runId,
+      caseId: intent.caseId,
+      attemptId: intent.attemptId,
+      intentId: intent.intentId,
+      recovering: recovering,
+    ),
+  );
 
   Future<CockpitWorkerCaseAttemptReservation> reserve({
     required String idempotencyKey,
@@ -177,6 +328,9 @@ final class CockpitWorkerCaseRunStore
                 ),
               );
             }
+            if (attempt.containsKey('completionIntent')) {
+              throw StateError('Case completion is pending durable recovery.');
+            }
           }
         }
         final timestamp = now.toUtc().toIso8601String();
@@ -188,7 +342,7 @@ final class CockpitWorkerCaseRunStore
         };
         if (run == null) {
           final created = <String, Object?>{
-            'schemaVersion': 'cockpit.worker.case-run/v2',
+            'schemaVersion': 'cockpit.worker.case-run/v3',
             'workspaceId': workspaceId,
             'idempotencyKey': idempotencyKey,
             'requestFingerprint': requestFingerprint,
@@ -266,6 +420,147 @@ final class CockpitWorkerCaseRunStore
     await _transactions.markInactive(idempotencyKey);
   }
 
+  Future<CockpitWorkerCaseCompletionIntent> prepareCompletionIntent({
+    required String idempotencyKey,
+    required String runId,
+    required String attemptId,
+    required String intentId,
+    required Map<String, Object?> output,
+    required List<CockpitRunEvent> events,
+    required DateTime now,
+  }) async {
+    if (events.isEmpty) {
+      throw const FormatException('Case completion event batch is empty.');
+    }
+    workerValidateJsonValue(output, r'$.output');
+    final eventsSha256 = _eventsSha256(events);
+    late CockpitWorkerCaseCompletionIntent intent;
+    await _transact<void>(idempotencyKey, (current) {
+      final record = _record(current, expectedIdempotencyKey: idempotencyKey);
+      final transition = _attempt(record, runId, attemptId);
+      if (transition.attempt['status'] !=
+          CockpitWorkerCaseAttemptStatus.running.name) {
+        throw StateError('Only a running case attempt can prepare completion.');
+      }
+      intent = CockpitWorkerCaseCompletionIntent(
+        idempotencyKey: idempotencyKey,
+        runId: runId,
+        caseId: record['caseId']! as String,
+        attemptId: attemptId,
+        intentId: intentId,
+        intentVersion: 1,
+        output: output,
+        events: events,
+        eventsSha256: eventsSha256,
+        createdAt: now.toUtc(),
+      );
+      final encoded = _encodeCompletionIntent(intent);
+      final existingValue = transition.attempt['completionIntent'];
+      if (existingValue != null) {
+        final existing = _completionIntent(
+          existingValue,
+          workspaceId: workspaceId,
+          idempotencyKey: idempotencyKey,
+          runId: runId,
+          caseId: record['caseId']! as String,
+          attemptId: attemptId,
+        );
+        if (_canonicalJson(_encodeCompletionIntent(existing)) !=
+            _canonicalJson(encoded)) {
+          throw const FormatException(
+            'Case completion intent conflicts with durable state.',
+          );
+        }
+        intent = existing;
+        return CockpitLockedJsonUpdate.readOnly(record, null);
+      }
+      transition.attempt['completionIntent'] = encoded;
+      record['schemaVersion'] = 'cockpit.worker.case-run/v3';
+      record['updatedAt'] = now.toUtc().toIso8601String();
+      transition.attempt['updatedAt'] = record['updatedAt'];
+      return CockpitLockedJsonUpdate.write(record, null);
+    });
+    await _observe(
+      CockpitWorkerCaseCompletionPhase.intentPersisted,
+      intent,
+      recovering: false,
+    );
+    return intent;
+  }
+
+  Future<void> commitCompletionIntent({
+    required CockpitWorkerCaseCompletionIntent intent,
+    required DateTime now,
+  }) async {
+    await _commitCompletionIntent(
+      idempotencyKey: intent.idempotencyKey,
+      runId: intent.runId,
+      attemptId: intent.attemptId,
+      intentId: intent.intentId,
+      intentVersion: intent.intentVersion,
+      eventsSha256: intent.eventsSha256,
+      now: now,
+    );
+    await _observe(
+      CockpitWorkerCaseCompletionPhase.completionCommitted,
+      intent,
+      recovering: false,
+    );
+    await _transactions.markInactive(intent.idempotencyKey);
+  }
+
+  Future<bool> _commitCompletionIntent({
+    required String idempotencyKey,
+    required String runId,
+    required String attemptId,
+    required String intentId,
+    required int intentVersion,
+    required String eventsSha256,
+    required DateTime now,
+  }) => _transact<bool>(idempotencyKey, (current) {
+    final record = _record(current, expectedIdempotencyKey: idempotencyKey);
+    final transition = _attempt(record, runId, attemptId);
+    final receiptValue = transition.attempt['completionReceipt'];
+    if (transition.attempt['status'] ==
+            CockpitWorkerCaseAttemptStatus.completed.name &&
+        receiptValue != null) {
+      final receipt = _completionReceipt(receiptValue);
+      if (receipt.intentId != intentId ||
+          receipt.intentVersion != intentVersion ||
+          receipt.eventsSha256 != eventsSha256) {
+        throw const FormatException(
+          'Completed case intent conflicts with durable state.',
+        );
+      }
+      return CockpitLockedJsonUpdate.readOnly(record, false);
+    }
+    if (transition.attempt['status'] !=
+        CockpitWorkerCaseAttemptStatus.running.name) {
+      throw StateError('Only a running case attempt can commit completion.');
+    }
+    final intent = _completionIntent(
+      transition.attempt['completionIntent'],
+      workspaceId: workspaceId,
+      idempotencyKey: idempotencyKey,
+      runId: runId,
+      caseId: record['caseId']! as String,
+      attemptId: attemptId,
+    );
+    if (intent.intentId != intentId ||
+        intent.intentVersion != intentVersion ||
+        intent.eventsSha256 != eventsSha256) {
+      throw const FormatException(
+        'Case completion intent changed before commit.',
+      );
+    }
+    transition.attempt['completedOutput'] = _deepCopy(intent.output);
+    transition.attempt['completionReceipt'] = _encodeCompletionReceipt(intent);
+    transition.attempt.remove('completionIntent');
+    _setStatus(transition, CockpitWorkerCaseAttemptStatus.completed, now);
+    record['schemaVersion'] = 'cockpit.worker.case-run/v3';
+    return CockpitLockedJsonUpdate.write(record, true);
+  });
+
   Future<void> markCompleted({
     required String idempotencyKey,
     required String runId,
@@ -281,8 +576,12 @@ final class CockpitWorkerCaseRunStore
           CockpitWorkerCaseAttemptStatus.running.name) {
         throw StateError('Only a running case attempt can complete.');
       }
+      if (transition.attempt.containsKey('completionIntent')) {
+        throw StateError('Pending completion intent must be committed.');
+      }
       transition.attempt['completedOutput'] = _deepCopy(output);
       _setStatus(transition, CockpitWorkerCaseAttemptStatus.completed, now);
+      record['schemaVersion'] = 'cockpit.worker.case-run/v3';
       return CockpitLockedJsonUpdate.write(record, null);
     });
     await _transactions.markInactive(idempotencyKey);
@@ -351,10 +650,14 @@ final class CockpitWorkerCaseRunStore
         'attempts',
       },
     );
-    if (record['schemaVersion'] != 'cockpit.worker.case-run/v2' ||
+    if (!const <String>{
+          'cockpit.worker.case-run/v2',
+          'cockpit.worker.case-run/v3',
+        }.contains(record['schemaVersion']) ||
         record['workspaceId'] != workspaceId) {
       throw const FormatException('Case run state identity is invalid.');
     }
+    record['schemaVersion'] = 'cockpit.worker.case-run/v3';
     final idempotencyKey = workerId(
       record['idempotencyKey'],
       r'$.idempotencyKey',
@@ -382,7 +685,15 @@ final class CockpitWorkerCaseRunStore
     }
     final attemptIds = <String>{};
     for (var index = 0; index < attempts.length; index += 1) {
-      _validateAttempt(attempts[index], '\$.attempts[$index]', attemptIds);
+      _validateAttempt(
+        attempts[index],
+        '\$.attempts[$index]',
+        attemptIds,
+        workspaceId: workspaceId,
+        idempotencyKey: idempotencyKey,
+        runId: record['runId']! as String,
+        caseId: record['caseId']! as String,
+      );
     }
     record['attempts'] = attempts;
     return record;
@@ -426,7 +737,15 @@ void _setStatus(
   transition.run['updatedAt'] = timestamp;
 }
 
-void _validateAttempt(Object? value, String path, Set<String> attemptIds) {
+void _validateAttempt(
+  Object? value,
+  String path,
+  Set<String> attemptIds, {
+  required String workspaceId,
+  required String idempotencyKey,
+  required String runId,
+  required String caseId,
+}) {
   final attempt = workerObject(value, path);
   workerKeys(
     attempt,
@@ -436,6 +755,8 @@ void _validateAttempt(Object? value, String path, Set<String> attemptIds) {
       'createdAt',
       'updatedAt',
       'completedOutput',
+      'completionIntent',
+      'completionReceipt',
     },
     path,
     required: const <String>{'attemptId', 'status', 'createdAt', 'updatedAt'},
@@ -460,9 +781,232 @@ void _validateAttempt(Object? value, String path, Set<String> attemptIds) {
       attempt['completedOutput'],
       '$path.completedOutput',
     );
+    if (attempt.containsKey('completionIntent')) {
+      throw FormatException('Completed case attempt has an intent at $path.');
+    }
+    if (attempt.containsKey('completionReceipt')) {
+      _completionReceipt(attempt['completionReceipt']);
+    }
   } else if (attempt.containsKey('completedOutput')) {
     throw FormatException('Incomplete case attempt has output at $path.');
+  } else {
+    if (attempt.containsKey('completionReceipt')) {
+      throw FormatException(
+        'Incomplete case attempt has a completion receipt at $path.',
+      );
+    }
+    if (attempt.containsKey('completionIntent')) {
+      if (parsedStatus != CockpitWorkerCaseAttemptStatus.running) {
+        throw FormatException(
+          'Only a running case attempt may have an intent at $path.',
+        );
+      }
+      _completionIntent(
+        attempt['completionIntent'],
+        workspaceId: workspaceId,
+        idempotencyKey: idempotencyKey,
+        runId: runId,
+        caseId: caseId,
+        attemptId: attempt['attemptId']! as String,
+      );
+    }
   }
+}
+
+final class _CaseCompletionReceipt {
+  const _CaseCompletionReceipt({
+    required this.intentId,
+    required this.intentVersion,
+    required this.eventsSha256,
+  });
+
+  final String intentId;
+  final int intentVersion;
+  final String eventsSha256;
+}
+
+Map<String, Object?> _encodeCompletionIntent(
+  CockpitWorkerCaseCompletionIntent intent,
+) => <String, Object?>{
+  'schemaVersion': 'cockpit.worker.case-completion/v1',
+  'intentId': intent.intentId,
+  'intentVersion': intent.intentVersion,
+  'output': _deepCopy(intent.output),
+  'events': intent.events.map((event) => event.toJson()).toList(),
+  'eventsSha256': intent.eventsSha256,
+  'createdAt': intent.createdAt.toUtc().toIso8601String(),
+};
+
+Map<String, Object?> _encodeCompletionReceipt(
+  CockpitWorkerCaseCompletionIntent intent,
+) => <String, Object?>{
+  'schemaVersion': 'cockpit.worker.case-completion-receipt/v1',
+  'intentId': intent.intentId,
+  'intentVersion': intent.intentVersion,
+  'eventsSha256': intent.eventsSha256,
+};
+
+CockpitWorkerCaseCompletionIntent _completionIntent(
+  Object? value, {
+  required String workspaceId,
+  required String idempotencyKey,
+  required String runId,
+  required String caseId,
+  required String attemptId,
+}) {
+  final json = workerObject(value, r'$.completionIntent');
+  workerKeys(
+    json,
+    const <String>{
+      'schemaVersion',
+      'intentId',
+      'intentVersion',
+      'output',
+      'events',
+      'eventsSha256',
+      'createdAt',
+    },
+    r'$.completionIntent',
+    required: const <String>{
+      'schemaVersion',
+      'intentId',
+      'intentVersion',
+      'output',
+      'events',
+      'eventsSha256',
+      'createdAt',
+    },
+  );
+  if (json['schemaVersion'] != 'cockpit.worker.case-completion/v1') {
+    throw const FormatException('Unsupported case completion intent.');
+  }
+  final output = workerObject(json['output'], r'$.completionIntent.output');
+  if (output['runId'] != runId || output['attemptId'] != attemptId) {
+    throw const FormatException('Case completion output identity is invalid.');
+  }
+  workerValidateJsonValue(output, r'$.completionIntent.output');
+  final rawEvents = workerList(
+    json['events'],
+    r'$.completionIntent.events',
+    maximum: 10000,
+  );
+  if (rawEvents.isEmpty) {
+    throw const FormatException('Case completion event batch is empty.');
+  }
+  final events = <CockpitRunEvent>[
+    for (var index = 0; index < rawEvents.length; index += 1)
+      CockpitRunEvent.fromJson(
+        rawEvents[index],
+        path: '\$.completionIntent.events[$index]',
+      ),
+  ];
+  CockpitRunEvent.validateSequence(
+    events,
+    afterSequence: events.first.sequence - 1,
+  );
+  if (events.any(
+        (event) =>
+            event.workspaceId != workspaceId ||
+            event.runId != runId ||
+            event.caseId != caseId ||
+            event.attemptId != attemptId,
+      ) ||
+      events
+              .where(
+                (event) =>
+                    event.entityKind == CockpitRunEventEntityKind.attempt &&
+                    event.kind == 'attempt.completed' &&
+                    event.outcome != null,
+              )
+              .length !=
+          1 ||
+      events
+              .where(
+                (event) =>
+                    event.entityKind == CockpitRunEventEntityKind.testCase &&
+                    event.kind == 'case.completed' &&
+                    event.outcome != null,
+              )
+              .length !=
+          1 ||
+      events
+              .where(
+                (event) =>
+                    event.entityKind == CockpitRunEventEntityKind.run &&
+                    event.kind == 'run.completed' &&
+                    event.lifecycle == CockpitRunLifecycle.completed,
+              )
+              .length !=
+          1 ||
+      events.last.entityKind != CockpitRunEventEntityKind.run ||
+      events.last.kind != 'run.completed') {
+    throw const FormatException(
+      'Case completion terminal event batch is invalid.',
+    );
+  }
+  final eventsSha256 = _sha256(
+    json['eventsSha256'],
+    r'$.completionIntent.eventsSha256',
+  );
+  if (_eventsSha256(events) != eventsSha256) {
+    throw const FormatException('Case completion event digest is invalid.');
+  }
+  return CockpitWorkerCaseCompletionIntent(
+    idempotencyKey: idempotencyKey,
+    runId: runId,
+    caseId: caseId,
+    attemptId: attemptId,
+    intentId: workerId(json['intentId'], r'$.completionIntent.intentId'),
+    intentVersion: workerInteger(
+      json['intentVersion'],
+      r'$.completionIntent.intentVersion',
+      minimum: 1,
+      maximum: 1,
+    ),
+    output: output,
+    events: events,
+    eventsSha256: eventsSha256,
+    createdAt: workerUtcDateTime(
+      json['createdAt'],
+      r'$.completionIntent.createdAt',
+    ),
+  );
+}
+
+_CaseCompletionReceipt _completionReceipt(Object? value) {
+  final json = workerObject(value, r'$.completionReceipt');
+  workerKeys(
+    json,
+    const <String>{
+      'schemaVersion',
+      'intentId',
+      'intentVersion',
+      'eventsSha256',
+    },
+    r'$.completionReceipt',
+    required: const <String>{
+      'schemaVersion',
+      'intentId',
+      'intentVersion',
+      'eventsSha256',
+    },
+  );
+  if (json['schemaVersion'] != 'cockpit.worker.case-completion-receipt/v1') {
+    throw const FormatException('Unsupported case completion receipt.');
+  }
+  return _CaseCompletionReceipt(
+    intentId: workerId(json['intentId'], r'$.completionReceipt.intentId'),
+    intentVersion: workerInteger(
+      json['intentVersion'],
+      r'$.completionReceipt.intentVersion',
+      minimum: 1,
+      maximum: 1,
+    ),
+    eventsSha256: _sha256(
+      json['eventsSha256'],
+      r'$.completionReceipt.eventsSha256',
+    ),
+  );
 }
 
 String _fingerprint(Object? value, String path) {
@@ -474,7 +1018,7 @@ String _fingerprint(Object? value, String path) {
 }
 
 abstract interface class _CaseRunTransactions {
-  Future<int> recover(_CaseRunRecoveryTransaction transaction);
+  Future<List<_ActiveCaseRunRecord>> activeRecords();
 
   Future<void> markActive(String idempotencyKey);
 
@@ -497,11 +1041,17 @@ final class _StoredCaseRunRecord {
   final String recordHash;
 }
 
-typedef _CaseRunRecoveryTransaction =
-    FutureOr<CockpitLockedJsonUpdate<Map<String, Object?>, int>> Function(
-      Map<String, Object?> current,
-      String recordHash,
-    );
+final class _ActiveCaseRunRecord {
+  const _ActiveCaseRunRecord({
+    required this.idempotencyKey,
+    required this.recordHash,
+    required this.value,
+  });
+
+  final String idempotencyKey;
+  final String recordHash;
+  final Map<String, Object?>? value;
+}
 
 final class _MemoryCaseRunTransactions implements _CaseRunTransactions {
   final Map<String, Map<String, Object?>> _states =
@@ -510,22 +1060,16 @@ final class _MemoryCaseRunTransactions implements _CaseRunTransactions {
   Future<void> _tail = Future<void>.value();
 
   @override
-  Future<int> recover(_CaseRunRecoveryTransaction transaction) =>
-      _exclusive(() async {
-        var recovered = 0;
-        final keys = _activeKeys.toList()..sort();
-        for (final key in keys) {
-          final state = _states[key];
-          if (state == null) continue;
-          final update = await transaction(_deepCopy(state), _recordHash(key));
-          if (update.shouldWrite) {
-            _states[key] = _deepCopy(update.value);
-          }
-          recovered += update.result;
-        }
-        _activeKeys.clear();
-        return recovered;
-      });
+  Future<List<_ActiveCaseRunRecord>> activeRecords() => _exclusive(() async {
+    return <_ActiveCaseRunRecord>[
+      for (final key in (_activeKeys.toList()..sort()))
+        _ActiveCaseRunRecord(
+          idempotencyKey: key,
+          recordHash: _recordHash(key),
+          value: _states[key] == null ? null : _deepCopy(_states[key]!),
+        ),
+    ];
+  });
 
   @override
   Future<void> markActive(String idempotencyKey) => _exclusive(() async {
@@ -599,7 +1143,7 @@ final class _FileCaseRunTransactions implements _CaseRunTransactions {
        _permissionHardener = permissionHardener,
        _directorySyncer = directorySyncer;
 
-  static const int maximumRecordBytes = 2 * 1024 * 1024;
+  static const int maximumRecordBytes = 16 * 1024 * 1024;
 
   final String _root;
   final CockpitPermissionHardener _permissionHardener;
@@ -608,13 +1152,15 @@ final class _FileCaseRunTransactions implements _CaseRunTransactions {
   String get _activeRoot => p.join(_root, 'active');
 
   @override
-  Future<int> recover(_CaseRunRecoveryTransaction transaction) async {
+  Future<List<_ActiveCaseRunRecord>> activeRecords() async {
     await _prepareRoot();
     await _prepareActiveRoot();
     await _scanActiveDirectory();
     final active = await _readActiveManifest();
-    var recovered = 0;
-    for (final entry in active.entries) {
+    final result = <_ActiveCaseRunRecord>[];
+    final entries = active.entries.toList()
+      ..sort((left, right) => left.key.compareTo(right.key));
+    for (final entry in entries) {
       final hash = entry.key;
       final key = entry.value;
       final recordDirectory = _recordDirectoryForHash(hash);
@@ -623,6 +1169,13 @@ final class _FileCaseRunTransactions implements _CaseRunTransactions {
         followLinks: false,
       );
       if (directoryType == FileSystemEntityType.notFound) {
+        result.add(
+          _ActiveCaseRunRecord(
+            idempotencyKey: key,
+            recordHash: hash,
+            value: null,
+          ),
+        );
         continue;
       }
       if (directoryType != FileSystemEntityType.directory) {
@@ -642,6 +1195,13 @@ final class _FileCaseRunTransactions implements _CaseRunTransactions {
         followLinks: false,
       );
       if (recordType == FileSystemEntityType.notFound && !hasRecordTemporary) {
+        result.add(
+          _ActiveCaseRunRecord(
+            idempotencyKey: key,
+            recordHash: hash,
+            value: null,
+          ),
+        );
         continue;
       }
       if (recordType != FileSystemEntityType.file &&
@@ -651,18 +1211,22 @@ final class _FileCaseRunTransactions implements _CaseRunTransactions {
           recordPath,
         );
       }
-      recovered += await _storeAt(recordPath).transact<int>((current) {
-        final record = workerObject(current, r'$');
-        if (record['idempotencyKey'] != key || _recordHash(key) != hash) {
-          throw const FormatException(
-            'Case run active manifest identity is invalid.',
-          );
-        }
-        return transaction(current, hash);
-      });
+      final current = await _storeAt(recordPath).read();
+      final record = workerObject(current, r'$');
+      if (record['idempotencyKey'] != key || _recordHash(key) != hash) {
+        throw const FormatException(
+          'Case run active manifest identity is invalid.',
+        );
+      }
+      result.add(
+        _ActiveCaseRunRecord(
+          idempotencyKey: key,
+          recordHash: hash,
+          value: current,
+        ),
+      );
     }
-    await _writeActiveManifest(const <String, String>{});
-    return recovered;
+    return result;
   }
 
   @override
@@ -853,15 +1417,6 @@ final class _FileCaseRunTransactions implements _CaseRunTransactions {
 
   Future<Map<String, String>> _readActiveManifest() async =>
       _decodeCaseActiveManifest(await _activeManifestStore().read());
-
-  Future<void> _writeActiveManifest(Map<String, String> active) async {
-    await _activeManifestStore().transact<void>(
-      (_) => CockpitLockedJsonUpdate.write(
-        _encodeCaseActiveManifest(active),
-        null,
-      ),
-    );
-  }
 
   Future<Directory> _prepareRecordDirectory(String hash) async {
     await _prepareRoot();
@@ -1165,6 +1720,33 @@ Object? _copyValue(Object? value) => switch (value) {
 
 String _recordHash(String idempotencyKey) =>
     sha256.convert(utf8.encode(idempotencyKey)).toString();
+
+String _eventsSha256(List<CockpitRunEvent> events) => sha256
+    .convert(
+      utf8.encode(
+        _canonicalJson(events.map((event) => event.toJson()).toList()),
+      ),
+    )
+    .toString();
+
+String _sha256(Object? value, String path) {
+  final digest = workerString(value, path, minimum: 64, maximum: 64);
+  if (!_isLowercaseHex(digest, length: 64)) {
+    throw FormatException('Invalid SHA-256 digest at $path.');
+  }
+  return digest;
+}
+
+String _canonicalJson(Object? value) {
+  if (value is Map<Object?, Object?>) {
+    final keys = value.keys.cast<String>().toList()..sort();
+    return '{${keys.map((key) => '${jsonEncode(key)}:${_canonicalJson(value[key])}').join(',')}}';
+  }
+  if (value is List<Object?>) {
+    return '[${value.map(_canonicalJson).join(',')}]';
+  }
+  return jsonEncode(value);
+}
 
 bool _isLowercaseHex(String value, {required int length}) {
   if (value.length != length) return false;

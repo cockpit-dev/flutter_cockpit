@@ -47,9 +47,19 @@ final class CockpitTestValueReader {
     }
   }
 
-  static String string(Object? value, String path, {bool id = false}) {
+  static String string(
+    Object? value,
+    String path, {
+    bool id = false,
+    int? maximum,
+  }) {
     if (value is! String || value.trim().isEmpty) {
       throw FormatException('Expected a non-empty string at $path.');
+    }
+    if (maximum != null && value.length > maximum) {
+      throw FormatException(
+        'Expected $path to be at most $maximum characters.',
+      );
     }
     if (id && !_idPattern.hasMatch(value)) {
       throw FormatException('Invalid identifier "$value" at $path.');

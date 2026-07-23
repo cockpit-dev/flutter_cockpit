@@ -1,3 +1,4 @@
+import '../control/cockpit_locator_resolution.dart';
 import 'cockpit_test_error.dart';
 import 'cockpit_test_diagnostic.dart';
 import 'cockpit_test_policy.dart';
@@ -154,6 +155,9 @@ final class CockpitTestStepResult {
     this.sourceLocation,
     this.requestedPlane,
     this.actualPlane,
+    this.driverId,
+    this.locatorResolution,
+    this.degradationReason,
     this.error,
     Iterable<String> evidence = const <String>[],
   }) : occurrence = occurrence ?? CockpitTestStepOccurrence(),
@@ -167,6 +171,16 @@ final class CockpitTestStepResult {
     }
     if (durationMs < 0) {
       throw const FormatException('Step durationMs cannot be negative.');
+    }
+    if (driverId != null) {
+      CockpitTestValueReader.string(driverId, r'$.driverId', id: true);
+    }
+    if (degradationReason != null) {
+      CockpitTestValueReader.string(
+        degradationReason,
+        r'$.degradationReason',
+        maximum: 512,
+      );
     }
     final requiresError = switch (status) {
       CockpitTestStepStatus.failed ||
@@ -198,6 +212,9 @@ final class CockpitTestStepResult {
   final CockpitTestSourceLocation? sourceLocation;
   final CockpitTestPlane? requestedPlane;
   final CockpitTestPlane? actualPlane;
+  final String? driverId;
+  final CockpitLocatorResolution? locatorResolution;
+  final String? degradationReason;
   final CockpitTestError? error;
   final List<String> evidence;
 
@@ -212,6 +229,10 @@ final class CockpitTestStepResult {
     if (sourceLocation != null) 'sourceLocation': sourceLocation!.toJson(),
     if (requestedPlane != null) 'requestedPlane': requestedPlane!.name,
     if (actualPlane != null) 'actualPlane': actualPlane!.name,
+    if (driverId != null) 'driverId': driverId,
+    if (locatorResolution != null)
+      'locatorResolution': locatorResolution!.toJson(),
+    if (degradationReason != null) 'degradationReason': degradationReason,
     if (error != null) 'error': error!.toJson(),
     if (evidence.isNotEmpty) 'evidence': evidence,
   };
@@ -231,6 +252,9 @@ final class CockpitTestStepResult {
         'sourceLocation',
         'requestedPlane',
         'actualPlane',
+        'driverId',
+        'locatorResolution',
+        'degradationReason',
         'error',
         'evidence',
       },
@@ -293,6 +317,30 @@ final class CockpitTestStepResult {
               json['actualPlane'],
               CockpitTestPlane.values,
               '$path.actualPlane',
+            ),
+      driverId: json['driverId'] == null
+          ? null
+          : CockpitTestValueReader.string(
+              json['driverId'],
+              '$path.driverId',
+              id: true,
+            ),
+      locatorResolution: json['locatorResolution'] == null
+          ? null
+          : CockpitLocatorResolution.fromJson(
+              Map<String, Object?>.from(
+                CockpitTestValueReader.object(
+                  json['locatorResolution'],
+                  '$path.locatorResolution',
+                ),
+              ),
+            ),
+      degradationReason: json['degradationReason'] == null
+          ? null
+          : CockpitTestValueReader.string(
+              json['degradationReason'],
+              '$path.degradationReason',
+              maximum: 512,
             ),
       error: json['error'] == null
           ? null

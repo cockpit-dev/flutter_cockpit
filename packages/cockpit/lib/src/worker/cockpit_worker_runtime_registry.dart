@@ -671,12 +671,7 @@ final class CockpitWorkerRuntimeRegistry
         retainedPath,
       );
     }
-    final retainedOwnerRoot = p.join(
-      stateRoot,
-      'retained_artifacts',
-      ownerKind,
-      ownerId,
-    );
+    final retainedOwnerRoot = _artifactOwnerRoot(ownerKind, ownerId);
     if (!p.isWithin(retainedOwnerRoot, canonical)) {
       throw FileSystemException(
         'Retained artifact escapes its owner authority.',
@@ -1243,9 +1238,7 @@ final class CockpitWorkerRuntimeRegistry
         'recording' => _recordings.containsKey(artifact.ownerId),
         _ => false,
       };
-      final ownerRoot = p.join(
-        stateRoot,
-        'retained_artifacts',
+      final ownerRoot = _artifactOwnerRoot(
         artifact.ownerKind,
         artifact.ownerId,
       );
@@ -1273,6 +1266,11 @@ final class CockpitWorkerRuntimeRegistry
       }
     }
   }
+
+  String _artifactOwnerRoot(String ownerKind, String ownerId) =>
+      ownerKind == 'run'
+      ? p.join(stateRoot, 'runs', ownerId, 'artifacts')
+      : p.join(stateRoot, 'retained_artifacts', ownerKind, ownerId);
 
   void _validateTargetHandleOwnership(CockpitTargetHandle handle) {
     final remoteJson = handle.metadata['remoteSession'];

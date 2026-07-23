@@ -36,6 +36,12 @@ final class CockpitWorkerProtocolSchema {
             'afterSequence': _integerSchema(0, 2147483647),
             'events': _array(_objectSchema, 1, 256),
           }),
+          'publishArtifactBatch': _requestSchema(<String, Object?>{
+            'projectId': _idSchema,
+            'runId': _idSchema,
+            'caseId': _idSchema,
+            'artifacts': _array(_objectSchema, 1, 256),
+          }),
         },
       );
 
@@ -91,6 +97,10 @@ final class CockpitWorkerProtocolSchema {
             },
             required: const <String>{'runId', 'highestContiguousSequence'},
           ),
+          'publishArtifactBatch': _strictObject(<String, Object?>{
+            'runId': _idSchema,
+            'artifactIds': _uniqueArray(_idSchema, 256),
+          }),
         },
       );
 

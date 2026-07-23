@@ -10,21 +10,23 @@ import '../foundation/cockpit_locked_json_store.dart';
 import '../foundation/cockpit_permissions.dart';
 import '../test/cockpit_test_safety_policy.dart';
 import 'cockpit_case_run_adapter.dart';
+import 'cockpit_worker_case_completion.dart';
 import 'cockpit_worker_case_run_store.dart';
 import 'cockpit_json_rpc_peer.dart';
 import 'cockpit_retained_workspace_application_backend.dart';
 import 'cockpit_rpc_forwarded_port_handoff.dart';
 import 'cockpit_rpc_resource_authority_client.dart';
 import 'cockpit_worker_application_support.dart';
+import 'cockpit_worker_artifact_publisher.dart';
 import 'cockpit_worker_artifact_retainer.dart';
 import 'cockpit_worker_document_index.dart';
 import 'cockpit_worker_development_session_runtime.dart';
 import 'cockpit_worker_logger.dart';
-import 'cockpit_worker_memory_event_exchange.dart';
 import 'cockpit_worker_operation_journal.dart';
 import 'cockpit_worker_operation_router.dart';
 import 'cockpit_worker_process_manager.dart';
 import 'cockpit_worker_runtime_registry.dart';
+import 'cockpit_worker_run_event_store.dart';
 import 'cockpit_worker_secret_resolver.dart';
 import 'cockpit_worker_server.dart';
 import 'cockpit_worker_target_registration_dispatcher.dart';
@@ -134,6 +136,7 @@ final class CockpitWorkerRuntime {
     CockpitPermissionHardener? permissionHardener,
     CockpitDirectorySyncer? directorySyncer,
     CockpitWorkerLogger? logger,
+    CockpitWorkerCaseCompletionObserver? completionObserver,
   }) : _input = input ?? stdin,
        _output = output ?? stdout,
        _environment = Map<String, String>.unmodifiable(
@@ -142,7 +145,8 @@ final class CockpitWorkerRuntime {
        _processId = processId ?? pid,
        _permissionHardener = permissionHardener ?? _systemPermissionHardener(),
        _directorySyncer = directorySyncer ?? _systemDirectorySyncer(),
-       _logger = logger ?? CockpitWorkerLogger();
+       _logger = logger ?? CockpitWorkerLogger(),
+       _completionObserver = completionObserver;
 
   final CockpitWorkerRuntimeConfiguration configuration;
   final Stream<List<int>> _input;
@@ -152,6 +156,7 @@ final class CockpitWorkerRuntime {
   final CockpitPermissionHardener _permissionHardener;
   final CockpitDirectorySyncer _directorySyncer;
   final CockpitWorkerLogger _logger;
+  final CockpitWorkerCaseCompletionObserver? _completionObserver;
 
   Future<void> run() async {
     final roots = await _prepareRoots();
@@ -160,8 +165,8 @@ final class CockpitWorkerRuntime {
       path: p.join(roots.stateRoot, 'case_runs'),
       permissionHardener: _permissionHardener,
       directorySyncer: _directorySyncer,
+      completionObserver: _completionObserver,
     );
-    await caseRunStore.recover(now: DateTime.now().toUtc());
     final operationJournal = CockpitFileWorkerOperationJournal(
       path: p.join(roots.stateRoot, 'operations'),
       permissionHardener: _permissionHardener,
@@ -170,7 +175,6 @@ final class CockpitWorkerRuntime {
         'case.run': CockpitWorkerOperationRecoveryPolicy.retryPrepared,
       },
     );
-    await operationJournal.recover(now: DateTime.now().toUtc());
     final developmentRuntime = CockpitWorkerDevelopmentSessionRuntime(
       logger: (message) => _logger.log(
         'info',
@@ -225,12 +229,46 @@ final class CockpitWorkerRuntime {
       processStartIdentity: configuration.processStartIdentity,
       peer: peer,
     );
+    final eventStore = CockpitWorkerRunEventStore(
+      projectId: configuration.projectId,
+      workspaceId: configuration.workspaceId,
+      stateRoot: roots.stateRoot,
+      permissionHardener: _permissionHardener,
+      directorySyncer: _directorySyncer,
+      redactor: (value) => _logger.redactor.redact(value),
+      completionObserver: _completionObserver,
+      publisher: CockpitRpcWorkerEventPublisher(
+        workspaceId: configuration.workspaceId,
+        peer: peer,
+      ),
+    );
+    await eventStore.initialize();
+    await caseRunStore.recover(
+      now: DateTime.now().toUtc(),
+      reconcileCompletion: eventStore.reconcileCompletionIntent,
+      beforeInterrupt: (attempt) => eventStore.recoverInterruptedAttempt(
+        runId: attempt.runId,
+        caseId: attempt.caseId,
+        attemptId: attempt.attemptId,
+      ),
+    );
+    await operationJournal.recover(now: DateTime.now().toUtc());
     final childProcessManager = CockpitWorkerProcessManager();
     final artifactRetainer = CockpitWorkerArtifactRetainer(
       stateRoot: roots.stateRoot,
       producerRoot: roots.producerRoot,
       permissionHardener: _permissionHardener,
       directorySyncer: _directorySyncer,
+    );
+    final artifactPublisher = CockpitDurableWorkerArtifactPublisher(
+      workspaceId: configuration.workspaceId,
+      stateRoot: roots.stateRoot,
+      peer: peer,
+      events: eventStore,
+      artifactRetainer: artifactRetainer,
+      permissionHardener: _permissionHardener,
+      directorySyncer: _directorySyncer,
+      redactor: (value) => _logger.redactor.redact(value),
     );
     final resultSanitizer = CockpitWorkerResultSanitizer(
       workspaceRoot: roots.workspaceRoot,
@@ -263,6 +301,8 @@ final class CockpitWorkerRuntime {
       ),
       redactor: _logger.redactor,
       runStore: caseRunStore,
+      eventStore: eventStore,
+      artifactPublisher: artifactPublisher,
       resultSanitizer:
           (value, {required runId, required committedBundleRoot}) =>
               resultSanitizer.sanitize(
@@ -323,7 +363,11 @@ final class CockpitWorkerRuntime {
       workspaceRoot: roots.workspaceRoot,
       supportedFeatures: configuration.supportedFeatures,
       operations: router,
-      events: CockpitWorkerMemoryEventExchange(),
+      events: eventStore,
+      onInitialized: () async {
+        await artifactPublisher.resume();
+        await eventStore.resume();
+      },
       onShutdown: shutdownRuntime,
     );
     server.bindPeer(peer);
@@ -428,6 +472,7 @@ Future<int> runCockpitWorker(
   CockpitPermissionHardener? permissionHardener,
   CockpitDirectorySyncer? directorySyncer,
   CockpitWorkerLogger? logger,
+  CockpitWorkerCaseCompletionObserver? completionObserver,
 }) async {
   final effectiveLogger = logger ?? CockpitWorkerLogger();
   try {
@@ -441,6 +486,7 @@ Future<int> runCockpitWorker(
       permissionHardener: permissionHardener,
       directorySyncer: directorySyncer,
       logger: effectiveLogger,
+      completionObserver: completionObserver,
     ).run();
     return 0;
   } on Object catch (error) {
