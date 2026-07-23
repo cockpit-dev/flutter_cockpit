@@ -2237,6 +2237,7 @@ const String cockpitTestV2SchemaJson = r'''
         "durationMs": { "type": "integer", "minimum": 0 },
         "execution": { "$ref": "#/$defs/suiteExecutionPolicy" },
         "reportPolicy": { "$ref": "#/$defs/suiteReportPolicy" },
+        "failure": { "$ref": "#/$defs/reportFailure" },
         "environment": { "type": "object" },
         "matrix": {
           "type": "object",
@@ -2284,6 +2285,16 @@ const String cockpitTestV2SchemaJson = r'''
         "counts",
         "cases",
         "complete"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": { "enum": ["passed", "skipped"] }
+            }
+          },
+          "then": { "not": { "required": ["failure"] } }
+        }
       ],
       "additionalProperties": false
     },

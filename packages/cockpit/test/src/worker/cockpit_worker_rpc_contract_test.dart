@@ -1203,6 +1203,67 @@ void main() {
       expect(authority.releaseCount, 0);
     },
   );
+
+  test(
+    'operation-specific cancellation grace permits bounded cleanup',
+    () async {
+      var executionStopped = false;
+      var unsafeTerminationCount = 0;
+      final authority = _HeartbeatFailureAuthority(
+        executionStopped: () => executionStopped,
+      );
+      final registry = CockpitWorkspaceOperationRegistry(
+        workspaceId: workspaceId,
+        workspaceRoot: workspaceRoot,
+        adapters: <CockpitWorkspaceOperationAdapter>[
+          _heartbeatOperationAdapter((context) async {
+            await context.cancellation.whenCancelled;
+            await Future<void>.delayed(const Duration(milliseconds: 60));
+            executionStopped = true;
+            return const <String, Object?>{'cleaned': true};
+          }, cancellationGrace: const Duration(milliseconds: 100)),
+        ],
+        resourceAuthority: authority,
+        operationJournal: CockpitInMemoryWorkerOperationJournal(),
+        terminateUnsafeWorker: () async => unsafeTerminationCount += 1,
+        cancellationGrace: const Duration(milliseconds: 10),
+        forcedAbortGrace: const Duration(milliseconds: 10),
+      );
+      final server = CockpitWorkerServer(
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        supportedFeatures: const <String>[],
+        operations: registry,
+        events: CockpitWorkerMemoryEventExchange(),
+      );
+      final harness = _PeerHarness(server.handle);
+      server.bindPeer(harness.server);
+      harness.start();
+      addTearDown(harness.close);
+      await _initialize(
+        harness.client,
+        workspaceId: workspaceId,
+        engineVersion: engineVersion,
+        workspaceRoot: workspaceRoot,
+        supportedFeatures: const <String>[],
+      );
+
+      final deadline = _deadline();
+      final result = CockpitWorkerOperationResult.fromJson(
+        await harness.client.call(
+          method: 'operation',
+          params: _operationParams('bounded-cleanup', deadline),
+          deadline: deadline,
+        ),
+      ).result;
+
+      expect(result.failure?.primary.code, 'resourceHeartbeatFailed');
+      expect(executionStopped, isTrue);
+      expect(unsafeTerminationCount, 0);
+      expect(authority.releaseCount, 1);
+    },
+  );
 }
 
 Future<void> _initialize(
@@ -1286,8 +1347,9 @@ Map<String, Object?> _operationParams(String key, DateTime deadline) {
 
 CockpitWorkspaceOperationAdapter _heartbeatOperationAdapter(
   Future<Map<String, Object?>> Function(CockpitWorkspaceOperationContext)
-  execute,
-) => CockpitWorkspaceOperationAdapter(
+  execute, {
+  Duration? cancellationGrace,
+}) => CockpitWorkspaceOperationAdapter(
   kind: 'mutate.test',
   mutationClass: CockpitMutationClass.mutating,
   resourceKinds: const <String>['device.mutation'],
@@ -1299,6 +1361,7 @@ CockpitWorkspaceOperationAdapter _heartbeatOperationAdapter(
         ttl: const Duration(seconds: 1),
       ),
     ],
+    cancellationGrace: cancellationGrace,
     execute: (_) => execute(context),
   ),
 );
@@ -1326,7 +1389,6 @@ Map<String, Object?> _publishParams({
       projectId: 'projectA',
       workspaceId: 'workspaceA',
       runId: runId,
-      caseId: 'caseA',
       lifecycle: CockpitRunLifecycle.running,
     ).toJson(),
   ],

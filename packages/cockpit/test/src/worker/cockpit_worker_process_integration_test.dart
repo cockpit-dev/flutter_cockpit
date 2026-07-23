@@ -78,6 +78,7 @@ steps:
 schemaVersion: cockpit.test/v2
 kind: suite
 id: regressionSuite
+execution: {isolation: sharedSession}
 cases:
   - id: firstEntry
     source:

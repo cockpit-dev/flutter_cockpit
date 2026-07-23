@@ -95,6 +95,10 @@ Suites reuse indexed cases and add dependency DAGs, scoped fixtures, matrix
 rows, concurrency, retries, fail-fast behavior, recovery, and aggregate
 JSON/JUnit/HTML/AI summary reports.
 
+The default `restartApp` isolation runs before each case's attempt fixtures.
+Use `resetAppData` only when the selected driver advertises it, and choose
+`sharedSession` explicitly only when state sharing is part of the suite design.
+
 ```bash
 dart run cockpit suite validate --file example/suites/regression.yaml
 dart run cockpit suite run \

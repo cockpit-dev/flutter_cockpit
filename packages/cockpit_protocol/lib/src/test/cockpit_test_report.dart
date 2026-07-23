@@ -1,3 +1,4 @@
+import '../foundation/cockpit_api_error.dart';
 import '../foundation/cockpit_foundation_artifact.dart';
 import '../foundation/cockpit_run.dart';
 import 'cockpit_test_report_case.dart';
@@ -76,6 +77,7 @@ final class CockpitTestSuiteReport {
     required this.durationMs,
     required this.execution,
     required this.reportPolicy,
+    this.failure,
     Map<String, Object?> environment = const <String, Object?>{},
     Map<String, List<Object?>> matrixAxes = const <String, List<Object?>>{},
     required Iterable<CockpitTestCaseReport> cases,
@@ -146,6 +148,7 @@ final class CockpitTestSuiteReport {
   final int durationMs;
   final CockpitTestSuiteExecutionPolicy execution;
   final CockpitTestSuiteReportPolicy reportPolicy;
+  final CockpitFailure? failure;
   final Map<String, Object?> environment;
   final Map<String, List<Object?>> matrixAxes;
   final List<CockpitTestCaseReport> cases;
@@ -170,6 +173,7 @@ final class CockpitTestSuiteReport {
     'durationMs': durationMs,
     'execution': execution.toJson(),
     'reportPolicy': reportPolicy.toJson(),
+    if (failure != null) 'failure': failure!.toJson(),
     'environment': environment,
     'matrix': <String, Object?>{'axes': matrixAxes},
     'counts': counts.toJson(),
@@ -198,6 +202,7 @@ final class CockpitTestSuiteReport {
         'durationMs',
         'execution',
         'reportPolicy',
+        'failure',
         'environment',
         'matrix',
         'counts',
@@ -309,6 +314,9 @@ final class CockpitTestSuiteReport {
         json['reportPolicy'],
         path: '$path.reportPolicy',
       ),
+      failure: json['failure'] == null
+          ? null
+          : CockpitFailure.fromJson(json['failure'], path: '$path.failure'),
       environment: CockpitTestValueReader.object(
         CockpitTestValueReader.jsonValue(
           json['environment'],
@@ -354,9 +362,16 @@ final class CockpitTestSuiteReport {
 
   void _validateOutcome() {
     final expected = _aggregateOutcome(cases.map((item) => item.outcome));
-    if (outcome != expected) {
+    if (failure == null && outcome != expected) {
       throw const FormatException(
         'Suite report outcome is not aggregate truth.',
+      );
+    }
+    if (failure != null &&
+        (_outcomeSeverity(outcome) == 0 ||
+            _outcomeSeverity(outcome) < _outcomeSeverity(expected))) {
+      throw const FormatException(
+        'Suite failure and aggregate outcome are inconsistent.',
       );
     }
     final expectedStability =
@@ -368,6 +383,15 @@ final class CockpitTestSuiteReport {
     }
   }
 }
+
+int _outcomeSeverity(CockpitRunOutcome outcome) => switch (outcome) {
+  CockpitRunOutcome.passed || CockpitRunOutcome.skipped => 0,
+  CockpitRunOutcome.blocked => 1,
+  CockpitRunOutcome.failed => 2,
+  CockpitRunOutcome.cancelled => 3,
+  CockpitRunOutcome.interrupted => 4,
+  CockpitRunOutcome.internalError => 5,
+};
 
 CockpitRunOutcome _aggregateOutcome(Iterable<CockpitRunOutcome> outcomes) {
   final values = outcomes.toSet();

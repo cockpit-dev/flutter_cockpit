@@ -202,6 +202,7 @@ final class CockpitSuiteScheduler {
               .where((node) => node.dependencies.every(completed.containsKey))
               .toList()
             ..sort((left, right) => left.nodeId.compareTo(right.nodeId));
+      var completedWithoutRunning = false;
       for (final node in ready) {
         if (running.length >= plan.suite.execution.maxConcurrency) break;
         pending.remove(node.nodeId);
@@ -210,17 +211,37 @@ final class CockpitSuiteScheduler {
         );
         final skipOutcome = !node.selected
             ? CockpitRunOutcome.skipped
-            : cancellation.isCancelled
+            : cancellation.isCancelled && !node.alwaysRun
             ? CockpitRunOutcome.cancelled
             : failFast && !node.alwaysRun
             ? CockpitRunOutcome.skipped
             : dependencyFailed && !node.alwaysRun
             ? CockpitRunOutcome.blocked
+            : node.cleanupGuardNodeId != null &&
+                  completed[node.cleanupGuardNodeId]!.attempts.isEmpty
+            ? CockpitRunOutcome.skipped
             : null;
         if (skipOutcome != null) {
-          final skipped = _withoutAttempt(node, skipOutcome);
+          final inheritedAttempt =
+              dependencyFailed && node.kind == CockpitSuitePlanNodeKind.testCase
+              ? _blockedAttempt(node, nodes, completed)
+              : null;
+          final skipped = _withoutAttempt(
+            node,
+            skipOutcome,
+            attempt: inheritedAttempt,
+          );
+          if (inheritedAttempt != null) {
+            await _observer?.attemptCompleted(node, inheritedAttempt);
+          }
           await _observer?.nodeCompleted(node, skipped);
           completed[node.nodeId] = skipped;
+          if (plan.suite.execution.failFast &&
+              node.kind == CockpitSuitePlanNodeKind.testCase &&
+              skipped.outcome != CockpitRunOutcome.passed) {
+            failFast = true;
+          }
+          completedWithoutRunning = true;
           continue;
         }
         running[node.nodeId] = _executeNode(
@@ -232,6 +253,7 @@ final class CockpitSuiteScheduler {
 
       if (running.isEmpty) {
         if (pending.isNotEmpty) {
+          if (completedWithoutRunning) continue;
           throw StateError(
             'Suite scheduler made no progress on an acyclic DAG.',
           );
@@ -320,7 +342,7 @@ final class CockpitSuiteScheduler {
         );
       }
       if (number >= node.retry.maxAttempts ||
-          !_shouldRetry(attempt.outcome, node.retry)) {
+          !_shouldRetry(attempt, node.retry)) {
         return _complete(
           node,
           attempt.outcome,
@@ -340,10 +362,11 @@ final class CockpitSuiteScheduler {
   }
 
   bool _shouldRetry(
-    CockpitRunOutcome outcome,
+    CockpitTestAttemptReport attempt,
     CockpitTestSuiteRetryPolicy policy,
   ) {
-    final reason = switch (outcome) {
+    if (attempt.failure?.primary.retryable == false) return false;
+    final reason = switch (attempt.outcome) {
       CockpitRunOutcome.blocked => CockpitTestSuiteRetryReason.blocked,
       CockpitRunOutcome.interrupted => CockpitTestSuiteRetryReason.interrupted,
       CockpitRunOutcome.internalError =>
@@ -366,17 +389,66 @@ final class CockpitSuiteScheduler {
 
   CockpitSuiteNodeExecution _withoutAttempt(
     CockpitSuitePlanNode node,
-    CockpitRunOutcome outcome,
-  ) => CockpitSuiteNodeExecution(
+    CockpitRunOutcome outcome, {
+    CockpitTestAttemptReport? attempt,
+  }) => CockpitSuiteNodeExecution(
     nodeId: node.nodeId,
     entryId: node.entryId,
     kind: node.kind,
     outcome: outcome,
     stability: CockpitRunStability.unknown,
-    attempts: const <CockpitTestAttemptReport>[],
+    attempts: <CockpitTestAttemptReport>[?attempt],
     startedAt: null,
     finishedAt: _utcNow(),
   );
+
+  CockpitTestAttemptReport _blockedAttempt(
+    CockpitSuitePlanNode node,
+    Map<String, CockpitSuitePlanNode> nodes,
+    Map<String, CockpitSuiteNodeExecution> completed,
+  ) {
+    CockpitTestAttemptReport? source;
+    final visited = <String>{};
+    void visit(String nodeId) {
+      if (source != null || !visited.add(nodeId)) return;
+      final execution = completed[nodeId];
+      if (execution == null) return;
+      source = execution.attempts.reversed
+          .where((attempt) => attempt.failure != null)
+          .firstOrNull;
+      if (source != null) return;
+      final dependencies = nodes[nodeId]!.dependencies.toList()..sort();
+      for (final dependency in dependencies) {
+        visit(dependency);
+      }
+    }
+
+    final dependencies = node.dependencies.toList()..sort();
+    for (final dependency in dependencies) {
+      visit(dependency);
+    }
+    final timestamp = _utcNow();
+    return CockpitTestAttemptReport(
+      attemptId: 'attempt_${node.nodeId}_blocked',
+      number: 1,
+      outcome: CockpitRunOutcome.blocked,
+      startedAt: timestamp,
+      finishedAt: timestamp,
+      durationMs: 0,
+      targetId: source?.targetId ?? node.targetId ?? 'unassigned',
+      failure:
+          source?.failure ??
+          CockpitFailure(
+            primary: CockpitApiError(
+              code: 'suiteDependencyFailed',
+              category: CockpitErrorCategory.environment,
+              message: 'A suite dependency did not complete successfully.',
+              retryable: false,
+              responsibleLayer: CockpitResponsibleLayer.worker,
+            ),
+          ),
+    );
+  }
 
   Future<CockpitSuiteNodeExecution> _complete(
     CockpitSuitePlanNode node,

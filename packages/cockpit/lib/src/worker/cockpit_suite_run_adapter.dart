@@ -6,18 +6,21 @@ import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+import '../application/cockpit_application_service_exception.dart';
 import '../runner/cockpit_case_execution_control.dart';
 import '../runner/cockpit_case_runner.dart';
 import '../suite/cockpit_suite_compiler.dart';
 import '../suite/cockpit_suite_execution_plan.dart';
 import '../suite/cockpit_suite_report_assembler.dart';
 import '../suite/cockpit_suite_report_writer.dart';
+import '../suite/cockpit_suite_row_attempt_executor.dart';
 import '../suite/cockpit_suite_scheduler.dart';
 import '../test/cockpit_test_document_compiler.dart';
 import '../test/cockpit_test_safety_policy.dart';
 import '../test/cockpit_test_secret_resolver.dart';
 import '../test/cockpit_test_variable_binder.dart';
 import 'cockpit_case_run_adapter.dart';
+import 'cockpit_json_rpc_peer.dart';
 import 'cockpit_worker_artifact_publisher.dart';
 import 'cockpit_worker_document_index.dart';
 import 'cockpit_worker_resource_grant.dart';
@@ -121,6 +124,7 @@ final class CockpitSuiteRunAdapterFactory {
             ttl: _resourceTtl(context.deadline),
           ),
         ],
+        cancellationGrace: _cancellationGrace(context.deadline),
         execute: (_) => _execute(
           context: context,
           submission: submission,
@@ -159,6 +163,7 @@ final class CockpitSuiteRunAdapterFactory {
       runStateRoot: runStateRoot,
       context: context,
       runId: runId,
+      plan: plan,
       sessions: _sessions,
       resourceAuthority: _resourceAuthority,
       secretResolver: _secretResolver,
@@ -169,17 +174,27 @@ final class CockpitSuiteRunAdapterFactory {
       artifactPublisher: _artifactPublisher,
       utcNow: _utcNow,
     );
-    final schedule =
-        await CockpitSuiteScheduler(
-          executor: execution,
-          observer: execution,
-          utcNow: _utcNow,
-        ).run(
-          runId: runId,
-          plan: plan,
-          cancellation: execution,
-          initialExecutions: reservation.executions,
-        );
+    late final CockpitSuiteScheduleResult schedule;
+    try {
+      schedule =
+          await CockpitSuiteScheduler(
+            executor: CockpitSuiteRowAttemptExecutor(
+              plan: plan,
+              delegate: execution,
+              onAttemptFinished: execution.closeRowResourceBoundary,
+              utcNow: _utcNow,
+            ),
+            observer: execution,
+            utcNow: _utcNow,
+          ).run(
+            runId: runId,
+            plan: plan,
+            cancellation: execution,
+            initialExecutions: reservation.executions,
+          );
+    } finally {
+      await execution.closeResourceBoundaries();
+    }
     final finishedAt = _utcNow();
     final report = const CockpitSuiteReportAssembler().assemble(
       projectId: projectId,
@@ -194,26 +209,37 @@ final class CockpitSuiteRunAdapterFactory {
         'requiredFeatures': submission.requiredFeatures,
       },
     );
+    await execution.publishCaseCompletions(plan, report);
     final reportRoot = p.join(runStateRoot, 'runs', runId, 'report');
-    final files = await const CockpitSuiteReportWriter().write(
-      report: report,
-      runRoot: reportRoot,
-    );
-    final reportArtifacts = _artifactPublisher == null
-        ? const <CockpitArtifactResource>[]
-        : await _artifactPublisher.publishSuiteReport(
-            report: report,
-            reportRoot: reportRoot,
-            deadline: context.deadline,
-            cancellation: context.cancellation,
-          );
-    final failure = _reportFailure(report);
+    CockpitSuiteReportFiles? files;
+    var reportArtifacts = const <CockpitArtifactResource>[];
+    CockpitFailure? finalizationFailure;
+    try {
+      files = await const CockpitSuiteReportWriter().write(
+        report: report,
+        runRoot: reportRoot,
+      );
+      if (_artifactPublisher case final publisher?) {
+        reportArtifacts = await publisher.publishSuiteReport(
+          report: report,
+          reportRoot: reportRoot,
+          deadline: _utcNow().add(const Duration(minutes: 1)),
+          cancellation: CockpitRpcCancellation.detached(),
+        );
+      }
+    } on Object {
+      finalizationFailure = _suiteFinalizationFailure();
+    }
+    final terminalOutcome = finalizationFailure == null
+        ? report.outcome
+        : CockpitRunOutcome.internalError;
+    final failure = _mergeFailures(_reportFailure(report), finalizationFailure);
     await _eventStore.append(
       runId,
       CockpitWorkerEventDraft(
         kind: 'report.completed',
         entityKind: CockpitRunEventEntityKind.report,
-        outcome: report.outcome,
+        outcome: terminalOutcome,
         stability: report.stability,
         failure: failure,
         artifacts: reportArtifacts
@@ -227,7 +253,7 @@ final class CockpitSuiteRunAdapterFactory {
         kind: 'suite.completed',
         entityKind: CockpitRunEventEntityKind.suite,
         lifecycle: CockpitRunLifecycle.completed,
-        outcome: report.outcome,
+        outcome: terminalOutcome,
         stability: report.stability,
         failure: failure,
       ),
@@ -238,21 +264,26 @@ final class CockpitSuiteRunAdapterFactory {
         kind: 'run.completed',
         entityKind: CockpitRunEventEntityKind.run,
         lifecycle: CockpitRunLifecycle.completed,
-        outcome: report.outcome,
+        outcome: terminalOutcome,
         stability: report.stability,
         failure: failure,
       ),
     );
     final output = <String, Object?>{
       'runId': runId,
+      'outcome': terminalOutcome.name,
       'report': report.toJson(),
       'reportFiles': <String, Object?>{
-        for (final entry in files.paths.entries)
+        for (final entry
+            in files?.paths.entries ??
+                const <MapEntry<CockpitTestReportFormat, String>>[])
           entry.key.name: p.basename(entry.value),
       },
       'reportArtifacts': reportArtifacts
           .map((artifact) => artifact.toJson())
           .toList(growable: false),
+      if (finalizationFailure != null)
+        'finalizationFailure': finalizationFailure.toJson(),
     };
     await _runStore.complete(runId: runId, output: output);
     return output;
@@ -314,6 +345,13 @@ final class CockpitSuiteRunAdapterFactory {
         ? const Duration(minutes: 5)
         : remaining;
   }
+
+  Duration _cancellationGrace(DateTime deadline) {
+    final remaining = deadline.difference(_utcNow());
+    if (remaining <= Duration.zero) return const Duration(seconds: 1);
+    const maximum = Duration(minutes: 5);
+    return remaining < maximum ? remaining : maximum;
+  }
 }
 
 final class _SuiteAttemptExecution
@@ -328,6 +366,7 @@ final class _SuiteAttemptExecution
     required this.runStateRoot,
     required this.context,
     required this.runId,
+    required this.plan,
     required CockpitWorkerSessionProvider sessions,
     required CockpitWorkerResourceAuthorityClient resourceAuthority,
     required CockpitTestSecretResolver secretResolver,
@@ -345,7 +384,8 @@ final class _SuiteAttemptExecution
        _eventStore = eventStore,
        _runStore = runStore,
        _artifactPublisher = artifactPublisher,
-       _utcNow = utcNow;
+       _utcNow = utcNow,
+       _rowSessionAffinity = CockpitSuiteRowSessionAffinity(plan);
 
   final String workspaceId;
   final String projectId;
@@ -353,6 +393,7 @@ final class _SuiteAttemptExecution
   final String runStateRoot;
   final CockpitWorkspaceOperationContext context;
   final String runId;
+  final CockpitSuiteExecutionPlan plan;
   final CockpitWorkerSessionProvider _sessions;
   final CockpitWorkerResourceAuthorityClient _resourceAuthority;
   final CockpitTestSecretResolver _secretResolver;
@@ -362,6 +403,9 @@ final class _SuiteAttemptExecution
   final CockpitWorkerSuiteRunStore _runStore;
   final CockpitWorkerArtifactPublisher? _artifactPublisher;
   final DateTime Function() _utcNow;
+  final CockpitSuiteRowSessionAffinity _rowSessionAffinity;
+  final Map<String, Map<String, Future<_SuiteRowResourceBoundary>>>
+  _rowBoundaries = <String, Map<String, Future<_SuiteRowResourceBoundary>>>{};
 
   @override
   bool get isCancelled => context.cancellation.isCancelled;
@@ -374,6 +418,7 @@ final class _SuiteAttemptExecution
     CockpitSuitePlanNode node,
     DateTime startedAt,
   ) async {
+    if (node.kind != CockpitSuitePlanNodeKind.testCase) return;
     await _eventStore.append(
       runId,
       CockpitWorkerEventDraft(
@@ -391,6 +436,7 @@ final class _SuiteAttemptExecution
     CockpitSuitePlanNode node,
     CockpitTestAttemptReport attempt,
   ) async {
+    if (node.kind != CockpitSuitePlanNodeKind.testCase) return;
     final existing = await _eventStore.eventsForRun(runId);
     if (existing.any(
       (event) =>
@@ -420,25 +466,7 @@ final class _SuiteAttemptExecution
   Future<void> nodeCompleted(
     CockpitSuitePlanNode node,
     CockpitSuiteNodeExecution execution,
-  ) async {
-    await _runStore.recordExecution(runId: runId, execution: execution);
-    if (execution.kind != CockpitSuitePlanNodeKind.testCase) return;
-    final failure =
-        execution.attempts.lastOrNull?.failure ??
-        _outcomeFailure(execution.outcome, 'Suite case did not pass.');
-    await _eventStore.append(
-      runId,
-      CockpitWorkerEventDraft(
-        kind: 'case.completed',
-        entityKind: CockpitRunEventEntityKind.testCase,
-        caseId: node.compiledCase.testCase.id,
-        attemptId: execution.attempts.lastOrNull?.attemptId,
-        outcome: execution.outcome,
-        stability: execution.stability,
-        failure: failure,
-      ),
-    );
-  }
+  ) => _runStore.recordExecution(runId: runId, execution: execution);
 
   @override
   Future<CockpitTestAttemptReport> execute({
@@ -448,31 +476,67 @@ final class _SuiteAttemptExecution
     required int attemptNumber,
     required CockpitSuiteCancellation cancellation,
   }) async {
+    if (node.kind == CockpitSuitePlanNodeKind.isolation) {
+      return _executeIsolation(
+        node: node,
+        attemptId: attemptId,
+        attemptNumber: attemptNumber,
+        cancellation: cancellation,
+      );
+    }
     final compiled = node.compiledCase;
     final testCase = compiled.testCase;
     final plan = CockpitTestVariableBinder().bind(
       compiled,
       inputs: node.inputs,
     );
-    final session = await _sessions.selectHealthySession(
-      targetId: node.targetId,
-      requirements: testCase.target,
-    );
+    late final CockpitWorkerHealthySession session;
+    late final _SuiteRowResourceBoundary? rowBoundary;
+    final startedAt = _utcNow();
+    try {
+      session = await _sessions.selectHealthySession(
+        targetId: node.targetId,
+        requirements: testCase.target,
+      );
+      rowBoundary = await _rowResourceBoundary(node, session);
+    } on CockpitApplicationServiceException catch (error) {
+      if (error.code != 'suiteSessionDrift') rethrow;
+      return _suiteRuntimeFailure(
+        attemptId: attemptId,
+        attemptNumber: attemptNumber,
+        startedAt: startedAt,
+        targetId: node.targetId ?? 'unassigned',
+        code: error.code,
+        message: error.message,
+        category: CockpitErrorCategory.environment,
+        retryable: false,
+        details: error.details,
+      );
+    }
     final ttl = _resourceTtl();
     final holderDigest = sha256
         .convert(utf8.encode('$runId\u0000${node.nodeId}\u0000$attemptId'))
         .toString();
+    final operationCancellation = node.alwaysRun
+        ? CockpitRpcCancellation.detached()
+        : context.cancellation;
     final scope = await CockpitWorkerResourceScope.acquire(
       authority: _resourceAuthority,
-      cancellation: context.cancellation,
+      cancellation: operationCancellation,
       requests: <CockpitWorkerResourceRequest>[
-        CockpitWorkerResourceRequest(
-          resourceKind: CockpitLeaseResourceKind.device,
-          resourceId: session.deviceResourceId,
-          ttl: ttl,
-        ),
+        if (rowBoundary == null) ...<CockpitWorkerResourceRequest>[
+          CockpitWorkerResourceRequest(
+            resourceKind: CockpitLeaseResourceKind.device,
+            resourceId: session.deviceResourceId,
+            ttl: ttl,
+          ),
+          CockpitWorkerResourceRequest(
+            resourceKind: CockpitLeaseResourceKind.session,
+            resourceId: session.resourceId,
+            ttl: ttl,
+          ),
+        ],
         for (final kind in const <CockpitLeaseResourceKind>[
-          CockpitLeaseResourceKind.session,
           CockpitLeaseResourceKind.capture,
           CockpitLeaseResourceKind.recording,
         ])
@@ -509,13 +573,11 @@ final class _SuiteAttemptExecution
         forceAbort: session.forceAbort,
       );
       if (session.forceAbort case final forceAbort?) {
-        unregisterForceAbort = context.cancellation.registerForceAbort(
+        unregisterForceAbort = operationCancellation.registerForceAbort(
           forceAbort,
         );
       }
-      unawaited(
-        context.cancellation.whenCancelled.then((_) => control.cancel()),
-      );
+      unawaited(cancellation.whenCancelled.then((_) => control.cancel()));
       final attemptRoot = p.join(
         runStateRoot,
         'runs',
@@ -530,7 +592,7 @@ final class _SuiteAttemptExecution
         runStateRoot: runStateRoot,
         redactor: _redactor,
         deadline: context.deadline,
-        isCancelled: () => context.cancellation.isCancelled,
+        isCancelled: () => cancellation.isCancelled,
         utcNow: _utcNow,
       );
       final runner = CockpitCaseRunner(
@@ -542,7 +604,7 @@ final class _SuiteAttemptExecution
         safetyPolicy: _safetyPolicy,
         bundlePrePublicationValidator: scanner.validateForPublication,
       );
-      final result = await scope.guard(
+      final run = scope.guard(
         runner.run(
           compiled: compiled,
           preparedPlan: plan,
@@ -560,6 +622,9 @@ final class _SuiteAttemptExecution
           control: control,
         ),
       );
+      final result = await (rowBoundary == null
+          ? run
+          : rowBoundary.scope.guard(run));
       await scanner.verify(attemptRoot);
       var artifacts = const <CockpitArtifactResource>[];
       if (_artifactPublisher case final publisher?
@@ -570,10 +635,15 @@ final class _SuiteAttemptExecution
           attemptId: attemptId,
           bundleRoot: result.bundlePath!,
           deadline: context.deadline,
-          cancellation: context.cancellation,
+          cancellation: operationCancellation,
         );
       }
-      await _appendResultEvents(result, artifacts);
+      await _appendResultEvents(
+        result,
+        artifacts,
+        includeAttemptCompletion:
+            node.kind != CockpitSuitePlanNodeKind.testCase,
+      );
       return _attemptReport(result, attemptNumber, artifacts);
     } finally {
       unregisterForceAbort?.call();
@@ -581,10 +651,346 @@ final class _SuiteAttemptExecution
     }
   }
 
+  Future<CockpitTestAttemptReport> _executeIsolation({
+    required CockpitSuitePlanNode node,
+    required String attemptId,
+    required int attemptNumber,
+    required CockpitSuiteCancellation cancellation,
+  }) async {
+    final startedAt = _utcNow();
+    if (cancellation.isCancelled) {
+      return _suiteRuntimeFailure(
+        attemptId: attemptId,
+        attemptNumber: attemptNumber,
+        startedAt: startedAt,
+        targetId: node.targetId ?? 'unassigned',
+        code: CockpitErrorCode.cancelled,
+        message: 'Suite isolation was cancelled.',
+        category: CockpitErrorCategory.cancelled,
+        retryable: false,
+      );
+    }
+    final isolation = node.isolation!;
+    final session = await _sessions.selectHealthySession(
+      targetId: node.targetId,
+      requirements: node.compiledCase.testCase.target,
+    );
+    final rowBoundary = await _rowResourceBoundary(node, session);
+    if (rowBoundary == null) {
+      throw StateError('Suite isolation is missing its case row boundary.');
+    }
+    if (isolation == CockpitTestSuiteIsolation.sharedSession) {
+      final finishedAt = _utcNow();
+      return CockpitTestAttemptReport(
+        attemptId: attemptId,
+        number: attemptNumber,
+        outcome: CockpitRunOutcome.passed,
+        startedAt: startedAt,
+        finishedAt: finishedAt,
+        durationMs: finishedAt.difference(startedAt).inMilliseconds,
+        targetId: session.targetId,
+      );
+    }
+    final isolate = session.isolate;
+    if (isolate == null) {
+      return _suiteRuntimeFailure(
+        attemptId: attemptId,
+        attemptNumber: attemptNumber,
+        startedAt: startedAt,
+        targetId: session.targetId,
+        code: 'suiteIsolationUnsupported',
+        message:
+            '${isolation.name} is not supported by the selected driver session.',
+        category: CockpitErrorCategory.unsupported,
+        retryable: false,
+      );
+    }
+    void Function()? unregisterForceAbort;
+    try {
+      if (session.forceAbort case final forceAbort?) {
+        unregisterForceAbort = context.cancellation.registerForceAbort(
+          forceAbort,
+        );
+      }
+      await rowBoundary.scope.guard(isolate(isolation, context.deadline));
+      if (cancellation.isCancelled) {
+        return _suiteRuntimeFailure(
+          attemptId: attemptId,
+          attemptNumber: attemptNumber,
+          startedAt: startedAt,
+          targetId: session.targetId,
+          code: CockpitErrorCode.cancelled,
+          message: 'Suite isolation was cancelled.',
+          category: CockpitErrorCategory.cancelled,
+          retryable: false,
+        );
+      }
+      final refreshed = await _sessions.selectHealthySession(
+        targetId: node.targetId,
+        requirements: node.compiledCase.testCase.target,
+      );
+      await _rowResourceBoundary(node, refreshed);
+    } on CockpitApplicationServiceException catch (error) {
+      if (cancellation.isCancelled) {
+        return _suiteRuntimeFailure(
+          attemptId: attemptId,
+          attemptNumber: attemptNumber,
+          startedAt: startedAt,
+          targetId: session.targetId,
+          code: CockpitErrorCode.cancelled,
+          message: 'Suite isolation was cancelled.',
+          category: CockpitErrorCategory.cancelled,
+          retryable: false,
+        );
+      }
+      return _suiteRuntimeFailure(
+        attemptId: attemptId,
+        attemptNumber: attemptNumber,
+        startedAt: startedAt,
+        targetId: session.targetId,
+        code: error.code,
+        message: error.message,
+        category: error.code == 'suiteIsolationUnsupported'
+            ? CockpitErrorCategory.unsupported
+            : CockpitErrorCategory.environment,
+        retryable: error.code != 'suiteIsolationUnsupported',
+        details: error.details,
+      );
+    } on TimeoutException {
+      if (cancellation.isCancelled) {
+        return _suiteRuntimeFailure(
+          attemptId: attemptId,
+          attemptNumber: attemptNumber,
+          startedAt: startedAt,
+          targetId: session.targetId,
+          code: CockpitErrorCode.cancelled,
+          message: 'Suite isolation was cancelled.',
+          category: CockpitErrorCategory.cancelled,
+          retryable: false,
+        );
+      }
+      return _suiteRuntimeFailure(
+        attemptId: attemptId,
+        attemptNumber: attemptNumber,
+        startedAt: startedAt,
+        targetId: session.targetId,
+        code: CockpitErrorCode.interrupted,
+        message: 'Suite isolation exceeded the run deadline.',
+        category: CockpitErrorCategory.interrupted,
+        retryable: true,
+      );
+    } on Object {
+      if (!cancellation.isCancelled) rethrow;
+      return _suiteRuntimeFailure(
+        attemptId: attemptId,
+        attemptNumber: attemptNumber,
+        startedAt: startedAt,
+        targetId: session.targetId,
+        code: CockpitErrorCode.cancelled,
+        message: 'Suite isolation was cancelled.',
+        category: CockpitErrorCategory.cancelled,
+        retryable: false,
+      );
+    } finally {
+      unregisterForceAbort?.call();
+    }
+    final finishedAt = _utcNow();
+    return CockpitTestAttemptReport(
+      attemptId: attemptId,
+      number: attemptNumber,
+      outcome: CockpitRunOutcome.passed,
+      startedAt: startedAt,
+      finishedAt: finishedAt,
+      durationMs: finishedAt.difference(startedAt).inMilliseconds,
+      targetId: session.targetId,
+    );
+  }
+
+  Future<_SuiteRowResourceBoundary?> _rowResourceBoundary(
+    CockpitSuitePlanNode node,
+    CockpitWorkerHealthySession session,
+  ) async {
+    final caseNodeId = node.caseNodeId;
+    if (caseNodeId == null) return null;
+    final boundaryResourceId = _rowSessionAffinity.resolveBoundaryResourceId(
+      node,
+      session.resourceId,
+    );
+    final boundaries = _rowBoundaries.putIfAbsent(
+      caseNodeId,
+      () => <String, Future<_SuiteRowResourceBoundary>>{},
+    );
+    return boundaries.putIfAbsent(
+      boundaryResourceId,
+      () => _acquireRowResourceBoundary(caseNodeId, session),
+    );
+  }
+
+  Future<_SuiteRowResourceBoundary> _acquireRowResourceBoundary(
+    String caseNodeId,
+    CockpitWorkerHealthySession session,
+  ) async {
+    final digest = sha256
+        .convert(
+          utf8.encode('$runId\u0000$caseNodeId\u0000${session.resourceId}'),
+        )
+        .toString();
+    final scope = await CockpitWorkerResourceScope.acquire(
+      authority: _resourceAuthority,
+      cancellation: CockpitRpcCancellation.detached(),
+      requests: <CockpitWorkerResourceRequest>[
+        CockpitWorkerResourceRequest(
+          resourceKind: CockpitLeaseResourceKind.device,
+          resourceId: session.deviceResourceId,
+          ttl: _resourceTtl(),
+        ),
+        CockpitWorkerResourceRequest(
+          resourceKind: CockpitLeaseResourceKind.session,
+          resourceId: session.resourceId,
+          ttl: _resourceTtl(),
+        ),
+      ],
+      workspaceId: workspaceId,
+      holderId: 'suite-row-${digest.substring(0, 32)}',
+      idempotencyKey:
+          '${context.idempotencyKey}-row-${digest.substring(0, 32)}',
+      deadline: context.deadline,
+    );
+    return _SuiteRowResourceBoundary(scope: scope);
+  }
+
+  Future<void> closeRowResourceBoundary(CockpitSuitePlanNode caseNode) =>
+      _closeRowResourceBoundary(caseNode.nodeId);
+
+  Future<void> _closeRowResourceBoundary(String caseNodeId) async {
+    _rowSessionAffinity.release(caseNodeId);
+    final boundaries = _rowBoundaries.remove(caseNodeId);
+    if (boundaries == null) return;
+    for (final pending in boundaries.values) {
+      try {
+        final boundary = await pending;
+        await boundary.scope.close(cancel: context.cancellation.isCancelled);
+      } on Object {
+        // Lease recovery remains owned by the Supervisor after release failure.
+      }
+    }
+  }
+
+  Future<void> closeResourceBoundaries() async {
+    for (final caseNodeId in _rowBoundaries.keys.toList(growable: false)) {
+      await _closeRowResourceBoundary(caseNodeId);
+    }
+  }
+
+  Future<void> publishCaseCompletions(
+    CockpitSuiteExecutionPlan plan,
+    CockpitTestSuiteReport report,
+  ) async {
+    final caseNodes = plan.caseNodes.toList(growable: false);
+    if (caseNodes.length != report.cases.length) {
+      throw StateError('Suite case report projection is incomplete.');
+    }
+    final existing = await _eventStore.eventsForRun(runId);
+    final completedAttemptIds = existing
+        .where(
+          (event) =>
+              event.entityKind == CockpitRunEventEntityKind.attempt &&
+              event.outcome != null &&
+              event.attemptId != null,
+        )
+        .map((event) => event.attemptId!)
+        .toSet();
+    for (var index = 0; index < caseNodes.length; index += 1) {
+      final node = caseNodes[index];
+      final testCase = report.cases[index];
+      for (final attempt in testCase.attempts) {
+        if (!completedAttemptIds.add(attempt.attemptId)) continue;
+        await _eventStore.append(
+          runId,
+          CockpitWorkerEventDraft(
+            kind: 'attempt.completed',
+            entityKind: CockpitRunEventEntityKind.attempt,
+            caseId: testCase.caseId,
+            attemptId: attempt.attemptId,
+            outcome: attempt.outcome,
+            targetId: attempt.targetId,
+            requestedPlane: node.compiledCase.testCase.target.plane,
+            failure: attempt.failure,
+            artifacts: attempt.artifacts,
+          ),
+        );
+      }
+      final attemptId = testCase.attempts.lastOrNull?.attemptId;
+      final alreadyCompleted = existing.any(
+        (event) =>
+            event.kind == 'case.completed' &&
+            event.entityKind == CockpitRunEventEntityKind.testCase &&
+            event.caseId == testCase.caseId &&
+            event.attemptId == attemptId &&
+            event.outcome == testCase.outcome,
+      );
+      if (alreadyCompleted) continue;
+      await _eventStore.append(
+        runId,
+        CockpitWorkerEventDraft(
+          kind: 'case.completed',
+          entityKind: CockpitRunEventEntityKind.testCase,
+          caseId: testCase.caseId,
+          attemptId: attemptId,
+          outcome: testCase.outcome,
+          stability: testCase.stability,
+          targetId: testCase.targetId,
+          requestedPlane: node.compiledCase.testCase.target.plane,
+          failure:
+              testCase.attempts.lastOrNull?.failure ??
+              _outcomeFailure(testCase.outcome, 'Suite case did not pass.'),
+        ),
+      );
+    }
+  }
+
+  CockpitTestAttemptReport _suiteRuntimeFailure({
+    required String attemptId,
+    required int attemptNumber,
+    required DateTime startedAt,
+    required String targetId,
+    required String code,
+    required String message,
+    required CockpitErrorCategory category,
+    required bool retryable,
+    Map<String, Object?> details = const <String, Object?>{},
+  }) {
+    final finishedAt = _utcNow();
+    return CockpitTestAttemptReport(
+      attemptId: attemptId,
+      number: attemptNumber,
+      outcome: switch (category) {
+        CockpitErrorCategory.cancelled => CockpitRunOutcome.cancelled,
+        CockpitErrorCategory.interrupted => CockpitRunOutcome.interrupted,
+        _ => CockpitRunOutcome.blocked,
+      },
+      startedAt: startedAt,
+      finishedAt: finishedAt,
+      durationMs: finishedAt.difference(startedAt).inMilliseconds,
+      targetId: targetId,
+      failure: CockpitFailure(
+        primary: CockpitApiError(
+          code: code,
+          category: category,
+          message: message,
+          retryable: retryable,
+          responsibleLayer: CockpitResponsibleLayer.worker,
+          redactedDetails: details,
+        ),
+      ),
+    );
+  }
+
   Future<void> _appendResultEvents(
     CockpitTestAttemptResult result,
-    List<CockpitArtifactResource> artifacts,
-  ) async {
+    List<CockpitArtifactResource> artifacts, {
+    required bool includeAttemptCompletion,
+  }) async {
     for (final step in result.steps) {
       await _eventStore.append(
         runId,
@@ -613,6 +1019,7 @@ final class _SuiteAttemptExecution
         ),
       );
     }
+    if (!includeAttemptCompletion) return;
     final outcome = _runOutcome(result.outcome);
     final failure = result.primaryError == null
         ? null
@@ -684,6 +1091,59 @@ final class _SuiteAttemptExecution
     return remaining > const Duration(minutes: 5)
         ? const Duration(minutes: 5)
         : remaining;
+  }
+}
+
+final class _SuiteRowResourceBoundary {
+  const _SuiteRowResourceBoundary({required this.scope});
+
+  final CockpitWorkerResourceScope scope;
+}
+
+final class CockpitSuiteRowSessionAffinity {
+  CockpitSuiteRowSessionAffinity(CockpitSuiteExecutionPlan plan)
+    : _caseNodes = <String, CockpitSuitePlanNode>{
+        for (final node in plan.caseNodes) node.nodeId: node,
+      };
+
+  final Map<String, CockpitSuitePlanNode> _caseNodes;
+  final Map<String, String> _primarySessionResourceIds = <String, String>{};
+
+  String resolveBoundaryResourceId(
+    CockpitSuitePlanNode node,
+    String sessionResourceId,
+  ) {
+    final caseNodeId = node.caseNodeId;
+    if (caseNodeId == null) return sessionResourceId;
+    final caseNode = _caseNodes[caseNodeId];
+    if (caseNode == null) {
+      throw StateError('Suite row references an unknown case node.');
+    }
+    final usesPrimarySession =
+        node.kind == CockpitSuitePlanNodeKind.isolation ||
+        node.kind == CockpitSuitePlanNodeKind.testCase ||
+        node.targetId == caseNode.targetId;
+    if (!usesPrimarySession) return sessionResourceId;
+    final primary = _primarySessionResourceIds.putIfAbsent(
+      caseNodeId,
+      () => sessionResourceId,
+    );
+    if (primary != sessionResourceId) {
+      throw CockpitApplicationServiceException(
+        code: 'suiteSessionDrift',
+        message: 'A suite case row resolved to a different primary session.',
+        details: <String, Object?>{
+          'caseNodeId': caseNodeId,
+          'expectedSessionResourceId': primary,
+          'actualSessionResourceId': sessionResourceId,
+        },
+      );
+    }
+    return primary;
+  }
+
+  void release(String caseNodeId) {
+    _primarySessionResourceIds.remove(caseNodeId);
   }
 }
 
@@ -770,12 +1230,41 @@ CockpitFailure? _outcomeFailure(CockpitRunOutcome outcome, String message) {
 
 CockpitFailure? _reportFailure(CockpitTestSuiteReport report) {
   if (report.outcome == CockpitRunOutcome.passed) return null;
-  return report.cases
+  return report.failure ??
+      report.cases
           .expand((testCase) => testCase.attempts)
           .map((attempt) => attempt.failure)
           .whereType<CockpitFailure>()
           .firstOrNull ??
       _outcomeFailure(report.outcome, 'Suite execution did not pass.');
+}
+
+CockpitFailure _suiteFinalizationFailure() => CockpitFailure(
+  primary: CockpitApiError(
+    code: 'suiteReportPublicationFailed',
+    category: CockpitErrorCategory.evidence,
+    message: 'Suite report finalization or publication failed.',
+    retryable: true,
+    responsibleLayer: CockpitResponsibleLayer.worker,
+  ),
+);
+
+CockpitFailure? _mergeFailures(
+  CockpitFailure? execution,
+  CockpitFailure? finalization,
+) {
+  if (execution == null) return finalization;
+  if (finalization == null) return execution;
+  return CockpitFailure(
+    primary: execution.primary,
+    warnings: <CockpitApiWarning>[
+      ...execution.warnings,
+      CockpitApiWarning(
+        stage: CockpitWarningStage.evidence,
+        error: finalization.primary,
+      ),
+    ],
+  );
 }
 
 Object? _canonical(Object? value) {

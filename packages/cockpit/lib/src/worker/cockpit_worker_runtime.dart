@@ -5,6 +5,7 @@ import 'package:args/args.dart';
 import 'package:cockpit_protocol/cockpit_protocol.dart';
 import 'package:path/path.dart' as p;
 
+import '../development/cockpit_development_session_status.dart';
 import '../foundation/cockpit_home.dart';
 import '../foundation/cockpit_locked_json_store.dart';
 import '../foundation/cockpit_permissions.dart';
@@ -199,6 +200,11 @@ final class CockpitWorkerRuntime {
       ),
       runOwnershipAuthority: caseRunStore,
       developmentSessionAborter: developmentRuntime.forceStop,
+      developmentSessionRestarter: (handle) async =>
+          (await developmentRuntime.reload(
+            handle,
+            CockpitDevelopmentReloadMode.hotRestart,
+          )).handle,
     );
     final documents = CockpitWorkerDocumentIndex(
       workspaceId: configuration.workspaceId,
@@ -213,6 +219,7 @@ final class CockpitWorkerRuntime {
       output: _output,
       requestHandler: (request, cancellation) =>
           server.handle(request, cancellation),
+      cancellationGrace: const Duration(minutes: 5),
       onProtocolError: (error, _) => _logger.log(
         'error',
         'Worker protocol error.',

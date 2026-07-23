@@ -59,6 +59,5 @@ CockpitRunEvent _event(int sequence) => CockpitRunEvent(
   projectId: 'projectA',
   workspaceId: 'workspaceA',
   runId: 'runA',
-  caseId: 'caseA',
   lifecycle: CockpitRunLifecycle.running,
 );

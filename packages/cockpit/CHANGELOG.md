@@ -5,6 +5,10 @@
 - Added durable suite campaigns with DAG dependencies, scoped fixtures,
   matrices, bounded concurrency, retries, fail-fast policy, recovery, and
   JSON/JUnit/HTML/AI summary reports.
+- Enforced suite `sharedSession`, `restartApp`, and `resetAppData` isolation
+  before case fixtures, preserved dependency teardown ordering, propagated
+  setup failures into blocked case reports, and kept attempted teardown active
+  during cancellation.
 - Added registered black-box targets for Android, iOS, desktop, browser, and
   system surfaces, with native accessibility locators, system setup/cleanup
   actions, screenshots, and capability-truthful failures.

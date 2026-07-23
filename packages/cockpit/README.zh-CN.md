@@ -89,6 +89,10 @@ gap、terminal 和 disconnect。artifact 读取必须给出预期大小与 SHA-2
 suite 复用已索引 case，并提供依赖 DAG、作用域 fixture、matrix、并发、重试、
 fail-fast、恢复，以及 JSON/JUnit/HTML/AI summary 聚合报告。
 
+默认的 `restartApp` 隔离会在每个 case 的 attempt fixture 之前执行。只有驱动明确
+支持时才使用 `resetAppData`；仅当 suite 设计本身需要共享状态时才显式选择
+`sharedSession`。
+
 ```bash
 dart run cockpit suite validate --file example/suites/regression.yaml
 dart run cockpit suite run \

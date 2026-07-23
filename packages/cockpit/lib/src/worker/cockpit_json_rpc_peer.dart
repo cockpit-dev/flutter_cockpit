@@ -45,6 +45,8 @@ final class CockpitJsonRpcPeerCleanupPendingException implements Exception {
 final class CockpitRpcCancellation {
   CockpitRpcCancellation._();
 
+  factory CockpitRpcCancellation.detached() => CockpitRpcCancellation._();
+
   final Completer<void> _cancelled = Completer<void>();
   final Set<_CockpitForceAbortRegistration> _forceAbortRegistrations =
       <_CockpitForceAbortRegistration>{};
@@ -149,7 +151,7 @@ final class CockpitJsonRpcPeer {
       );
     }
     if (cancellationGrace < Duration.zero ||
-        cancellationGrace > const Duration(seconds: 30) ||
+        cancellationGrace > const Duration(minutes: 5) ||
         forcedAbortGrace <= Duration.zero ||
         forcedAbortGrace > const Duration(seconds: 30)) {
       throw ArgumentError('JSON-RPC cancellation grace is invalid.');

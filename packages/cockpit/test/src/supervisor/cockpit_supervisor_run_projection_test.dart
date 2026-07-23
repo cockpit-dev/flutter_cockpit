@@ -494,7 +494,6 @@ CockpitRunEvent _event(
   projectId: 'projectA',
   workspaceId: 'workspaceA',
   runId: runId,
-  caseId: 'caseA',
   lifecycle: CockpitRunLifecycle.running,
 );
 

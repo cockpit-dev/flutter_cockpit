@@ -48,6 +48,10 @@ abstract interface class CockpitWorkerTargetResolver {
 
 typedef CockpitWorkerDevelopmentSessionAborter =
     Future<void> Function(CockpitDevelopmentSessionHandle handle);
+typedef CockpitWorkerDevelopmentSessionRestarter =
+    Future<CockpitDevelopmentSessionHandle> Function(
+      CockpitDevelopmentSessionHandle handle,
+    );
 
 abstract interface class CockpitWorkerTargetRegistrar {
   Future<String> registerTarget(CockpitWorkerTargetRegistration registration);
@@ -171,6 +175,7 @@ final class CockpitWorkerRuntimeRegistry
     required CockpitWorkerRuntimeStateStore stateStore,
     CockpitStopAppService? stopAppService,
     CockpitWorkerDevelopmentSessionAborter? developmentSessionAborter,
+    CockpitWorkerDevelopmentSessionRestarter? developmentSessionRestarter,
     CockpitWorkerRunOwnershipAuthority? runOwnershipAuthority,
     CockpitSystemControlService? systemControlService,
     CockpitSystemControlActionService? systemActionService,
@@ -179,6 +184,7 @@ final class CockpitWorkerRuntimeRegistry
   }) : _stateStore = stateStore,
        _stopAppService = stopAppService ?? CockpitStopAppService(),
        _developmentSessionAborter = developmentSessionAborter,
+       _developmentSessionRestarter = developmentSessionRestarter,
        _runOwnershipAuthority =
            runOwnershipAuthority ??
            const CockpitDenyAllWorkerRunOwnershipAuthority(),
@@ -207,6 +213,7 @@ final class CockpitWorkerRuntimeRegistry
   final CockpitWorkerRuntimeStateStore _stateStore;
   final CockpitStopAppService _stopAppService;
   final CockpitWorkerDevelopmentSessionAborter? _developmentSessionAborter;
+  final CockpitWorkerDevelopmentSessionRestarter? _developmentSessionRestarter;
   final CockpitWorkerRunOwnershipAuthority _runOwnershipAuthority;
   final CockpitTokenGenerator _tokenGenerator;
   final DateTime Function() _utcNow;
@@ -913,6 +920,8 @@ final class CockpitWorkerRuntimeRegistry
           captureAdapter: CockpitRemoteCaptureAdapter(client: client),
           recordingAdapter: CockpitRemoteRecordingAdapter(client: client),
           healthCheck: () async => await client.ping() && await client.ready(),
+          isolate: (isolation, deadline) =>
+              _isolateFlutterSession(candidate.sessionId, isolation, deadline),
           forceAbort: () => forceAbortSession(candidate.sessionId),
         );
       } on Object {
@@ -1014,6 +1023,8 @@ final class CockpitWorkerRuntimeRegistry
                 )
               : null,
           lowerer: const CockpitTestActionLowerer.system(),
+          isolate: (isolation, deadline) =>
+              _isolateSystemTarget(target, isolation, deadline),
           healthCheck: () async {
             final current = await automation.describeCapabilities();
             return current.supportedCommands
@@ -1030,6 +1041,126 @@ final class CockpitWorkerRuntimeRegistry
       code: 'healthySystemSessionNotFound',
       message: 'No compatible system automation target is available.',
     );
+  }
+
+  Future<void> _isolateFlutterSession(
+    String sessionId,
+    CockpitTestSuiteIsolation isolation,
+    DateTime deadline,
+  ) async {
+    if (isolation == CockpitTestSuiteIsolation.sharedSession) return;
+    if (isolation == CockpitTestSuiteIsolation.resetAppData) {
+      throw const CockpitApplicationServiceException(
+        code: 'suiteIsolationUnsupported',
+        message:
+            'resetAppData is unavailable for an in-app Flutter session. Register the installed application as a nativeApp target.',
+      );
+    }
+    final state = await _locked(() async {
+      await _ensureLoaded();
+      final session = _sessions[sessionId];
+      if (session == null) throw _unknownReference('session', sessionId);
+      final app = _apps[session.appId];
+      if (app == null) throw _unknownReference('app', session.appId);
+      return (session: session, app: app);
+    });
+    final developmentHandle = state.session.developmentHandle;
+    final restarter = _developmentSessionRestarter;
+    if (developmentHandle == null || restarter == null) {
+      throw const CockpitApplicationServiceException(
+        code: 'suiteIsolationUnsupported',
+        message:
+            'restartApp requires a live Flutter development session with hot-restart support.',
+      );
+    }
+    final remaining = deadline.difference(_utcNow());
+    if (remaining <= Duration.zero) {
+      throw TimeoutException('Suite isolation deadline expired.');
+    }
+    final restarted = await restarter(developmentHandle).timeout(remaining);
+    final remoteHandle = restarted.remoteSessionHandle;
+    if (remoteHandle == null) {
+      throw const CockpitApplicationServiceException(
+        code: 'suiteIsolationFailed',
+        message: 'Flutter hot restart did not retain a remote session handle.',
+      );
+    }
+    await _locked(() async {
+      await _ensureLoaded();
+      final currentSession = _sessions[sessionId];
+      final currentApp = _apps[state.app.appId];
+      if (currentSession == null || currentApp == null) {
+        throw _unknownReference('session', sessionId);
+      }
+      _sessions[sessionId] = CockpitWorkerSessionBinding(
+        sessionId: currentSession.sessionId,
+        appId: currentSession.appId,
+        targetId: currentSession.targetId,
+        deviceResourceId: currentSession.deviceResourceId,
+        resourceId: currentSession.resourceId,
+        remoteHandle: remoteHandle,
+        developmentHandle: restarted,
+        environment: currentSession.environment,
+        updatedAt: _utcNow(),
+      );
+      _apps[currentApp.appId] = CockpitWorkerAppBinding(
+        appId: currentApp.appId,
+        targetId: currentApp.targetId,
+        handle: CockpitAppHandle.fromDevelopmentSession(
+          restarted,
+          supervisorLogPath: currentApp.handle.supervisorLogPath,
+        ),
+        updatedAt: _utcNow(),
+      );
+      await _persist();
+    });
+  }
+
+  Future<void> _isolateSystemTarget(
+    CockpitSystemTestTarget target,
+    CockpitTestSuiteIsolation isolation,
+    DateTime deadline,
+  ) async {
+    if (isolation == CockpitTestSuiteIsolation.sharedSession) return;
+    final actions = isolation == CockpitTestSuiteIsolation.resetAppData
+        ? const <CockpitSystemControlAction>[
+            CockpitSystemControlAction.clearAppData,
+            CockpitSystemControlAction.activateWindow,
+          ]
+        : const <CockpitSystemControlAction>[
+            CockpitSystemControlAction.terminateApp,
+            CockpitSystemControlAction.activateWindow,
+          ];
+    for (final action in actions) {
+      final remaining = deadline.difference(_utcNow());
+      if (remaining <= Duration.zero) {
+        throw TimeoutException('Suite isolation deadline expired.');
+      }
+      final result = await _systemActionService.run(
+        CockpitSystemControlActionRequest(
+          platform: target.platform,
+          deviceId: target.deviceId,
+          appId: target.appId,
+          processId: target.processId,
+          metadata: target.metadata,
+          action: action,
+          timeout: remaining,
+        ),
+      );
+      if (!result.success) {
+        throw CockpitApplicationServiceException(
+          code: result.errorCode ?? 'suiteIsolationFailed',
+          message:
+              result.errorMessage ??
+              '${action.name} failed while preparing suite isolation.',
+          details: <String, Object?>{
+            'action': action.name,
+            'availability': result.availability.name,
+            'recommendedNextStep': result.recommendedNextStep,
+          },
+        );
+      }
+    }
   }
 
   Future<void> forceAbortSession(String sessionId) async {

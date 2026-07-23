@@ -357,6 +357,9 @@ void _validateRunState(CockpitRunResource run) {
   if (passed && run.caseIds.isEmpty) {
     throw const FormatException('A passed run requires a completed case.');
   }
+  if (passed && run.startedAt == null) {
+    throw const FormatException('A passed run requires a start timestamp.');
+  }
 }
 
 CockpitRunDocumentKind _runDocumentKind(Object? value, String path) {

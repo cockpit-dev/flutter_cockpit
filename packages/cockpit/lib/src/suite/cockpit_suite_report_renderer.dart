@@ -11,12 +11,17 @@ final class CockpitSuiteReportRenderer {
   String junit(CockpitTestSuiteReport report) {
     final counts = report.counts;
     final failures = counts.failed + counts.blocked;
-    final errors = counts.cancelled + counts.interrupted + counts.internalError;
+    final suiteErrors = report.failure == null ? 0 : 1;
+    final errors =
+        counts.cancelled +
+        counts.interrupted +
+        counts.internalError +
+        suiteErrors;
     final buffer = StringBuffer()
       ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
       ..write(
         '<testsuite name="${_xml(report.suiteId)}" '
-        'tests="${counts.total}" failures="$failures" errors="$errors" '
+        'tests="${counts.total + suiteErrors}" failures="$failures" errors="$errors" '
         'skipped="${counts.skipped}" '
         'time="${_seconds(report.durationMs)}">',
       )
@@ -55,6 +60,18 @@ final class CockpitSuiteReportRenderer {
       }
       buffer.writeln('</testcase>');
     }
+    if (report.failure case final failure?) {
+      buffer
+        ..write(
+          '  <testcase classname="${_xml(report.suiteId)}" '
+          'name="[suite cleanup]" time="0.000">',
+        )
+        ..write(
+          '<error type="suiteCleanup" '
+          'message="${_xml(failure.primary.message)}"/>',
+        )
+        ..writeln('</testcase>');
+    }
     buffer.writeln('</testsuite>');
     return buffer.toString();
   }
@@ -74,6 +91,13 @@ final class CockpitSuiteReportRenderer {
         '${counts.blocked} blocked, ${counts.skipped} skipped, '
         '${counts.flaky} flaky',
       );
+    if (report.failure case final failure?) {
+      buffer
+        ..writeln()
+        ..writeln('## Suite failure')
+        ..writeln()
+        ..writeln('- `${failure.primary.code}`: ${failure.primary.message}');
+    }
     final actionable = report.cases.where(
       (item) =>
           item.outcome != CockpitRunOutcome.passed &&
@@ -127,6 +151,12 @@ String _xml(Object? value) => value
 
 String _htmlReport(CockpitTestSuiteReport report) {
   final counts = report.counts;
+  final suiteFailure = report.failure == null
+      ? ''
+      : '''<section class="suite-failure">
+  <h2>Suite cleanup failure</h2>
+  <p><code>${_html(report.failure!.primary.code)}</code>: ${_html(report.failure!.primary.message)}</p>
+</section>''';
   final rows = StringBuffer();
   for (final testCase in report.cases) {
     final duration = testCase.attempts.fold<int>(
@@ -178,6 +208,8 @@ h1 { margin:0; font-size:24px; line-height:1.2; letter-spacing:0; text-wrap:bala
 .summary dd { margin:2px 0 0; font-size:18px; font-weight:650; }
 main.shell { padding-top:28px; }
 h2 { margin:0 0 12px; font-size:18px; letter-spacing:0; }
+.suite-failure { margin:0 0 24px; padding:14px 16px; background:#fff; border-left:4px solid var(--fail); }
+.suite-failure p { margin:4px 0 0; color:var(--muted); }
 .table-wrap { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:8px; }
 table { width:100%; border-collapse:collapse; min-width:980px; }
 th,td { padding:11px 12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
@@ -215,6 +247,7 @@ footer { color:var(--muted); font-size:12px; }
   </dl>
 </div></header>
 <main class="shell">
+  $suiteFailure
   <h2>Case results</h2>
   <div class="table-wrap"><table>
     <thead><tr><th>Case</th><th>Result</th><th>Target</th><th>Matrix</th><th>Attempts</th><th>Duration</th><th>Details</th></tr></thead>

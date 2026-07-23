@@ -328,8 +328,6 @@ List<CockpitWorkerEventDraft> _completionDrafts(String attemptId) =>
       CockpitWorkerEventDraft(
         kind: 'run.completed',
         entityKind: CockpitRunEventEntityKind.run,
-        caseId: 'caseA',
-        attemptId: attemptId,
         lifecycle: CockpitRunLifecycle.completed,
         outcome: CockpitRunOutcome.passed,
         stability: CockpitRunStability.stable,
@@ -339,7 +337,6 @@ List<CockpitWorkerEventDraft> _completionDrafts(String attemptId) =>
 CockpitWorkerEventDraft _terminalDraft() => const CockpitWorkerEventDraft(
   kind: 'run.completed',
   entityKind: CockpitRunEventEntityKind.run,
-  caseId: 'caseA',
   lifecycle: CockpitRunLifecycle.completed,
   outcome: CockpitRunOutcome.passed,
   stability: CockpitRunStability.stable,
@@ -358,7 +355,6 @@ CockpitRunEvent _event({
   projectId: 'projectA',
   workspaceId: workspaceId,
   runId: runId,
-  caseId: 'caseA',
   lifecycle: CockpitRunLifecycle.completed,
   outcome: CockpitRunOutcome.passed,
   stability: CockpitRunStability.stable,

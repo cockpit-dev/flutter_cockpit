@@ -1,0 +1,29 @@
+schemaVersion: cockpit.test/v2
+kind: suite
+id: regression
+name: Flutter regression
+execution:
+  maxConcurrency: 1
+  failFast: true
+  isolation: restartApp
+  retry:
+    maxAttempts: 2
+    delayMs: 500
+    retryOn: [blocked, interrupted, internalError]
+report:
+  formats: [json, junit, html, aiSummary]
+  includePassedAttempts: true
+cases:
+  - id: login
+    source:
+      kind: file
+      relativePath: example/cases/flutter_login.yaml
+      caseId: flutterLogin
+    inputs:
+      username: cockpit-user
+  - id: homeSmoke
+    dependsOn: [login]
+    source:
+      kind: file
+      relativePath: example/cases/flutter_home_smoke.yaml
+      caseId: flutterHomeSmoke

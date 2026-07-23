@@ -30,6 +30,27 @@ steps:
   - stepId: goBack
     action: {type: back}
 ''');
+      final suiteSource = '''
+schemaVersion: cockpit.test/v2
+kind: suite
+id: smokeSuite
+execution: {isolation: sharedSession}
+cases:
+  - id: smokeEntry
+    source:
+      kind: inline
+      case:
+        schemaVersion: cockpit.test/v2
+        kind: case
+        id: suiteSmokeCase
+        target: {platform: flutter, targetKind: flutterApp, plane: semantic}
+        steps:
+          - stepId: goBack
+            action: {type: back}
+''';
+      final suiteFile = await File(
+        p.join(workspace.path, 'smoke_suite.yaml'),
+      ).writeAsString(suiteSource);
       final packageLibrary = await Isolate.resolvePackageUri(
         Uri.parse('package:cockpit/cockpit.dart'),
       );
@@ -93,6 +114,45 @@ steps:
         contains('smokeCase'),
       );
 
+      final suites = await _cli(packageRoot, environment, <String>[
+        'suite',
+        'list',
+        '--workspace-id',
+        workspaceId,
+      ]);
+      expect(
+        (suites['items']! as List<Object?>).cast<Map<String, Object?>>().map(
+          (item) => item['authoredId'],
+        ),
+        contains('smokeSuite'),
+      );
+      final validatedSuite = await _cli(packageRoot, environment, <String>[
+        'suite',
+        'validate',
+        '--workspace-id',
+        workspaceId,
+        '--file',
+        suiteFile.path,
+      ]);
+      expect(validatedSuite['valid'], isTrue);
+      final acceptedSuite = await _cli(packageRoot, environment, <String>[
+        'suite',
+        'run',
+        '--workspace-id',
+        workspaceId,
+        '--suite-id',
+        'smokeSuite',
+        '--idempotency-key',
+        'smoke-suite-run',
+      ]);
+      final suiteRun = await _cli(packageRoot, environment, <String>[
+        'run',
+        'get',
+        '--run-id',
+        acceptedSuite['runId']! as String,
+      ]);
+      expect(suiteRun['documentKind'], 'suite');
+
       final accepted = await _cli(packageRoot, environment, <String>[
         'case',
         'run',
@@ -136,18 +196,44 @@ steps:
       ]);
       expect(cancellation['runId'], runId);
 
-      final mcp = await _mcp(packageRoot, environment, runId: runId);
-      expect(mcp[0]['result'], isA<Map<String, Object?>>());
-      final resource = mcp[1]['result']! as Map<String, Object?>;
+      final mcp = await _mcp(
+        packageRoot,
+        environment,
+        runId: runId,
+        workspaceId: workspaceId,
+        suiteSource: suiteSource,
+      );
+      Map<String, Object?> response(int id) =>
+          mcp.singleWhere((message) => message['id'] == id);
+      expect(response(1)['result'], isA<Map<String, Object?>>());
+      final resource = response(2)['result']! as Map<String, Object?>;
       final contents = (resource['contents']! as List<Object?>).single;
       final resourceJson =
           jsonDecode((contents as Map<String, Object?>)['text']! as String)
               as Map<String, Object?>;
       expect(resourceJson['instanceId'], server['instanceId']);
-      final tool = mcp[2]['result']! as Map<String, Object?>;
+      final tool = response(3)['result']! as Map<String, Object?>;
       expect(
         (tool['structuredContent']! as Map<String, Object?>)['runId'],
         runId,
+      );
+      final suiteResource = response(4)['result']! as Map<String, Object?>;
+      final suiteContents =
+          (suiteResource['contents']! as List<Object?>).single;
+      final suitesJson =
+          jsonDecode((suiteContents as Map<String, Object?>)['text']! as String)
+              as Map<String, Object?>;
+      expect(
+        (suitesJson['items']! as List<Object?>)
+            .cast<Map<String, Object?>>()
+            .map((item) => item['authoredId']),
+        contains('smokeSuite'),
+      );
+      final suiteValidation = response(5)['result']! as Map<String, Object?>;
+      expect(
+        (suiteValidation['structuredContent']!
+            as Map<String, Object?>)['valid'],
+        isTrue,
       );
     },
     timeout: const Timeout(Duration(minutes: 2)),
@@ -183,6 +269,8 @@ Future<List<Map<String, Object?>>> _mcp(
   String packageRoot,
   Map<String, String> environment, {
   required String runId,
+  required String workspaceId,
+  required String suiteSource,
 }) async {
   final process = await Process.start(
     Platform.resolvedExecutable,
@@ -198,7 +286,7 @@ Future<List<Map<String, Object?>>> _mcp(
     output.addAll(chunk);
     final count = _decodeFrames(output).length;
     if (count >= 1 && !initialized.isCompleted) initialized.complete();
-    if (count >= 3 && !responsesReceived.isCompleted) {
+    if (count >= 5 && !responsesReceived.isCompleted) {
       responsesReceived.complete();
     }
   }).asFuture<void>();
@@ -239,6 +327,28 @@ Future<List<Map<String, Object?>>> _mcp(
         'arguments': <String, Object?>{'runId': runId},
       },
     },
+    <String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 4,
+      'method': 'resources/read',
+      'params': <String, Object?>{
+        'uri': 'cockpit://workspaces/$workspaceId/suites',
+      },
+    },
+    <String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 5,
+      'method': 'tools/call',
+      'params': <String, Object?>{
+        'name': 'suite_validate',
+        'arguments': <String, Object?>{
+          'workspaceId': workspaceId,
+          'format': 'yaml',
+          'sourceText': suiteSource,
+          'relativePath': 'smoke_suite.yaml',
+        },
+      },
+    },
   ]) {
     process.stdin.add(_frame(message));
   }
@@ -248,7 +358,7 @@ Future<List<Map<String, Object?>>> _mcp(
   await Future.wait(<Future<void>>[outputDone, errorDone]);
   expect(exitCode, 0, reason: errors.toString());
   final responses = _decodeFrames(output);
-  expect(responses, hasLength(3), reason: errors.toString());
+  expect(responses, hasLength(5), reason: errors.toString());
   return responses;
 }
 

@@ -3479,6 +3479,9 @@ const String cockpitFoundationV2SchemaJson = r'''
             ]
           },
           "then": {
+            "required": [
+              "startedAt"
+            ],
             "properties": {
               "caseIds": {
                 "minItems": 1
@@ -3495,11 +3498,9 @@ const String cockpitFoundationV2SchemaJson = r'''
             }
           },
           "then": {
-            "not": {
-              "properties": {
-                "activeAttemptIds": {
-                  "maxItems": 0
-                }
+            "properties": {
+              "activeAttemptIds": {
+                "maxItems": 0
               }
             }
           }

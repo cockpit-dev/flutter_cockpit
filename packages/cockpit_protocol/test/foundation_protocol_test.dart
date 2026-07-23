@@ -1025,7 +1025,6 @@ void main() {
           _event(sequence: 2, eventId: 'eventB', projectId: 'projectB'),
           _event(sequence: 2, eventId: 'eventB', workspaceId: 'workspaceB'),
           _event(sequence: 2, eventId: 'eventB', runId: 'runB'),
-          _event(sequence: 2, eventId: 'eventB', caseId: 'caseB'),
         ]) {
           expect(
             () => CockpitRunEvent.validateSequence(<CockpitRunEvent>[
@@ -1167,7 +1166,6 @@ CockpitRunEvent _event({
   String projectId = 'projectA',
   String workspaceId = 'workspaceA',
   String runId = 'runA',
-  String caseId = 'caseA',
 }) => CockpitRunEvent(
   eventId: eventId,
   sequence: sequence,
@@ -1177,7 +1175,6 @@ CockpitRunEvent _event({
   projectId: projectId,
   workspaceId: workspaceId,
   runId: runId,
-  caseId: caseId,
   lifecycle: CockpitRunLifecycle.running,
 );
 

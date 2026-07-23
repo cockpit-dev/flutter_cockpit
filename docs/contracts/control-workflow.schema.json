@@ -152,6 +152,7 @@
         "waitFor",
         "assertVisible",
         "assertText",
+        "system",
         "captureScreenshot",
         "collectSnapshot"
       ]

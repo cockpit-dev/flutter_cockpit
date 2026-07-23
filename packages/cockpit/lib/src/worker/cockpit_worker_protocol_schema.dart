@@ -36,15 +36,7 @@ final class CockpitWorkerProtocolSchema {
             'afterSequence': _integerSchema(0, 2147483647),
             'events': _array(_objectSchema, 1, 256),
           }),
-          'publishArtifactBatch': _requestSchema(
-            <String, Object?>{
-              'projectId': _idSchema,
-              'runId': _idSchema,
-              'caseId': _idSchema,
-              'artifacts': _array(_objectSchema, 1, 256),
-            },
-            optional: const <String>{'caseId'},
-          ),
+          'publishArtifactBatch': _artifactPublicationRequestSchema(),
         },
       );
 
@@ -187,6 +179,50 @@ Map<String, Object?> _strictObject(
   'properties': properties,
   'required': (required ?? properties.keys.toSet()).toList(),
 };
+
+Map<String, Object?> _artifactPublicationRequestSchema() {
+  final schema = _requestSchema(
+    <String, Object?>{
+      'projectId': _idSchema,
+      'runId': _idSchema,
+      'caseId': _idSchema,
+      'artifacts': _array(_objectSchema, 1, 256),
+    },
+    optional: const <String>{'caseId'},
+  );
+  return <String, Object?>{
+    ...schema,
+    'allOf': <Object?>[
+      <String, Object?>{
+        'if': <String, Object?>{
+          'required': <String>['caseId'],
+        },
+        'then': <String, Object?>{
+          'properties': <String, Object?>{
+            'artifacts': <String, Object?>{
+              'items': <String, Object?>{
+                'type': 'object',
+                'required': <String>['attemptId'],
+              },
+            },
+          },
+        },
+        'else': <String, Object?>{
+          'properties': <String, Object?>{
+            'artifacts': <String, Object?>{
+              'items': <String, Object?>{
+                'type': 'object',
+                'not': <String, Object?>{
+                  'required': <String>['attemptId'],
+                },
+              },
+            },
+          },
+        },
+      },
+    ],
+  };
+}
 
 Map<String, Object?> _stringSchema(int maximum) => <String, Object?>{
   'type': 'string',

@@ -90,16 +90,13 @@ void main() {
         reason: utf8.decode(capabilities.body),
       );
       final capabilitiesText = utf8.decode(capabilities.body);
-      expect(capabilitiesText, isNot(contains('suite')));
-      expect(capabilitiesText, isNot(contains('matrix')));
-      expect(capabilitiesText, isNot(contains('report')));
+      final capabilitiesJson = jsonDecode(capabilitiesText);
+      final features =
+          (capabilitiesJson as Map<String, Object?>)['features']!
+              as List<Object?>;
       expect(
-        (await _get(
-          discovery,
-          '/api/v2/workspaces/example/suites',
-          headers: const <String, String>{'Cockpit-API-Version': '2.0'},
-        )).statusCode,
-        HttpStatus.notFound,
+        features.cast<Map<String, Object?>>().map((feature) => feature['id']),
+        contains('suiteRuns'),
       );
       expect(
         (await _request(

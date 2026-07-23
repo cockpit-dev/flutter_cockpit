@@ -488,6 +488,7 @@ void main() {
       '/api/v2/runs/{runId}': <String>{'get'},
       '/api/v2/runs/{runId}/cancel': <String>{'post'},
       '/api/v2/runs/{runId}/events': <String>{'get'},
+      '/api/v2/runs/{runId}/report': <String>{'get'},
       '/api/v2/runs/{runId}/cases': <String>{'get'},
       '/api/v2/runs/{runId}/artifacts/{artifactId}': <String>{'get'},
     };
@@ -553,21 +554,8 @@ void main() {
     expect(
       (openApiJson['x-cockpit-deferred-capabilities']! as List<Object?>)
           .toSet(),
-      <String>{
-        'suite',
-        'matrix',
-        'aggregateReport',
-        'nativeBlackBoxDriver',
-        'aiExploration',
-      },
+      <String>{'nativeBlackBoxDriver', 'aiExploration'},
     );
-    expect(
-      paths.keys.any(
-        (path) => path.contains('suite') || path.contains('report'),
-      ),
-      isFalse,
-    );
-
     final definitions = foundationSchemaJson[r'$defs']! as Map<String, Object?>;
     final componentSchemas = components['schemas']! as Map<String, Object?>;
     for (final entry in componentSchemas.entries) {

@@ -173,6 +173,7 @@ final class CockpitLocalWorkerLauncher
       input: process.stdout,
       output: process.stdin,
       requestHandler: endpoint.handle,
+      cancellationGrace: const Duration(minutes: 5),
       onProtocolError: (error, _) {
         _logger.log(
           'error',

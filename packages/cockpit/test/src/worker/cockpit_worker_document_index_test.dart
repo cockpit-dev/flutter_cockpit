@@ -133,7 +133,7 @@ steps:
       final compiled = await reopened.resolve(
         CockpitIndexedCaseReference(
           documentId: testCase['documentId']! as String,
-          caseId: testCase['caseId']! as String,
+          caseId: testCase['authoredId']! as String,
           documentSha256: testCase['sourceSha256']! as String,
         ),
       );

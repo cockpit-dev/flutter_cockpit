@@ -45,6 +45,7 @@ final class CockpitWorkerHealthySession {
     this.captureAdapter,
     this.recordingAdapter,
     this.lowerer = const CockpitTestActionLowerer(),
+    this.isolate,
     this.forceAbort,
   });
 
@@ -58,6 +59,11 @@ final class CockpitWorkerHealthySession {
   final CockpitRecordingAdapter? recordingAdapter;
   final CockpitTestActionLowerer lowerer;
   final Future<bool> Function() healthCheck;
+  final Future<void> Function(
+    CockpitTestSuiteIsolation isolation,
+    DateTime deadline,
+  )?
+  isolate;
   final Future<void> Function()? forceAbort;
 }
 

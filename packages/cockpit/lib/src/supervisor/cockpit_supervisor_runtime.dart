@@ -484,13 +484,23 @@ final class CockpitSupervisorRuntime {
     final key =
         invocation.idempotencyKey?.value ??
         'readonly-${CockpitSecureTokenGenerator().nextToken(byteLength: 16)}';
+    final deadline = invocation.deadline ?? _deadline();
+    final workerInvocation = CockpitOperationInvocation(
+      kind: invocation.kind,
+      input: invocation.input,
+      rootId: invocation.rootId,
+      workspaceId: invocation.workspaceId,
+      idempotencyKey: invocation.idempotencyKey ?? CockpitIdempotencyKey(key),
+      deadline: deadline,
+      requiredFeatures: invocation.requiredFeatures,
+    );
     final result = CockpitWorkerOperationResult.fromJson(
       await workerPool.call(
         spec,
         method: 'operation',
         idempotencyKey: key,
-        deadline: invocation.deadline ?? _deadline(),
-        params: <String, Object?>{'invocation': invocation.toJson()},
+        deadline: deadline,
+        params: <String, Object?>{'invocation': workerInvocation.toJson()},
       ),
     );
     return result.result;

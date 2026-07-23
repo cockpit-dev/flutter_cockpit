@@ -285,6 +285,7 @@ Map<String, Object?> _runResourceSchema() => objectSchema(
           'required': <String>['outcome'],
         },
         'then': <String, Object?>{
+          'required': <String>['startedAt'],
           'properties': <String, Object?>{
             'caseIds': <String, Object?>{'minItems': 1},
           },
@@ -297,10 +298,8 @@ Map<String, Object?> _runResourceSchema() => objectSchema(
           },
         },
         'then': <String, Object?>{
-          'not': <String, Object?>{
-            'properties': <String, Object?>{
-              'activeAttemptIds': <String, Object?>{'maxItems': 0},
-            },
+          'properties': <String, Object?>{
+            'activeAttemptIds': <String, Object?>{'maxItems': 0},
           },
         },
       },

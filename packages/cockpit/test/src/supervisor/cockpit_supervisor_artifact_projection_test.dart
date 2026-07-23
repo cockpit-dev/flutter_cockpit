@@ -146,7 +146,6 @@ void main() {
           projectId: 'projectA',
           workspaceId: 'workspaceA',
           runId: 'runA',
-          caseId: 'caseA',
           lifecycle: CockpitRunLifecycle.running,
         ),
       ],
@@ -416,11 +415,9 @@ void main() {
           final runs = projection['runs']! as Map<String, Object?>;
           final run = runs['runA']! as Map<String, Object?>;
           run['projectId'] = 'projectOther';
-          run['caseId'] = 'caseOther';
           final events = run['events']! as List<Object?>;
           final event = events.single! as Map<String, Object?>;
           event['projectId'] = 'projectOther';
-          event['caseId'] = 'caseOther';
           final canonicalEvent = CockpitRunEvent.fromJson(event);
           final index = run['eventIndex']! as Map<String, Object?>;
           final indexed = index['1']! as Map<String, Object?>;
@@ -648,7 +645,6 @@ Future<void> _projectRun(
             projectId: 'projectA',
             workspaceId: 'workspaceA',
             runId: runId,
-            caseId: 'caseA',
             lifecycle: CockpitRunLifecycle.running,
           ),
         ],
@@ -672,7 +668,6 @@ CockpitSupervisorRunProjection _projection(
 CockpitWorkerEventDraft _eventDraft(String kind) => CockpitWorkerEventDraft(
   kind: kind,
   entityKind: CockpitRunEventEntityKind.run,
-  caseId: 'caseA',
   lifecycle: CockpitRunLifecycle.running,
 );
 

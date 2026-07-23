@@ -375,7 +375,10 @@ final class CockpitSupervisorRunProjection
         'Published artifacts cannot mutate a releasing run.',
       );
     }
-    final owner = (projectId: request.projectId, caseId: request.caseId);
+    final owner = (
+      projectId: request.projectId,
+      caseIds: <String>{?request.caseId},
+    );
     if (initialRun != null && initialRun.projectId != owner.projectId) {
       throw const FormatException(
         'Artifact publication changes projected run ownership.',
@@ -476,7 +479,7 @@ final class CockpitSupervisorRunProjection
     return _verifyArtifact(
       resource,
       expectedRunId: runId,
-      owner: (projectId: run!.projectId, caseId: null),
+      owner: (projectId: run!.projectId, caseIds: run.caseIds),
     );
   }
 
@@ -502,7 +505,7 @@ final class CockpitSupervisorRunProjection
     final verified = await _verifyArtifact(
       resource,
       expectedRunId: runId,
-      owner: (projectId: run.projectId, caseId: null),
+      owner: (projectId: run.projectId, caseIds: run.caseIds),
     );
     final file = File(p.join(stateRoot, 'runs', runId, verified.relativePath));
     if (await file.length() > _maximumCanonicalReportBytes) {
@@ -620,7 +623,10 @@ final class CockpitSupervisorRunProjection
       run.highestSequence = events.last.sequence;
       run.events.addAll(retainedEvents);
       run.eventIndex.addAll(replacementEventIndex);
-      if (previous != null) run.artifacts.addAll(previous.artifacts);
+      if (previous != null) {
+        run.caseIds.addAll(previous.caseIds);
+        run.artifacts.addAll(previous.artifacts);
+      }
       projection.runs[runId] = run;
       projection.eventOwners.removeWhere(
         (_, owner) => _eventOwnerBelongsToRun(owner, runId),
@@ -876,14 +882,14 @@ final class CockpitSupervisorRunProjection
     required int size,
     required String digest,
   }) async {
-    if (owner.caseId == null) return false;
+    if (owner.caseIds.isEmpty) return false;
     final manifest = await const CockpitTestAttemptBundleReader().readAndVerify(
       path: bundleRoot,
     );
     if (manifest.context.projectId != owner.projectId ||
         manifest.context.workspaceId != workspaceId ||
         manifest.context.runId != artifact.runId ||
-        manifest.context.caseId != owner.caseId ||
+        !owner.caseIds.contains(manifest.context.caseId) ||
         manifest.context.attemptId != artifact.attemptId) {
       throw const FormatException('Artifact attempt ownership is invalid.');
     }
@@ -911,8 +917,7 @@ final class CockpitSupervisorRunProjection
     required String bundleRoot,
     required String relativeToBundle,
   }) async {
-    if (owner.caseId != null ||
-        artifact.stepExecutionId != null ||
+    if (artifact.stepExecutionId != null ||
         p.posix.split(relativeToBundle).length != 1) {
       return false;
     }
@@ -1131,7 +1136,7 @@ final class _RetentionReleaseIntent {
 }
 
 typedef _ProjectedRunOwner = ({String projectId});
-typedef _ArtifactOwner = ({String projectId, String? caseId});
+typedef _ArtifactOwner = ({String projectId, Set<String> caseIds});
 
 _ProjectedRunOwner _projectedRunOwner(_ProjectedRun run) =>
     (projectId: run.projectId);

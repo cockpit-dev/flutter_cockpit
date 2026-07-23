@@ -809,8 +809,6 @@ List<CockpitRunEvent> _completionEvents({
     projectId: 'projectA',
     workspaceId: 'workspaceA',
     runId: runId,
-    caseId: 'caseA',
-    attemptId: attemptId,
     lifecycle: CockpitRunLifecycle.completed,
     outcome: CockpitRunOutcome.passed,
     stability: CockpitRunStability.stable,

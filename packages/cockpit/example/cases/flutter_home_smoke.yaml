@@ -1,0 +1,27 @@
+schemaVersion: cockpit.test/v2
+kind: case
+id: flutterHomeSmoke
+name: Flutter home smoke
+tags: [acceptance, smoke]
+target:
+  platform: android
+  targetKind: flutterApp
+  plane: semantic
+defaults:
+  commandTimeoutMs: 15000
+  cleanupTimeoutMs: 10000
+  evidence:
+    screenshot: onFailure
+    snapshot: onFailure
+    failurePolicy: recordWarning
+steps:
+  - stepId: waitForHome
+    action:
+      type: waitFor
+      condition:
+        type: visible
+        locator: {strategy: text, value: Home}
+  - stepId: verifyHome
+    action:
+      type: assertVisible
+      locator: {strategy: text, value: Home}

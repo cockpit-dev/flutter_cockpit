@@ -3476,6 +3476,9 @@
             ]
           },
           "then": {
+            "required": [
+              "startedAt"
+            ],
             "properties": {
               "caseIds": {
                 "minItems": 1
@@ -3492,11 +3495,9 @@
             }
           },
           "then": {
-            "not": {
-              "properties": {
-                "activeAttemptIds": {
-                  "maxItems": 0
-                }
+            "properties": {
+              "activeAttemptIds": {
+                "maxItems": 0
               }
             }
           }

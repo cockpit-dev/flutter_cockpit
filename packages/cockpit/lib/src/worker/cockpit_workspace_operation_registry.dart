@@ -47,11 +47,22 @@ final class CockpitPreparedWorkspaceOperation {
     required Iterable<CockpitWorkerResourceRequest> resources,
     required CockpitPreparedWorkspaceOperationExecute execute,
     this.isIdempotentReplay = false,
+    this.cancellationGrace,
   }) : resources = List<CockpitWorkerResourceRequest>.unmodifiable(resources),
-       _execute = execute;
+       _execute = execute {
+    if (cancellationGrace case final grace?
+        when grace <= Duration.zero || grace > const Duration(minutes: 5)) {
+      throw ArgumentError.value(
+        cancellationGrace,
+        'cancellationGrace',
+        'Must be greater than zero and at most five minutes.',
+      );
+    }
+  }
 
   final List<CockpitWorkerResourceRequest> resources;
   final bool isIdempotentReplay;
+  final Duration? cancellationGrace;
   final CockpitPreparedWorkspaceOperationExecute _execute;
 
   Future<Map<String, Object?>> execute(
@@ -259,10 +270,13 @@ final class CockpitWorkspaceOperationRegistry
     Future<void>? executionTerminal;
     Timer? operationDeadlineTimer;
     var executionFinished = true;
+    var operationCancellationGrace = _cancellationGrace;
     try {
       _assertNoPlaintextSecrets(invocation.input);
       cancellation.throwIfCancelled();
       final prepared = await adapter.prepare(context, invocation.input);
+      operationCancellationGrace =
+          prepared.cancellationGrace ?? _cancellationGrace;
       if (adapter.mutationClass == CockpitMutationClass.mutating &&
           prepared.resources.isEmpty &&
           !prepared.isIdempotentReplay) {
@@ -359,7 +373,7 @@ final class CockpitWorkspaceOperationRegistry
       cancellation.cancel();
       var terminated = await _completesWithin(
         executionTerminal,
-        _cancellationGrace,
+        operationCancellationGrace,
       );
       if (!terminated) {
         try {

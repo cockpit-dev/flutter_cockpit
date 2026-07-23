@@ -19,7 +19,15 @@ final class CockpitSuiteReportAssembler {
         const <CockpitArtifactReference>[],
   }) {
     final cases = <CockpitTestCaseReport>[];
-    for (final node in plan.caseNodes) {
+    final caseNodes = plan.caseNodes.toList(growable: false);
+    final failedSuiteCleanup = <CockpitSuiteNodeExecution>[
+      for (final node in plan.nodes)
+        if (node.kind == CockpitSuitePlanNodeKind.fixtureTeardown &&
+            node.caseNodeId == null)
+          schedule.executionFor(node.nodeId),
+    ].where(_isFailedCleanup).toList(growable: false);
+    for (var caseIndex = 0; caseIndex < caseNodes.length; caseIndex += 1) {
+      final node = caseNodes[caseIndex];
       final execution = schedule.executionFor(node.nodeId);
       final targetId = execution.attempts.isEmpty
           ? node.targetId ?? 'unassigned'
@@ -37,7 +45,10 @@ final class CockpitSuiteReportAssembler {
         ),
       );
     }
-    final outcome = _outcome(cases.map((item) => item.outcome));
+    final outcome = _outcome(<CockpitRunOutcome>[
+      ...cases.map((item) => item.outcome),
+      ...failedSuiteCleanup.map((cleanup) => cleanup.outcome),
+    ]);
     final stability =
         cases.any((item) => item.stability == CockpitRunStability.flaky)
         ? CockpitRunStability.flaky
@@ -55,6 +66,7 @@ final class CockpitSuiteReportAssembler {
       durationMs: finishedAt.difference(startedAt).inMilliseconds,
       execution: plan.suite.execution,
       reportPolicy: plan.suite.report,
+      failure: _suiteCleanupFailure(failedSuiteCleanup),
       environment: environment,
       matrixAxes: plan.suite.matrix.axes,
       cases: cases,
@@ -62,6 +74,42 @@ final class CockpitSuiteReportAssembler {
     );
   }
 }
+
+CockpitFailure? _suiteCleanupFailure(
+  List<CockpitSuiteNodeExecution> executions,
+) {
+  if (executions.isEmpty) return null;
+  final failures = executions.map(_cleanupFailure).toList(growable: false);
+  return CockpitFailure(
+    primary: failures.first.primary,
+    warnings: <CockpitApiWarning>[
+      ...failures.first.warnings,
+      for (final failure in failures.skip(1)) ...<CockpitApiWarning>[
+        CockpitApiWarning(
+          stage: CockpitWarningStage.cleanup,
+          error: failure.primary,
+        ),
+        ...failure.warnings,
+      ],
+    ],
+  );
+}
+
+CockpitFailure _cleanupFailure(CockpitSuiteNodeExecution execution) =>
+    execution.attempts.lastOrNull?.failure ??
+    CockpitFailure(
+      primary: CockpitApiError(
+        code: 'suiteFixtureTeardownFailed',
+        category: CockpitErrorCategory.environment,
+        message: 'Suite fixture teardown did not complete successfully.',
+        retryable: execution.outcome == CockpitRunOutcome.interrupted,
+        responsibleLayer: CockpitResponsibleLayer.worker,
+      ),
+    );
+
+bool _isFailedCleanup(CockpitSuiteNodeExecution execution) =>
+    execution.outcome != CockpitRunOutcome.passed &&
+    execution.outcome != CockpitRunOutcome.skipped;
 
 CockpitRunOutcome _outcome(Iterable<CockpitRunOutcome> outcomes) {
   final values = outcomes.toSet();

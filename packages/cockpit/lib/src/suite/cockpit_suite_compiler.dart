@@ -51,10 +51,12 @@ final class CockpitSuiteCompiler {
       );
     }
     _validateFixtureScopes(suite, resolvedFixtures);
+    final built = _buildNodes(suite, resolvedEntries, resolvedFixtures);
     return CockpitSuiteExecutionPlan(
       suite: suite,
       sourceSha256: compiledSuite.sourceSha256,
-      nodes: _buildNodes(suite, resolvedEntries, resolvedFixtures),
+      nodes: built.nodes,
+      attemptNodes: built.attemptNodes,
     );
   }
 
@@ -74,7 +76,7 @@ final class CockpitSuiteCompiler {
     CockpitTestSuiteFileCaseSource() => resolver.resolveFile(source),
   };
 
-  List<CockpitSuitePlanNode> _buildNodes(
+  _BuiltNodes _buildNodes(
     CockpitTestSuite suite,
     Map<String, CockpitCompiledTestCase> entries,
     Map<String, _ResolvedFixture> fixtures,
@@ -85,9 +87,55 @@ final class CockpitSuiteCompiler {
     _addCaseAttemptFixtures(suite, fixtures, rowsByEntry, builders);
     _addSuiteFixtures(suite, fixtures, rowsByEntry, builders);
     _wireCaseDependencies(suite, rowsByEntry, builders);
-    return List<CockpitSuitePlanNode>.unmodifiable(
-      builders.values.map((builder) => builder.build()),
+    final scheduledIds = <String>{
+      for (final builder in builders.values)
+        if (_isScheduled(builder)) builder.nodeId,
+    };
+    return _BuiltNodes(
+      nodes: <CockpitSuitePlanNode>[
+        for (final builder in builders.values)
+          if (scheduledIds.contains(builder.nodeId))
+            builder.build(
+              dependencies: _scheduledDependencies(
+                builder,
+                builders,
+                scheduledIds,
+              ),
+            ),
+      ],
+      attemptNodes: <CockpitSuitePlanNode>[
+        for (final builder in builders.values)
+          if (!scheduledIds.contains(builder.nodeId)) builder.build(),
+      ],
     );
+  }
+
+  bool _isScheduled(_NodeBuilder builder) =>
+      builder.kind == CockpitSuitePlanNodeKind.testCase ||
+      builder.caseNodeId == null;
+
+  Set<String> _scheduledDependencies(
+    _NodeBuilder builder,
+    Map<String, _NodeBuilder> builders,
+    Set<String> scheduledIds,
+  ) {
+    final result = <String>{};
+    final visited = <String>{};
+    void visit(String nodeId) {
+      if (!visited.add(nodeId)) return;
+      if (scheduledIds.contains(nodeId)) {
+        result.add(nodeId);
+        return;
+      }
+      for (final dependency in builders[nodeId]!.dependencies) {
+        visit(dependency);
+      }
+    }
+
+    for (final dependency in builder.dependencies) {
+      visit(dependency);
+    }
+    return result;
   }
 
   void _addCaseRows(
@@ -121,15 +169,34 @@ final class CockpitSuiteCompiler {
             'matrix': matrix,
             'targetId': ?targetId,
           };
+          final isolationNodeId = _nodeId('isolation', entry.id, identity);
           final nodeId = _nodeId('case', entry.id, identity);
           final row = _CaseRow(
             entry: entry,
+            isolationNodeId: isolationNodeId,
             mainNodeId: nodeId,
             matrix: matrix,
             targetId: targetId,
             selected: selected,
           );
           entryRows.add(row);
+          _put(
+            builders,
+            _NodeBuilder(
+              nodeId: isolationNodeId,
+              entryId: entry.id,
+              kind: CockpitSuitePlanNodeKind.isolation,
+              compiledCase: entries[entry.id]!,
+              inputs: _bindMatrix(entry.inputs, matrix),
+              matrix: matrix,
+              targetId: targetId,
+              retry: entry.retry ?? suite.execution.retry,
+              selected: selected,
+              alwaysRun: false,
+              isolation: suite.execution.isolation,
+              caseNodeId: nodeId,
+            ),
+          );
           _put(
             builders,
             _NodeBuilder(
@@ -143,7 +210,8 @@ final class CockpitSuiteCompiler {
               retry: entry.retry ?? suite.execution.retry,
               selected: selected,
               alwaysRun: false,
-            ),
+              caseNodeId: nodeId,
+            )..dependencies.add(isolationNodeId),
           );
         }
       }
@@ -222,12 +290,8 @@ final class CockpitSuiteCompiler {
             retry: suite.execution.retry,
             selected: row.selected,
             alwaysRun: false,
-          );
-          for (final dependencyEntry in row.entry.dependsOn) {
-            setup.dependencies.addAll(
-              rowsByEntry[dependencyEntry]!.map((item) => item.mainNodeId),
-            );
-          }
+            caseNodeId: row.mainNodeId,
+          )..dependencies.add(row.isolationNodeId);
           for (final dependency in fixture.dependsOn) {
             final dependencyFixture = fixtures[dependency]!.fixture;
             setup.dependencies.add(
@@ -254,7 +318,9 @@ final class CockpitSuiteCompiler {
               retry: suite.execution.retry,
               selected: row.selected,
               alwaysRun: true,
-            )..dependencies.add(row.mainNodeId),
+              cleanupGuardNodeId: setupId,
+              caseNodeId: row.mainNodeId,
+            )..dependencies.addAll(<String>{setupId, row.mainNodeId}),
           );
         }
         _wireAttemptFixtureTeardownOrder(row, closure, fixtures, builders);
@@ -342,7 +408,8 @@ final class CockpitSuiteCompiler {
         retry: suite.execution.retry,
         selected: selected,
         alwaysRun: true,
-      );
+        cleanupGuardNodeId: setup.nodeId,
+      )..dependencies.add(setup.nodeId);
       for (final entryId in consumers[fixtureId]!) {
         teardown.dependencies.addAll(
           builders.values
@@ -382,22 +449,39 @@ final class CockpitSuiteCompiler {
     };
     for (final rows in rowsByEntry.values) {
       for (final row in rows) {
-        final node = builders[row.mainNodeId]!;
+        final boundary = builders[row.isolationNodeId]!;
         for (final dependency in row.entry.dependsOn) {
-          node.dependencies.addAll(
-            rowsByEntry[dependency]!.map((item) => item.mainNodeId),
-          );
+          for (final dependencyRow in rowsByEntry[dependency]!) {
+            boundary.dependencies.addAll(
+              _rowCompletionNodeIds(dependencyRow, fixtures),
+            );
+          }
         }
         for (final fixtureId in _fixtureClosureIds(
           row.entry.fixtures,
           fixtures,
         )) {
           if (fixtures[fixtureId]!.scope == CockpitTestFixtureScope.suite) {
-            node.dependencies.add(_suiteFixtureId('fixtureSetup', fixtureId));
+            boundary.dependencies.add(
+              _suiteFixtureId('fixtureSetup', fixtureId),
+            );
           }
         }
       }
     }
+  }
+
+  Iterable<String> _rowCompletionNodeIds(
+    _CaseRow row,
+    Map<String, CockpitTestFixture> fixtures,
+  ) {
+    final teardownIds = <String>[
+      for (final fixtureId in _fixtureClosureIds(row.entry.fixtures, fixtures))
+        if (fixtures[fixtureId]!.scope == CockpitTestFixtureScope.caseAttempt &&
+            fixtures[fixtureId]!.teardown != null)
+          _attemptFixtureId('fixtureTeardown', fixtureId, row),
+    ];
+    return <String>[row.mainNodeId, ...teardownIds];
   }
 
   void _put(Map<String, _NodeBuilder> builders, _NodeBuilder builder) {
@@ -421,9 +505,17 @@ final class _ResolvedFixture {
   final CockpitCompiledTestCase? teardown;
 }
 
+final class _BuiltNodes {
+  const _BuiltNodes({required this.nodes, required this.attemptNodes});
+
+  final List<CockpitSuitePlanNode> nodes;
+  final List<CockpitSuitePlanNode> attemptNodes;
+}
+
 final class _CaseRow {
   const _CaseRow({
     required this.entry,
+    required this.isolationNodeId,
     required this.mainNodeId,
     required this.matrix,
     required this.targetId,
@@ -431,6 +523,7 @@ final class _CaseRow {
   });
 
   final CockpitTestSuiteEntry entry;
+  final String isolationNodeId;
   final String mainNodeId;
   final Map<String, Object?> matrix;
   final String? targetId;
@@ -449,6 +542,9 @@ final class _NodeBuilder {
     required this.retry,
     required this.selected,
     required this.alwaysRun,
+    this.isolation,
+    this.cleanupGuardNodeId,
+    this.caseNodeId,
   });
 
   final String nodeId;
@@ -461,21 +557,28 @@ final class _NodeBuilder {
   final CockpitTestSuiteRetryPolicy retry;
   final bool selected;
   final bool alwaysRun;
+  final CockpitTestSuiteIsolation? isolation;
+  final String? cleanupGuardNodeId;
+  final String? caseNodeId;
   final Set<String> dependencies = <String>{};
 
-  CockpitSuitePlanNode build() => CockpitSuitePlanNode(
-    nodeId: nodeId,
-    entryId: entryId,
-    kind: kind,
-    compiledCase: compiledCase,
-    inputs: Map<String, Object?>.unmodifiable(inputs),
-    matrix: Map<String, Object?>.unmodifiable(matrix),
-    targetId: targetId,
-    dependencies: dependencies,
-    retry: retry,
-    selected: selected,
-    alwaysRun: alwaysRun,
-  );
+  CockpitSuitePlanNode build({Iterable<String>? dependencies}) =>
+      CockpitSuitePlanNode(
+        nodeId: nodeId,
+        entryId: entryId,
+        kind: kind,
+        compiledCase: compiledCase,
+        inputs: Map<String, Object?>.unmodifiable(inputs),
+        matrix: Map<String, Object?>.unmodifiable(matrix),
+        targetId: targetId,
+        dependencies: dependencies ?? this.dependencies,
+        retry: retry,
+        selected: selected,
+        alwaysRun: alwaysRun,
+        isolation: isolation,
+        cleanupGuardNodeId: cleanupGuardNodeId,
+        caseNodeId: caseNodeId,
+      );
 }
 
 Set<String> _fixtureClosure(
