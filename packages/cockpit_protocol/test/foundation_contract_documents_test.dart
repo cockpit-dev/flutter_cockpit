@@ -79,6 +79,54 @@ void main() {
     }
   });
 
+  test('automation target contracts require valid app identity by kind', () {
+    final valid = <String, Object?>{
+      'targetId': 'targetA',
+      'workspaceId': 'workspaceA',
+      'platform': 'android',
+      'deviceId': 'emulator-5554',
+      'targetKind': 'nativeApp',
+      'mode': 'automation',
+      'environment': 'test',
+      'appId': 'com.example.app',
+    };
+    for (final kind in const <String>[
+      'nativeApp',
+      'desktopApp',
+      'browserPage',
+    ]) {
+      final withoutAppId = <String, Object?>{...valid, 'targetKind': kind}
+        ..remove('appId');
+      _expectDefinition(
+        foundationSchema,
+        'AutomationTargetResource',
+        withoutAppId,
+        isValid: false,
+      );
+      expect(
+        () => CockpitAutomationTargetResource.fromJson(withoutAppId),
+        throwsA(isA<FormatException>()),
+      );
+    }
+    final blankAppId = <String, Object?>{...valid, 'appId': '   '};
+    _expectDefinition(
+      foundationSchema,
+      'AutomationTargetResource',
+      blankAppId,
+      isValid: false,
+    );
+    expect(
+      () => CockpitAutomationTargetResource.fromJson(blankAppId),
+      throwsA(isA<FormatException>()),
+    );
+    _expectDefinition(
+      foundationSchema,
+      'AutomationTargetResource',
+      valid,
+      isValid: true,
+    );
+  });
+
   test(
     'Dart resources and schema definitions agree on execution invariants',
     () {
@@ -480,6 +528,8 @@ void main() {
       '/api/v2/workspaces/register': <String>{'post'},
       '/api/v2/workspaces/{workspaceId}/rebind': <String>{'post'},
       '/api/v2/workspaces/{workspaceId}': <String>{'delete'},
+      '/api/v2/workspaces/{workspaceId}/targets': <String>{'get'},
+      '/api/v2/workspaces/{workspaceId}/targets/{targetId}': <String>{'get'},
       '/api/v2/workspaces/{workspaceId}/documents': <String>{'get'},
       '/api/v2/workspaces/{workspaceId}/documents/validate': <String>{'post'},
       '/api/v2/workspaces/{workspaceId}/cases': <String>{'get'},
@@ -554,7 +604,7 @@ void main() {
     expect(
       (openApiJson['x-cockpit-deferred-capabilities']! as List<Object?>)
           .toSet(),
-      <String>{'nativeBlackBoxDriver', 'aiExploration'},
+      <String>{'aiExploration'},
     );
     final definitions = foundationSchemaJson[r'$defs']! as Map<String, Object?>;
     final componentSchemas = components['schemas']! as Map<String, Object?>;

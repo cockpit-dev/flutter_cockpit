@@ -20,6 +20,9 @@ const String cockpitFoundationV2SchemaJson = r'''
       "$ref": "#/$defs/WorkspaceResource"
     },
     {
+      "$ref": "#/$defs/AutomationTargetResource"
+    },
+    {
       "$ref": "#/$defs/DocumentResource"
     },
     {
@@ -2240,6 +2243,114 @@ const String cockpitFoundationV2SchemaJson = r'''
       ],
       "additionalProperties": false
     },
+    "AutomationTargetResource": {
+      "type": "object",
+      "properties": {
+        "targetId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "platform": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "deviceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "targetKind": {
+          "type": "string",
+          "enum": [
+            "flutterApp",
+            "nativeApp",
+            "desktopApp",
+            "browserPage",
+            "systemSurface",
+            "device",
+            "hostWorkspace"
+          ],
+          "minLength": 1
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "development",
+            "automation"
+          ],
+          "minLength": 1
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "development",
+            "test",
+            "staging",
+            "production",
+            "unknown"
+          ],
+          "minLength": 1
+        },
+        "entrypoint": {
+          "$ref": "#/$defs/RelativePath"
+        },
+        "entrypointSha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "flavor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "appId": {
+          "type": "string",
+          "pattern": "\\S",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Identifier"
+        }
+      },
+      "required": [
+        "targetId",
+        "workspaceId",
+        "platform",
+        "deviceId",
+        "targetKind",
+        "mode",
+        "environment"
+      ],
+      "additionalProperties": false,
+      "dependentRequired": {
+        "entrypointSha256": [
+          "entrypoint"
+        ]
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "targetKind": {
+                "enum": [
+                  "nativeApp",
+                  "desktopApp",
+                  "browserPage"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "appId"
+            ]
+          }
+        }
+      ]
+    },
     "SourceLocation": {
       "type": "object",
       "properties": {
@@ -2563,6 +2674,29 @@ const String cockpitFoundationV2SchemaJson = r'''
           "type": "array",
           "items": {
             "$ref": "#/$defs/WorkspaceResource"
+          },
+          "maxItems": 100
+        },
+        "nextCursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "totalCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "AutomationTargetPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AutomationTargetResource"
           },
           "maxItems": 100
         },
@@ -5192,6 +5326,161 @@ const String cockpitV2OpenApiJson = r'''
         }
       }
     },
+    "/api/v2/workspaces/{workspaceId}/targets": {
+      "parameters": [
+        {
+          "name": "workspaceId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,127}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listAutomationTargets",
+        "summary": "List registered automation targets for a workspace",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/RequiredFeatures"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registered automation targets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationTargetPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMedia"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/ResourceBusy"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v2/workspaces/{workspaceId}/targets/{targetId}": {
+      "parameters": [
+        {
+          "name": "workspaceId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,127}$"
+          }
+        },
+        {
+          "name": "targetId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,127}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getAutomationTarget",
+        "summary": "Read one registered workspace automation target",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/RequiredFeatures"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registered automation target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationTargetResource"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMedia"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/ResourceBusy"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
     "/api/v2/workspaces/{workspaceId}/documents": {
       "parameters": [
         {
@@ -6227,6 +6516,12 @@ const String cockpitV2OpenApiJson = r'''
       "WorkspaceResource": {
         "$ref": "../schema/cockpit.foundation.v2.schema.json#/$defs/WorkspaceResource"
       },
+      "AutomationTargetPage": {
+        "$ref": "../schema/cockpit.foundation.v2.schema.json#/$defs/AutomationTargetPage"
+      },
+      "AutomationTargetResource": {
+        "$ref": "../schema/cockpit.foundation.v2.schema.json#/$defs/AutomationTargetResource"
+      },
       "DocumentPage": {
         "$ref": "../schema/cockpit.foundation.v2.schema.json#/$defs/DocumentPage"
       },
@@ -6594,7 +6889,6 @@ const String cockpitV2OpenApiJson = r'''
   "x-cockpit-json-maximum-nodes": 1048576,
   "x-cockpit-cors": "deny",
   "x-cockpit-deferred-capabilities": [
-    "nativeBlackBoxDriver",
     "aiExploration"
   ],
   "x-cockpit-error-statuses": {

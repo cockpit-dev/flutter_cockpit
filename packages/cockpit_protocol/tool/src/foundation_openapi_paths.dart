@@ -113,6 +113,36 @@ Map<String, Object?> buildFoundationApiPaths() => <String, Object?>{
       },
     ),
   },
+  '/api/v2/workspaces/{workspaceId}/targets': <String, Object?>{
+    'parameters': <Object?>[_pathParameter('workspaceId')],
+    'get': negotiatedOperation(
+      operationId: 'listAutomationTargets',
+      summary: 'List registered automation targets for a workspace',
+      parameters: _pageParameters(),
+      responses: <String, Object?>{
+        '200': jsonResponse(
+          'Registered automation targets.',
+          'AutomationTargetPage',
+        ),
+      },
+    ),
+  },
+  '/api/v2/workspaces/{workspaceId}/targets/{targetId}': <String, Object?>{
+    'parameters': <Object?>[
+      _pathParameter('workspaceId'),
+      _pathParameter('targetId'),
+    ],
+    'get': negotiatedOperation(
+      operationId: 'getAutomationTarget',
+      summary: 'Read one registered workspace automation target',
+      responses: <String, Object?>{
+        '200': jsonResponse(
+          'Registered automation target.',
+          'AutomationTargetResource',
+        ),
+      },
+    ),
+  },
   '/api/v2/workspaces/{workspaceId}/documents': <String, Object?>{
     'parameters': <Object?>[_pathParameter('workspaceId')],
     'get': negotiatedOperation(

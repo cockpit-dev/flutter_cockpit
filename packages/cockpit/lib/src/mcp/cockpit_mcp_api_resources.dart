@@ -66,6 +66,27 @@ List<CockpitMcpResource> cockpitMcpApiResources(
   ),
   _CockpitApiResource.template(
     client: client,
+    name: 'workspace_targets',
+    uriTemplate: 'cockpit://workspaces/{workspaceId}/targets',
+    description: 'Registered automation targets for an explicit workspace.',
+    read: (api, uri) async => <String, Object?>{
+      'items': (await api.targets(
+        _identifier(uri, 0, 'workspaceId'),
+      )).map((item) => item.toJson()).toList(),
+    },
+  ),
+  _CockpitApiResource.template(
+    client: client,
+    name: 'workspace_target',
+    uriTemplate: 'cockpit://workspaces/{workspaceId}/targets/{targetId}',
+    description: 'One registered workspace automation target.',
+    read: (api, uri) async => (await api.target(
+      _identifier(uri, 0, 'workspaceId'),
+      _identifier(uri, 2, 'targetId'),
+    )).toJson(),
+  ),
+  _CockpitApiResource.template(
+    client: client,
     name: 'workspace_suites',
     uriTemplate: 'cockpit://workspaces/{workspaceId}/suites',
     description: 'Indexed suites for an explicit workspace.',
@@ -192,6 +213,14 @@ bool _matchesTemplate(Uri uri, String name) {
       uri.host == 'workspaces' &&
           uri.pathSegments.length == 2 &&
           uri.pathSegments[1] == 'operations',
+    'workspace_targets' =>
+      uri.host == 'workspaces' &&
+          uri.pathSegments.length == 2 &&
+          uri.pathSegments[1] == 'targets',
+    'workspace_target' =>
+      uri.host == 'workspaces' &&
+          uri.pathSegments.length == 3 &&
+          uri.pathSegments[1] == 'targets',
     'workspace_cases' =>
       uri.host == 'workspaces' &&
           uri.pathSegments.length == 2 &&

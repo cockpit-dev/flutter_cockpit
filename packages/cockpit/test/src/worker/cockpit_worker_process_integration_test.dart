@@ -183,9 +183,12 @@ cases:
           'case.validate',
           'document.index',
           'suite.run',
+          'target.get',
+          'target.inspect',
+          'target.list',
         ]),
       );
-      expect(capabilities.operationKinds, isNot(contains('target.list')));
+      expect(capabilities.operationKinds, isNot(contains('target.discover')));
       expect(capabilities.operationKinds, isNot(contains('package.search')));
       expect(capabilities.operationKinds, isNot(contains('worker.port.bind')));
 
@@ -220,11 +223,87 @@ cases:
           'deviceId': 'deviceA',
           'entrypointDocumentId': mainDocument['documentId'],
           'environment': 'development',
+          'appId': 'com.example.cockpit',
         },
       );
       expect(registered.outcome, CockpitOperationOutcome.succeeded);
       final targetId = registered.output!['targetId']! as String;
       expect(targetId, startsWith('target_'));
+      final listedTargets = await _callOperation(
+        pool,
+        spec,
+        kind: 'target.list',
+        idempotencyKey: 'target-list-workerA',
+      );
+      final targetResources =
+          (listedTargets.output!['targets']! as List<Object?>)
+              .cast<Map<Object?, Object?>>();
+      expect(targetResources, hasLength(1));
+      expect(targetResources.single['targetId'], targetId);
+      expect(targetResources.single['appId'], 'com.example.cockpit');
+      expect(targetResources.single, isNot(contains('state')));
+      final readTarget = await _callOperation(
+        pool,
+        spec,
+        kind: 'target.get',
+        idempotencyKey: 'target-get-workerA',
+        input: <String, Object?>{'targetId': targetId},
+      );
+      expect(
+        (readTarget.output!['target']! as Map<Object?, Object?>)['targetId'],
+        targetId,
+      );
+      final nativeWithEntrypoint = await _callOperation(
+        pool,
+        spec,
+        kind: 'worker.target.register',
+        idempotencyKey: 'target-register-native-entrypoint',
+        input: <String, Object?>{
+          'platform': 'macos',
+          'deviceId': 'deviceNative',
+          'entrypointDocumentId': mainDocument['documentId'],
+          'targetKind': 'nativeApp',
+          'environment': 'test',
+          'appId': 'com.example.native',
+        },
+      );
+      expect(nativeWithEntrypoint.outcome, CockpitOperationOutcome.succeeded);
+      final nativeWithEntrypointId =
+          nativeWithEntrypoint.output!['targetId']! as String;
+      for (final invalidRegistration in <(String, Map<String, Object?>)>[
+        (
+          'missing',
+          <String, Object?>{
+            'platform': 'android',
+            'deviceId': 'deviceMissingAppId',
+            'targetKind': 'nativeApp',
+          },
+        ),
+        (
+          'blank',
+          <String, Object?>{
+            'platform': 'android',
+            'deviceId': 'deviceBlankAppId',
+            'targetKind': 'nativeApp',
+            'appId': '   ',
+          },
+        ),
+      ]) {
+        final rejected = await _callOperation(
+          pool,
+          spec,
+          kind: 'worker.target.register',
+          idempotencyKey: 'target-register-${invalidRegistration.$1}-app-id',
+          input: invalidRegistration.$2,
+        );
+        expect(rejected.outcome, CockpitOperationOutcome.failed);
+        expect(
+          rejected.failure!.primary.code,
+          invalidRegistration.$1 == 'missing'
+              ? 'targetAppIdRequired'
+              : 'targetAppIdInvalid',
+        );
+      }
 
       await pool.shutdownWorkspace(spec.key, grace: const Duration(seconds: 5));
       final replayedRegistration = await _callOperation(
@@ -237,6 +316,7 @@ cases:
           'deviceId': 'deviceA',
           'entrypointDocumentId': mainDocument['documentId'],
           'environment': 'development',
+          'appId': 'com.example.cockpit',
         },
       );
       expect(replayedRegistration.outcome, CockpitOperationOutcome.succeeded);
@@ -362,6 +442,27 @@ steps:
           mainEntrypoint.path,
         ).writeAsString('void main() => print(1);\n');
       }
+      final readableStaleTarget = await _callOperation(
+        pool,
+        spec,
+        kind: 'target.get',
+        idempotencyKey: 'target-get-stale-entrypoint',
+        input: <String, Object?>{'targetId': targetId},
+      );
+      expect(readableStaleTarget.outcome, CockpitOperationOutcome.succeeded);
+      final inspectNativeWithStaleEntrypoint = await _callOperation(
+        pool,
+        spec,
+        kind: 'target.inspect',
+        idempotencyKey: 'target-inspect-native-stale-entrypoint',
+        input: <String, Object?>{'targetId': nativeWithEntrypointId},
+      );
+      expect(
+        inspectNativeWithStaleEntrypoint.outcome,
+        CockpitOperationOutcome.succeeded,
+        reason: '${inspectNativeWithStaleEntrypoint.failure?.toJson()}',
+      );
+      authority.resetObservations();
       final staleTarget = await _callOperation(
         pool,
         spec,
@@ -1062,7 +1163,7 @@ steps:
       expect(persisted, contains('main.dart'));
       expect(persisted, isNot(contains(spec.workspaceRoot)));
       expect(persisted, isNot(contains('secret')));
-      expect(runtimeState['targets'], hasLength(2));
+      expect(runtimeState['targets'], hasLength(3));
       expect(pool.activeKeys, isEmpty);
     },
     timeout: const Timeout(Duration(minutes: 3)),

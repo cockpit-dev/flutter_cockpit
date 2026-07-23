@@ -738,6 +738,7 @@ void main() {
       for (final kind in const <String>{
         'app.get',
         'target.get',
+        'target.inspect',
         'session.remote.get',
         'session.remote.status',
         'snapshot.remote.read',

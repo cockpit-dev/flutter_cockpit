@@ -110,10 +110,11 @@ dart run cockpit suite report --run-id <runId>
 ```
 
 Register installed native applications and other system-controlled surfaces as
-workspace-owned targets. Each case supplies its platform app/package id in the
-target requirements. Android uses ADB accessibility and device controls. iOS
-uses WebDriverAgent for accessibility and interaction; assign a distinct WDA
-endpoint when multiple devices or workspaces run concurrently.
+workspace-owned targets. Put the stable platform app/package id on the target;
+a case may override it in its target requirements when necessary. Android uses
+ADB accessibility and device controls. iOS uses WebDriverAgent for
+accessibility and interaction; assign a distinct WDA endpoint when multiple
+devices or workspaces run concurrently.
 
 ```bash
 dart run cockpit target register \
@@ -121,6 +122,7 @@ dart run cockpit target register \
   --platform android \
   --device-id emulator-5554 \
   --target-kind nativeApp \
+  --app-id com.example.app \
   --environment test \
   --mode automation \
   --idempotency-key android-target-001
@@ -130,11 +132,15 @@ dart run cockpit target register \
   --platform ios \
   --device-id <deviceUdid> \
   --target-kind nativeApp \
+  --app-id com.example.app \
   --wda-url http://127.0.0.1:8101 \
   --environment test \
   --mode automation \
   --idempotency-key ios-target-001
 ```
+
+Use `target list` and `target get` to recover registered resources, `target
+launch` to activate one, and `target inspect` to read its live capabilities.
 
 Case `setup`, main steps, `finally`, and suite fixtures can use `type: system`
 with an advertised system action name and parameters. This keeps install,

@@ -224,6 +224,31 @@ final class CockpitSupervisorApiClient {
     );
   }
 
+  Future<List<CockpitAutomationTargetResource>> targets(String workspaceId) =>
+      _allPages(
+        '/api/v2/workspaces/${_segment(workspaceId)}/targets',
+        (value, path, policy) => CockpitAutomationTargetResource.fromJson(
+          value,
+          path: path,
+          decodePolicy: policy,
+        ),
+      );
+
+  Future<CockpitAutomationTargetResource> target(
+    String workspaceId,
+    String targetId,
+  ) async {
+    final session = await _ensureSession();
+    return CockpitAutomationTargetResource.fromJson(
+      await _jsonRequest(
+        session,
+        'GET',
+        '/api/v2/workspaces/${_segment(workspaceId)}/targets/${_segment(targetId)}',
+      ),
+      decodePolicy: session.decodePolicy,
+    );
+  }
+
   Future<List<CockpitOperationDescriptor>> operations({String? workspaceId}) =>
       _allPages(
         workspaceId == null

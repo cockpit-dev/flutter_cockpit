@@ -73,6 +73,8 @@ Map<String, Object?> buildFoundationOpenApi() => <String, Object?>{
         'WorkspaceRebind',
         'WorkspaceRemoval',
         'WorkspaceResource',
+        'AutomationTargetPage',
+        'AutomationTargetResource',
         'DocumentPage',
         'DocumentValidationRequest',
         'DocumentValidationResult',
@@ -97,10 +99,7 @@ Map<String, Object?> buildFoundationOpenApi() => <String, Object?>{
   'x-cockpit-json-maximum-depth': cockpitFoundationJsonMaximumDepth,
   'x-cockpit-json-maximum-nodes': cockpitFoundationJsonMaximumNodes,
   'x-cockpit-cors': 'deny',
-  'x-cockpit-deferred-capabilities': <String>[
-    'nativeBlackBoxDriver',
-    'aiExploration',
-  ],
+  'x-cockpit-deferred-capabilities': <String>['aiExploration'],
   'x-cockpit-error-statuses': <String, Object?>{
     '400': <String>['invalidInput'],
     '401': <String>['authenticationRequired'],

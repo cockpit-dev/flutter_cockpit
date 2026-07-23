@@ -745,8 +745,12 @@ final class CockpitWorkerInteractiveOperations {
         CockpitSystemControlActionRequest(
           platform: target.registration.platform,
           deviceId: target.registration.deviceId,
-          appId: app?.handle.platformAppId,
+          appId: app?.handle.platformAppId ?? target.registration.appId,
           processId: app?.handle.processId,
+          metadata: <String, Object?>{
+            if (target.registration.wdaUrl != null)
+              'wdaUrl': target.registration.wdaUrl,
+          },
           action: action,
           parameters: preparedParameters.parameters,
           timeout: boundedWorkerDuration(

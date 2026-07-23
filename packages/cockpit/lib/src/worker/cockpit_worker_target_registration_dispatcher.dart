@@ -9,6 +9,7 @@ import 'cockpit_worker_document_index.dart';
 import 'cockpit_worker_operation_journal.dart';
 import 'cockpit_worker_operation_router.dart';
 import 'cockpit_worker_resource_grant.dart';
+import 'cockpit_worker_resource_identity.dart';
 import 'cockpit_worker_runtime_registry.dart';
 import 'cockpit_worker_value_reader.dart';
 import 'cockpit_workspace_operation_registry.dart';
@@ -50,7 +51,13 @@ final class CockpitWorkerTargetRegistrationDispatcher
         prepare: (context, input) async {
           final registration = await _registration(input);
           return CockpitPreparedWorkspaceOperation(
-            resources: const <CockpitWorkerResourceRequest>[],
+            resources: <CockpitWorkerResourceRequest>[
+              CockpitWorkerResourceRequest(
+                resourceKind: CockpitLeaseResourceKind.workspaceMutation,
+                resourceId: cockpitCanonicalWorkspaceResourceId(workspaceId),
+                ttl: _grantTtl(context.deadline),
+              ),
+            ],
             execute: (_) async => <String, Object?>{
               'targetId': await _registrar.registerTarget(registration),
             },
@@ -151,6 +158,7 @@ final class CockpitWorkerTargetRegistrationDispatcher
         'deviceId',
         'entrypointDocumentId',
         'flavor',
+        'appId',
         'wdaUrl',
         'targetKind',
         'mode',
@@ -188,6 +196,9 @@ final class CockpitWorkerTargetRegistrationDispatcher
       flavor: input['flavor'] == null
           ? null
           : workerString(input['flavor'], r'$.input.flavor', maximum: 128),
+      appId: input['appId'] == null
+          ? null
+          : workerString(input['appId'], r'$.input.appId', maximum: 512),
       wdaUrl: input['wdaUrl'] == null
           ? null
           : workerString(input['wdaUrl'], r'$.input.wdaUrl', maximum: 2048),
@@ -207,6 +218,16 @@ final class CockpitWorkerTargetRegistrationDispatcher
         CockpitTestTargetEnvironment.unknown,
       ),
     );
+  }
+
+  Duration _grantTtl(DateTime deadline) {
+    final remaining = deadline.difference(_utcNow());
+    if (remaining < const Duration(seconds: 1)) {
+      return const Duration(seconds: 1);
+    }
+    return remaining > const Duration(minutes: 5)
+        ? const Duration(minutes: 5)
+        : remaining;
   }
 }
 

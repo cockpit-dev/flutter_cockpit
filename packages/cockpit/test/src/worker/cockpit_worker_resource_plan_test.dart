@@ -78,7 +78,7 @@ void main() {
         input: <String, Object?>{'appId': first.appId},
       );
       final targetReadPlan = await registry.resolveApplicationResourcePlan(
-        kind: 'target.get',
+        kind: 'target.inspect',
         input: <String, Object?>{'targetId': targetA},
       );
 

@@ -103,10 +103,11 @@ dart run cockpit suite run \
 dart run cockpit suite report --run-id <runId>
 ```
 
-已安装原生应用和其他 system-controlled surface 通过 workspace target 注册；case 的
-target requirements 提供平台 app/package id。Android 使用 ADB accessibility 与设备
-控制，iOS 使用 WebDriverAgent 完成 accessibility 和交互。多设备或多 workspace 并发
-时，应为每个 target 分配独立 WDA endpoint。
+已安装原生应用和其他 system-controlled surface 通过 workspace target 注册；稳定的
+平台 app/package id 直接放在 target 上，必要时 case 的 target requirements 可以覆盖。
+Android 使用 ADB accessibility 与设备控制，iOS 使用 WebDriverAgent 完成
+accessibility 和交互。多设备或多 workspace 并发时，应为每个 target 分配独立 WDA
+endpoint。
 
 ```bash
 dart run cockpit target register \
@@ -114,6 +115,7 @@ dart run cockpit target register \
   --platform android \
   --device-id emulator-5554 \
   --target-kind nativeApp \
+  --app-id com.example.app \
   --environment test \
   --mode automation \
   --idempotency-key android-target-001
@@ -123,11 +125,15 @@ dart run cockpit target register \
   --platform ios \
   --device-id <deviceUdid> \
   --target-kind nativeApp \
+  --app-id com.example.app \
   --wda-url http://127.0.0.1:8101 \
   --environment test \
   --mode automation \
   --idempotency-key ios-target-001
 ```
+
+使用 `target list` 和 `target get` 恢复已注册资源，使用 `target launch` 激活 target，
+使用 `target inspect` 读取实时能力。
 
 case 的 `setup`、主步骤、`finally` 及 suite fixture 都可以使用 `type: system` 与
 capability 已公开的 action/parameters，使安装、激活、权限、设备状态和清理共用同一套

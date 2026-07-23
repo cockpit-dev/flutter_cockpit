@@ -8,6 +8,7 @@ import 'cockpit_cli_runtime.dart';
 import 'commands/daemon_commands.dart';
 import 'commands/resource_commands.dart';
 import 'commands/run_commands.dart';
+import 'commands/serve_mcp_command.dart';
 
 export 'cockpit_cli_runtime.dart'
     show
@@ -37,6 +38,7 @@ final class CockpitCommandRunner {
       ..addCommand(CockpitSuiteCommand(this.runtime))
       ..addCommand(CockpitRunCommand(this.runtime))
       ..addCommand(CockpitArtifactCommand(this.runtime));
+    _runner.addCommand(CockpitServeMcpCommand());
   }
 
   final CockpitCliRuntime runtime;

@@ -65,6 +65,7 @@ final class CockpitWorkerTargetRegistration {
     this.entrypoint,
     this.entrypointSha256,
     this.flavor,
+    this.appId,
     this.wdaUrl,
     this.targetKind = CockpitTargetKind.flutterApp,
     this.mode = CockpitAppMode.development,
@@ -77,6 +78,7 @@ final class CockpitWorkerTargetRegistration {
   final String? entrypoint;
   final String? entrypointSha256;
   final String? flavor;
+  final String? appId;
   final String? wdaUrl;
   final CockpitTargetKind targetKind;
   final CockpitAppMode mode;
@@ -273,6 +275,35 @@ final class CockpitWorkerRuntimeRegistry
     return target;
   });
 
+  Future<List<CockpitWorkerTargetBinding>> listTargets() => _locked(() async {
+    await _ensureLoaded();
+    final result = _targets.values.toList(growable: false)
+      ..sort((left, right) => left.targetId.compareTo(right.targetId));
+    return List<CockpitWorkerTargetBinding>.unmodifiable(result);
+  });
+
+  Future<CockpitWorkerTargetBinding> readTarget(String targetId) =>
+      _locked(() async {
+        await _ensureLoaded();
+        workerId(targetId, r'$.targetId');
+        return _targets[targetId] ??
+            (throw _unknownReference('target', targetId));
+      });
+
+  Future<Map<String, String>> latestSessionIdsByTarget() => _locked(() async {
+    await _ensureLoaded();
+    final latest = <String, CockpitWorkerSessionBinding>{};
+    for (final session in _sessions.values) {
+      final current = latest[session.targetId];
+      if (current == null || session.updatedAt.isAfter(current.updatedAt)) {
+        latest[session.targetId] = session;
+      }
+    }
+    return Map<String, String>.unmodifiable(<String, String>{
+      for (final entry in latest.entries) entry.key: entry.value.sessionId,
+    });
+  });
+
   @override
   Future<CockpitWorkerApplicationResourcePlan> resolveApplicationResourcePlan({
     required String kind,
@@ -286,6 +317,9 @@ final class CockpitWorkerRuntimeRegistry
       await _validateTargetEntrypointCurrent(target.registration);
       return CockpitWorkerApplicationResourcePlan(
         primaryResourceId: target.deviceResourceId,
+        requiresPort:
+            kind != 'target.launch' ||
+            target.registration.targetKind == CockpitTargetKind.flutterApp,
       );
     }
     if (kind == 'app.stop' || kind == 'app.get') {
@@ -470,7 +504,9 @@ final class CockpitWorkerRuntimeRegistry
 
   Future<void> removeApp(String appId) => _locked(() async {
     await _ensureLoaded();
-    if (_apps.remove(appId) == null) throw _unknownReference('app', appId);
+    final app = _apps.remove(appId);
+    if (app == null) throw _unknownReference('app', appId);
+    _clearTargetHandleForApp(app);
     final sessionIds = <String>{
       for (final binding in _sessions.values)
         if (binding.appId == appId) binding.sessionId,
@@ -524,6 +560,9 @@ final class CockpitWorkerRuntimeRegistry
       for (final binding in _recordings.values)
         if (sessionIds.contains(binding.sessionId)) binding.recordingId,
     };
+    for (final app in _apps.values) {
+      if (appIds.contains(app.appId)) _clearTargetHandleForApp(app);
+    }
     _apps.removeWhere((id, _) => appIds.contains(id));
     _sessions.removeWhere((id, _) => sessionIds.contains(id));
     _recordings.removeWhere(
@@ -958,7 +997,10 @@ final class CockpitWorkerRuntimeRegistry
               .toList(growable: false)
             ..sort((left, right) => right.updatedAt.compareTo(left.updatedAt));
       final app = appMatches.firstOrNull;
-      final platformAppId = requirements.appId ?? app?.handle.platformAppId;
+      final platformAppId =
+          requirements.appId ??
+          candidate.registration.appId ??
+          app?.handle.platformAppId;
       if (_targetKindRequiresAppId(candidate.registration.targetKind) &&
           (platformAppId == null || platformAppId.trim().isEmpty)) {
         continue;
@@ -1241,12 +1283,43 @@ final class CockpitWorkerRuntimeRegistry
     );
   }
 
+  void _clearTargetHandleForApp(CockpitWorkerAppBinding app) {
+    final target = _targets[app.targetId];
+    final handle = target?.handle;
+    if (target == null ||
+        handle == null ||
+        handle.metadata['appId'] != app.handle.appId) {
+      return;
+    }
+    _targets[target.targetId] = CockpitWorkerTargetBinding(
+      targetId: target.targetId,
+      deviceResourceId: target.deviceResourceId,
+      projectDir: target.projectDir,
+      registration: target.registration,
+    );
+  }
+
   void _validateRegistration(CockpitWorkerTargetRegistration registration) {
     _requireWorkspace(registration.workspaceId);
     workerString(registration.platform, r'$.platform', maximum: 32);
     workerString(registration.deviceId, r'$.deviceId', maximum: 512);
     if (registration.flavor != null) {
       workerString(registration.flavor, r'$.flavor', maximum: 256);
+    }
+    final appId = registration.appId;
+    if (appId != null) {
+      workerString(appId, r'$.appId', maximum: 512);
+      if (appId.trim().isEmpty) {
+        throw const CockpitApplicationServiceException(
+          code: 'targetAppIdInvalid',
+          message: 'Target appId must not be blank.',
+        );
+      }
+    } else if (_targetKindRequiresAppId(registration.targetKind)) {
+      throw const CockpitApplicationServiceException(
+        code: 'targetAppIdRequired',
+        message: 'Target kind requires an appId.',
+      );
     }
     if (registration.wdaUrl case final wdaUrl?) {
       workerString(wdaUrl, r'$.wdaUrl', maximum: 2048);
@@ -1292,6 +1365,7 @@ final class CockpitWorkerRuntimeRegistry
   Future<void> _validateTargetEntrypointCurrent(
     CockpitWorkerTargetRegistration registration,
   ) async {
+    if (registration.targetKind != CockpitTargetKind.flutterApp) return;
     final relative = registration.entrypoint;
     final expectedSha256 = registration.entrypointSha256;
     if (relative == null || expectedSha256 == null) return;
@@ -1837,6 +1911,7 @@ final class CockpitWorkerRuntimeRegistry
           'entrypoint',
           'entrypointSha256',
           'flavor',
+          'appId',
           'wdaUrl',
           'targetKind',
           'mode',
@@ -1881,6 +1956,11 @@ final class CockpitWorkerRuntimeRegistry
           registrationJson['flavor'],
           '$path.registration.flavor',
           maximum: 256,
+        ),
+        appId: _optionalString(
+          registrationJson['appId'],
+          '$path.registration.appId',
+          maximum: 512,
         ),
         wdaUrl: _optionalString(
           registrationJson['wdaUrl'],
@@ -2755,6 +2835,7 @@ Map<String, Object?> _encodeTarget(
       'entrypointSha256': binding.registration.entrypointSha256,
     if (binding.registration.flavor != null)
       'flavor': binding.registration.flavor,
+    if (binding.registration.appId != null) 'appId': binding.registration.appId,
     if (binding.registration.wdaUrl != null)
       'wdaUrl': binding.registration.wdaUrl,
     'targetKind': binding.registration.targetKind.name,
@@ -2812,7 +2893,7 @@ Map<String, Object?> _encodeArtifact(CockpitWorkerArtifactBinding binding) =>
     };
 
 const Set<String> _targetResourceKinds = <String>{
-  'target.get',
+  'target.inspect',
   'app.launch',
   'target.launch',
   'session.remote.launch',

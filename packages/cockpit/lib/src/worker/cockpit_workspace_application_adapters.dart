@@ -24,6 +24,7 @@ final class CockpitWorkerApplicationResourcePlan {
   CockpitWorkerApplicationResourcePlan({
     required this.primaryResourceId,
     this.deviceResourceId,
+    this.requiresPort = true,
   }) {
     workerString(primaryResourceId, r'$.primaryResourceId', maximum: 512);
     if (deviceResourceId != null) {
@@ -38,6 +39,7 @@ final class CockpitWorkerApplicationResourcePlan {
 
   final String primaryResourceId;
   final String? deviceResourceId;
+  final bool requiresPort;
 }
 
 final class CockpitWorkspaceApplicationAdapters {
@@ -63,9 +65,15 @@ final class CockpitWorkspaceApplicationAdapters {
       idField: 'appId',
     ),
     const _OperationSpec.leasedRead(
-      'target.get',
+      'target.inspect',
       'workspace.target',
       CockpitLeaseResourceKind.device,
+      idField: 'targetId',
+    ),
+    const _OperationSpec.read('target.list', 'workspace.targets'),
+    const _OperationSpec.read(
+      'target.get',
+      'workspace.target',
       idField: 'targetId',
     ),
     const _OperationSpec.mutate(
@@ -295,7 +303,7 @@ final class CockpitWorkspaceApplicationAdapters {
             resources: resourcePlan == null
                 ? const <CockpitWorkerResourceRequest>[]
                 : <CockpitWorkerResourceRequest>[
-                    if (spec.requiresPort)
+                    if (spec.requiresPort && resourcePlan.requiresPort)
                       CockpitWorkerResourceRequest(
                         resourceKind: CockpitLeaseResourceKind.forwardedPort,
                         resourceId:

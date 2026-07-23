@@ -353,7 +353,7 @@ final class CockpitSupervisorRuntime {
     authorization.authorizeOperation(metadata, invocation);
     final submittedAt = DateTime.now().toUtc();
     final output = switch (invocation.kind) {
-      'target.list' => await _listTargets(invocation.input),
+      'target.discover' => await _discoverTargets(invocation.input),
       'system.capabilities' => await _systemCapabilities(invocation.input),
       'system.diagnostics' => await _systemDiagnostics(invocation.input),
       'project.create' => await _createRootProject(invocation),
@@ -518,6 +518,7 @@ final class CockpitSupervisorRuntime {
         deadline: _deadline(),
       ),
     );
+    _throwIfWorkspaceOperationFailed(result);
     final raw = result.output?['documents'];
     if (raw is! List<Object?>) {
       throw const FormatException('Invalid document index.');
@@ -541,6 +542,48 @@ final class CockpitSupervisorRuntime {
     ];
   }
 
+  Future<List<CockpitAutomationTargetResource>> targets(
+    String workspaceId,
+  ) async {
+    final result = await executeWorkspaceOperation(
+      workspaceId,
+      CockpitOperationInvocation(
+        kind: 'target.list',
+        workspaceId: workspaceId,
+        deadline: _deadline(),
+      ),
+    );
+    _throwIfWorkspaceOperationFailed(result);
+    final raw = result.output?['targets'];
+    if (raw is! List<Object?>) {
+      throw const FormatException('Invalid target index.');
+    }
+    return <CockpitAutomationTargetResource>[
+      for (var index = 0; index < raw.length; index += 1)
+        CockpitAutomationTargetResource.fromJson(
+          raw[index],
+          path: '\$.targets[$index]',
+        ),
+    ];
+  }
+
+  Future<CockpitAutomationTargetResource> target(
+    String workspaceId,
+    String targetId,
+  ) async {
+    final result = await executeWorkspaceOperation(
+      workspaceId,
+      CockpitOperationInvocation(
+        kind: 'target.get',
+        workspaceId: workspaceId,
+        deadline: _deadline(),
+        input: <String, Object?>{'targetId': targetId},
+      ),
+    );
+    _throwIfWorkspaceOperationFailed(result);
+    return CockpitAutomationTargetResource.fromJson(result.output?['target']);
+  }
+
   Future<CockpitDocumentValidationResult> validateDocument(
     String workspaceId,
     CockpitDocumentValidationRequest request,
@@ -554,7 +597,19 @@ final class CockpitSupervisorRuntime {
         input: request.toJson(),
       ),
     );
+    _throwIfWorkspaceOperationFailed(result);
     return CockpitDocumentValidationResult.fromJson(result.output);
+  }
+
+  void _throwIfWorkspaceOperationFailed(CockpitOperationResult result) {
+    if (result.outcome == CockpitOperationOutcome.succeeded) return;
+    final failure = result.failure;
+    if (failure != null) throw CockpitApiException(failure.primary);
+    throw _apiError(
+      CockpitErrorCode.internalError,
+      CockpitErrorCategory.internal,
+      'Workspace operation completed without a valid result.',
+    );
   }
 
   Future<CockpitRunAccepted> submitRun(CockpitRunSubmission submission) async {
@@ -877,7 +932,9 @@ final class CockpitSupervisorRuntime {
     return matches.single.sequence;
   }
 
-  Future<Map<String, Object?>> _listTargets(Map<String, Object?> input) async {
+  Future<Map<String, Object?>> _discoverTargets(
+    Map<String, Object?> input,
+  ) async {
     _requireKeys(input, const <String>{'timeoutMs'});
     final timeoutMs = _optionalInteger(
       input,
@@ -1376,6 +1433,18 @@ final _resourceDescriptors = <CockpitResourceDescriptor>[
     kind: 'workspace.documents',
     scope: CockpitOperationScope.workspace,
     uriTemplate: '/api/v2/workspaces/{workspaceId}/documents',
+    mediaType: 'application/json',
+  ),
+  CockpitResourceDescriptor(
+    kind: 'workspace.targets',
+    scope: CockpitOperationScope.workspace,
+    uriTemplate: '/api/v2/workspaces/{workspaceId}/targets',
+    mediaType: 'application/json',
+  ),
+  CockpitResourceDescriptor(
+    kind: 'workspace.target',
+    scope: CockpitOperationScope.workspace,
+    uriTemplate: '/api/v2/workspaces/{workspaceId}/targets/{targetId}',
     mediaType: 'application/json',
   ),
   CockpitResourceDescriptor(

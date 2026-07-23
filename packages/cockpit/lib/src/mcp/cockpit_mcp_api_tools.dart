@@ -133,6 +133,94 @@ List<CockpitMcpTool> _executionTools(
 ) => <CockpitMcpTool>[
   _CockpitApiTool(
     client: client,
+    name: 'target_discover',
+    description: 'Discover locally available launch targets.',
+    inputSchema: _schema(
+      properties: <String, Object?>{
+        'timeoutMs': _integer(minimum: 1, maximum: 300000),
+      },
+    ),
+    action: (api, arguments) async {
+      _only(arguments, const <String>{'timeoutMs'});
+      return (await api.executeOperation(
+        CockpitOperationInvocation(
+          kind: 'target.discover',
+          input: <String, Object?>{
+            if (_optionalInt(arguments, 'timeoutMs') != null)
+              'timeoutMs': _requiredInt(arguments, 'timeoutMs'),
+          },
+        ),
+      )).toJson();
+    },
+  ),
+  _CockpitApiTool(
+    client: client,
+    name: 'target_list',
+    description: 'List registered targets for an explicit workspace.',
+    inputSchema: _schema(
+      properties: <String, Object?>{'workspaceId': _string()},
+      required: const <String>['workspaceId'],
+    ),
+    action: (api, arguments) async {
+      _only(arguments, const <String>{'workspaceId'});
+      return <String, Object?>{
+        'items': (await api.targets(
+          _requiredString(arguments, 'workspaceId'),
+        )).map((target) => target.toJson()).toList(),
+      };
+    },
+  ),
+  _CockpitApiTool(
+    client: client,
+    name: 'target_get',
+    description: 'Read one registered workspace automation target.',
+    inputSchema: _schema(
+      properties: <String, Object?>{
+        'workspaceId': _string(),
+        'targetId': _string(),
+      },
+      required: const <String>['workspaceId', 'targetId'],
+    ),
+    action: (api, arguments) async {
+      _only(arguments, const <String>{'workspaceId', 'targetId'});
+      return (await api.target(
+        _requiredString(arguments, 'workspaceId'),
+        _requiredString(arguments, 'targetId'),
+      )).toJson();
+    },
+  ),
+  _CockpitApiTool(
+    client: client,
+    name: 'target_inspect',
+    description: 'Inspect live capabilities and state for a target.',
+    inputSchema: _schema(
+      properties: <String, Object?>{
+        'workspaceId': _string(),
+        'targetId': _string(),
+        'profile': const <String, Object?>{
+          'type': 'string',
+          'enum': <String>['minimal', 'standard', 'inspect', 'evidence'],
+        },
+      },
+      required: const <String>['workspaceId', 'targetId'],
+    ),
+    action: (api, arguments) async {
+      _only(arguments, const <String>{'workspaceId', 'targetId', 'profile'});
+      return (await api.executeOperation(
+        CockpitOperationInvocation(
+          kind: 'target.inspect',
+          workspaceId: _requiredString(arguments, 'workspaceId'),
+          input: <String, Object?>{
+            'targetId': _requiredString(arguments, 'targetId'),
+            if (_optionalString(arguments, 'profile') != null)
+              'profile': _requiredString(arguments, 'profile'),
+          },
+        ),
+      )).toJson();
+    },
+  ),
+  _CockpitApiTool(
+    client: client,
     name: 'target_register',
     description: 'Register a workspace-owned native or host automation target.',
     inputSchema: _schema(
@@ -140,11 +228,20 @@ List<CockpitMcpTool> _executionTools(
         'workspaceId': _string(),
         'platform': _string(),
         'deviceId': _string(),
-        'targetKind': _string(),
+        'targetKind': _enumString(const <String>[
+          'flutterApp',
+          'nativeApp',
+          'desktopApp',
+          'browserPage',
+          'systemSurface',
+          'device',
+          'hostWorkspace',
+        ]),
         'environment': _string(),
         'mode': _string(),
         'entrypointDocumentId': _string(),
         'flavor': _string(),
+        'appId': _nonBlankString(),
         'wdaUrl': _string(),
         'idempotencyKey': _string(),
       },
@@ -152,8 +249,25 @@ List<CockpitMcpTool> _executionTools(
         'workspaceId',
         'platform',
         'deviceId',
+        'targetKind',
         'idempotencyKey',
       ],
+      extra: <String, Object?>{
+        'allOf': <Object?>[
+          <String, Object?>{
+            'if': <String, Object?>{
+              'properties': <String, Object?>{
+                'targetKind': <String, Object?>{
+                  'enum': <String>['nativeApp', 'desktopApp', 'browserPage'],
+                },
+              },
+            },
+            'then': <String, Object?>{
+              'required': <String>['appId'],
+            },
+          },
+        ],
+      },
     ),
     action: (api, arguments) async {
       _only(arguments, const <String>{
@@ -165,9 +279,20 @@ List<CockpitMcpTool> _executionTools(
         'mode',
         'entrypointDocumentId',
         'flavor',
+        'appId',
         'wdaUrl',
         'idempotencyKey',
       });
+      final targetKind = _requiredString(arguments, 'targetKind');
+      final appId = _optionalString(arguments, 'appId');
+      if (const <String>{
+            'nativeApp',
+            'desktopApp',
+            'browserPage',
+          }.contains(targetKind) &&
+          appId == null) {
+        throw CockpitMcpError.invalidArguments('$targetKind requires appId.');
+      }
       return (await api.executeOperation(
         CockpitOperationInvocation(
           kind: 'target.register',
@@ -178,8 +303,7 @@ List<CockpitMcpTool> _executionTools(
           input: <String, Object?>{
             'platform': _requiredString(arguments, 'platform'),
             'deviceId': _requiredString(arguments, 'deviceId'),
-            'targetKind':
-                _optionalString(arguments, 'targetKind') ?? 'nativeApp',
+            'targetKind': targetKind,
             'environment':
                 _optionalString(arguments, 'environment') ?? 'unknown',
             'mode': _optionalString(arguments, 'mode') ?? 'automation',
@@ -190,8 +314,52 @@ List<CockpitMcpTool> _executionTools(
               ),
             if (_optionalString(arguments, 'flavor') != null)
               'flavor': _requiredString(arguments, 'flavor'),
+            'appId': ?appId,
             if (_optionalString(arguments, 'wdaUrl') != null)
               'wdaUrl': _requiredString(arguments, 'wdaUrl'),
+          },
+        ),
+      )).toJson();
+    },
+  ),
+  _CockpitApiTool(
+    client: client,
+    name: 'target_launch',
+    description: 'Launch or activate one registered automation target.',
+    inputSchema: _schema(
+      properties: <String, Object?>{
+        'workspaceId': _string(),
+        'targetId': _string(),
+        'mode': const <String, Object?>{
+          'type': 'string',
+          'enum': <String>['development', 'automation'],
+        },
+        'launchTimeoutMs': _integer(minimum: 1, maximum: 600000),
+        'idempotencyKey': _string(),
+      },
+      required: const <String>['workspaceId', 'targetId', 'idempotencyKey'],
+    ),
+    action: (api, arguments) async {
+      _only(arguments, const <String>{
+        'workspaceId',
+        'targetId',
+        'mode',
+        'launchTimeoutMs',
+        'idempotencyKey',
+      });
+      return (await api.executeOperation(
+        CockpitOperationInvocation(
+          kind: 'target.launch',
+          workspaceId: _requiredString(arguments, 'workspaceId'),
+          idempotencyKey: CockpitIdempotencyKey(
+            _requiredString(arguments, 'idempotencyKey'),
+          ),
+          input: <String, Object?>{
+            'targetId': _requiredString(arguments, 'targetId'),
+            if (_optionalString(arguments, 'mode') != null)
+              'mode': _requiredString(arguments, 'mode'),
+            if (_optionalInt(arguments, 'launchTimeoutMs') != null)
+              'launchTimeoutMs': _requiredInt(arguments, 'launchTimeoutMs'),
           },
         ),
       )).toJson();
@@ -622,18 +790,30 @@ final class _CockpitApiTool extends CockpitMcpTool {
 Map<String, Object?> _schema({
   required Map<String, Object?> properties,
   List<String> required = const <String>[],
+  Map<String, Object?> extra = const <String, Object?>{},
 }) => <String, Object?>{
   r'$schema': 'https://json-schema.org/draft/2020-12/schema',
   'type': 'object',
   'properties': properties,
   'required': required,
   'additionalProperties': false,
+  ...extra,
 };
 
 Map<String, Object?> _string() => const <String, Object?>{
   'type': 'string',
   'minLength': 1,
   'maxLength': 1048576,
+};
+
+Map<String, Object?> _nonBlankString() => <String, Object?>{
+  ..._string(),
+  'pattern': r'\S',
+};
+
+Map<String, Object?> _enumString(List<String> values) => <String, Object?>{
+  ..._string(),
+  'enum': values,
 };
 
 Map<String, Object?> _sha256Schema() => const <String, Object?>{

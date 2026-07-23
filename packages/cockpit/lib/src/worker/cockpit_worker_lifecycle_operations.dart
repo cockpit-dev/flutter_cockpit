@@ -1,4 +1,5 @@
 import 'package:cockpit_protocol/cockpit_protocol.dart';
+import 'package:path/path.dart' as p;
 
 import '../application/cockpit_app_handle.dart';
 import '../application/cockpit_application_service_exception.dart';
@@ -15,6 +16,8 @@ import '../development/cockpit_development_probe.dart';
 import '../development/cockpit_development_session_handle.dart';
 import '../development/cockpit_development_session_status.dart';
 import '../session/cockpit_flutter_launch_configuration.dart';
+import '../system_control/cockpit_system_control_action_service.dart';
+import '../system_control/cockpit_system_control_service.dart';
 import '../targets/cockpit_target_handle.dart';
 import 'cockpit_worker_application_support.dart';
 import 'cockpit_worker_development_session_runtime.dart';
@@ -37,6 +40,8 @@ final class CockpitWorkerLifecycleOperations {
     CockpitReadTargetService? readTargetService,
     CockpitCollectDevelopmentProbeService? collectProbeService,
     CockpitCompareDevelopmentProbeService? compareProbeService,
+    CockpitSystemControlService? systemControlService,
+    CockpitSystemControlActionService? systemActionService,
   }) : _registry = registry,
        _targets = targets,
        _portHandoff = portHandoff,
@@ -51,12 +56,20 @@ final class CockpitWorkerLifecycleOperations {
        _collectProbe =
            collectProbeService ?? CockpitCollectDevelopmentProbeService(),
        _compareProbe =
-           compareProbeService ?? const CockpitCompareDevelopmentProbeService();
+           compareProbeService ??
+           const CockpitCompareDevelopmentProbeService() {
+    _systemControl = systemControlService ?? CockpitSystemControlService();
+    _systemAction =
+        systemActionService ??
+        CockpitSystemControlActionService(systemControlService: _systemControl);
+  }
 
   static const Set<String> kinds = <String>{
     'app.list',
     'app.get',
+    'target.list',
     'target.get',
+    'target.inspect',
     'app.launch',
     'target.launch',
     'app.stop',
@@ -80,6 +93,8 @@ final class CockpitWorkerLifecycleOperations {
   final CockpitReadTargetService _readTarget;
   final CockpitCollectDevelopmentProbeService _collectProbe;
   final CockpitCompareDevelopmentProbeService _compareProbe;
+  late final CockpitSystemControlService _systemControl;
+  late final CockpitSystemControlActionService _systemAction;
 
   Future<Map<String, Object?>> execute({
     required String kind,
@@ -90,7 +105,9 @@ final class CockpitWorkerLifecycleOperations {
   }) => switch (kind) {
     'app.list' => _listApps(input),
     'app.get' => _getApp(input, context, grants, sanitizer),
-    'target.get' => _getTarget(input, context, grants, sanitizer),
+    'target.list' => _listTargets(input),
+    'target.get' => _getTargetResource(input),
+    'target.inspect' => _inspectTarget(input, context, grants, sanitizer),
     'app.launch' => _launchApplication(input, context, grants, sanitizer),
     'target.launch' => _launchTargetOperation(
       input,
@@ -155,6 +172,34 @@ final class CockpitWorkerLifecycleOperations {
     };
   }
 
+  Future<Map<String, Object?>> _listTargets(Map<String, Object?> input) async {
+    CockpitWorkerApplicationInput(input, allowed: const <String>{});
+    final targets = await _registry.listTargets();
+    final sessionIds = await _registry.latestSessionIdsByTarget();
+    return <String, Object?>{
+      'targets': <Map<String, Object?>>[
+        for (final target in targets)
+          _targetResource(target, sessionIds[target.targetId]).toJson(),
+      ],
+    };
+  }
+
+  Future<Map<String, Object?>> _getTargetResource(
+    Map<String, Object?> input,
+  ) async {
+    final values = CockpitWorkerApplicationInput(
+      input,
+      allowed: const <String>{'targetId'},
+      required: const <String>{'targetId'},
+    );
+    final target = await _registry.readTarget(values.id('targetId'));
+    final sessionId = (await _registry
+        .latestSessionIdsByTarget())[target.targetId];
+    return <String, Object?>{
+      'target': _targetResource(target, sessionId).toJson(),
+    };
+  }
+
   Future<Map<String, Object?>> _getApp(
     Map<String, Object?> input,
     CockpitWorkspaceOperationContext context,
@@ -195,7 +240,7 @@ final class CockpitWorkerLifecycleOperations {
     );
   }
 
-  Future<Map<String, Object?>> _getTarget(
+  Future<Map<String, Object?>> _inspectTarget(
     Map<String, Object?> input,
     CockpitWorkspaceOperationContext context,
     List<CockpitWorkerResourceGrant> grants,
@@ -217,6 +262,29 @@ final class CockpitWorkerLifecycleOperations {
       resourceId: binding.deviceResourceId,
     );
     final handle = binding.handle;
+    if (handle == null &&
+        binding.registration.targetKind != CockpitTargetKind.flutterApp) {
+      final result = await runWorkerApplicationOperation(
+        context: context,
+        operation: () => _systemControl.describe(
+          CockpitSystemControlDescribeRequest(
+            platform: binding.registration.platform,
+            deviceId: binding.registration.deviceId,
+            appId: binding.registration.appId,
+            metadata: <String, Object?>{
+              if (binding.registration.wdaUrl != null)
+                'wdaUrl': binding.registration.wdaUrl,
+            },
+          ),
+        ),
+      );
+      return <String, Object?>{
+        'targetId': binding.targetId,
+        'targetKind': binding.registration.targetKind.name,
+        ...result.profile.toJson(),
+        'recommendedNextStep': result.recommendedNextStep,
+      };
+    }
     if (handle == null) {
       throw const CockpitApplicationServiceException(
         code: 'targetNotLaunched',
@@ -332,6 +400,49 @@ final class CockpitWorkerLifecycleOperations {
   ) async {
     final values = _launchInput(input);
     final target = await _launchTargetBinding(values, context, grants);
+    if (target.registration.targetKind != CockpitTargetKind.flutterApp) {
+      if (values.optionalString('mode', maximum: 32) != null) {
+        throw const FormatException(
+          'mode applies only to Flutter target launches.',
+        );
+      }
+      final result = await runWorkerApplicationOperation(
+        context: context,
+        operation: () => _systemAction.run(
+          CockpitSystemControlActionRequest(
+            platform: target.registration.platform,
+            deviceId: target.registration.deviceId,
+            appId: target.registration.appId,
+            metadata: <String, Object?>{
+              if (target.registration.wdaUrl != null)
+                'wdaUrl': target.registration.wdaUrl,
+            },
+            action: CockpitSystemControlAction.activateWindow,
+            timeout: _launchTimeout(
+              values,
+              context,
+              const Duration(seconds: 30),
+            ),
+          ),
+        ),
+      );
+      if (!result.success) {
+        throw CockpitApplicationServiceException(
+          code: result.errorCode ?? 'targetLaunchFailed',
+          message: result.errorMessage ?? 'System target activation failed.',
+          details: <String, Object?>{
+            'availability': result.availability.name,
+            'recommendedNextStep': result.recommendedNextStep,
+          },
+        );
+      }
+      return sanitizer.sanitize(<String, Object?>{
+        'targetId': target.targetId,
+        'targetKind': target.registration.targetKind.name,
+        'platform': target.registration.platform,
+        'activation': result.toJson(),
+      }, targetId: target.targetId);
+    }
     final mode = _appMode(values.optionalString('mode', maximum: 32), target);
     final timeout = _launchTimeout(values, context, const Duration(minutes: 2));
     final portGrant = requireForwardedPortGrant(
@@ -714,6 +825,30 @@ final class CockpitWorkerLifecycleOperations {
     'hot_restart' => CockpitDevelopmentReloadMode.hotRestart,
     _ => throw const FormatException('Invalid development reload mode.'),
   };
+
+  CockpitAutomationTargetResource _targetResource(
+    CockpitWorkerTargetBinding target,
+    String? sessionId,
+  ) => CockpitAutomationTargetResource(
+    targetId: target.targetId,
+    workspaceId: workspaceId,
+    platform: target.registration.platform,
+    deviceId: target.registration.deviceId,
+    targetKind: target.registration.targetKind,
+    mode: CockpitAutomationTargetMode.values.byName(
+      target.registration.mode.jsonValue,
+    ),
+    environment: CockpitAutomationTargetEnvironment.values.byName(
+      target.registration.environment.name,
+    ),
+    entrypoint: target.registration.entrypoint == null
+        ? null
+        : p.posix.joinAll(p.split(target.registration.entrypoint!)),
+    entrypointSha256: target.registration.entrypointSha256,
+    flavor: target.registration.flavor,
+    appId: target.registration.appId,
+    sessionId: sessionId,
+  );
 
   Future<CockpitLaunchDevelopmentSessionResult>
   _launchWorkerDevelopmentSession({

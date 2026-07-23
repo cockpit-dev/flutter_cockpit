@@ -102,6 +102,66 @@ Map<String, Object?> foundationResourceDefinitions() => <String, Object?>{
     'force': booleanSchema(),
     'drainTimeoutMs': integerSchema(minimum: 0, maximum: 300000),
   }),
+  'AutomationTargetResource': objectSchema(
+    <String, Object?>{
+      'targetId': schemaRef('Identifier'),
+      'workspaceId': schemaRef('Identifier'),
+      'platform': stringSchema(maxLength: 64),
+      'deviceId': stringSchema(maxLength: 256),
+      'targetKind': stringSchema(
+        values: const <String>[
+          'flutterApp',
+          'nativeApp',
+          'desktopApp',
+          'browserPage',
+          'systemSurface',
+          'device',
+          'hostWorkspace',
+        ],
+      ),
+      'mode': stringSchema(values: const <String>['development', 'automation']),
+      'environment': stringSchema(
+        values: const <String>[
+          'development',
+          'test',
+          'staging',
+          'production',
+          'unknown',
+        ],
+      ),
+      'entrypoint': schemaRef('RelativePath'),
+      'entrypointSha256': schemaRef('Sha256'),
+      'flavor': stringSchema(maxLength: 128),
+      'appId': stringSchema(pattern: r'\S', maxLength: 512),
+      'sessionId': schemaRef('Identifier'),
+    },
+    optional: const <String>{
+      'entrypoint',
+      'entrypointSha256',
+      'flavor',
+      'appId',
+      'sessionId',
+    },
+    extra: <String, Object?>{
+      'dependentRequired': <String, Object?>{
+        'entrypointSha256': <String>['entrypoint'],
+      },
+      'allOf': <Object?>[
+        <String, Object?>{
+          'if': <String, Object?>{
+            'properties': <String, Object?>{
+              'targetKind': <String, Object?>{
+                'enum': <String>['nativeApp', 'desktopApp', 'browserPage'],
+              },
+            },
+          },
+          'then': <String, Object?>{
+            'required': <String>['appId'],
+          },
+        },
+      ],
+    },
+  ),
   'SourceLocation': objectSchema(
     <String, Object?>{
       'line': integerSchema(minimum: 1),
@@ -208,6 +268,7 @@ Map<String, Object?> foundationResourceDefinitions() => <String, Object?>{
   ),
   'RootPage': pageSchema('RootResource'),
   'WorkspacePage': pageSchema('WorkspaceResource'),
+  'AutomationTargetPage': pageSchema('AutomationTargetResource'),
   'DocumentPage': pageSchema('DocumentResource'),
   'CasePage': pageSchema('CaseIndexEntry'),
   'ArtifactPage': pageSchema('ArtifactResource'),

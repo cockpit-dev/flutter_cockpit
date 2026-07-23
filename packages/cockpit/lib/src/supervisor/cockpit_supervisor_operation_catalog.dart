@@ -16,7 +16,7 @@ final class CockpitSupervisorOperationCatalog {
   static final Map<String, CockpitSupervisorOperationMetadata> _operations =
       Map<String, CockpitSupervisorOperationMetadata>.unmodifiable({
         for (final metadata in <CockpitSupervisorOperationMetadata>[
-          _read('target.list', CockpitOperationScope.supervisor),
+          _read('target.discover', CockpitOperationScope.supervisor),
           _read('system.capabilities', CockpitOperationScope.supervisor),
           _read('system.diagnostics', CockpitOperationScope.supervisor),
           _mutation(
@@ -49,7 +49,9 @@ final class CockpitSupervisorOperationCatalog {
           _read('package.uris.grep', CockpitOperationScope.workspace),
           _read('app.list', CockpitOperationScope.workspace),
           _read('app.get', CockpitOperationScope.workspace),
+          _read('target.list', CockpitOperationScope.workspace),
           _read('target.get', CockpitOperationScope.workspace),
+          _read('target.inspect', CockpitOperationScope.workspace),
           _mutation('target.register', CockpitOperationScope.workspace),
           _mutation(
             'app.launch',

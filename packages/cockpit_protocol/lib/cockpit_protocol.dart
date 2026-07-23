@@ -22,6 +22,7 @@ export 'src/errors/cockpit_command_error.dart';
 export 'src/executor/cockpit_command_executor.dart';
 export 'src/foundation/cockpit_api_error.dart';
 export 'src/foundation/cockpit_api_version.dart';
+export 'src/foundation/cockpit_automation_target.dart';
 export 'src/foundation/cockpit_capabilities.dart';
 export 'src/foundation/cockpit_decode_policy.dart';
 export 'src/foundation/cockpit_document.dart';

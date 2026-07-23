@@ -303,6 +303,63 @@ final class CockpitTargetCommand extends Command<int> {
   CockpitTargetCommand(this.runtime) {
     addSubcommand(
       CockpitLeafCommand(
+        name: 'discover',
+        description: 'Discover locally available launch targets.',
+        configure: (parser) => parser.addOption('timeout-ms'),
+        action: (arguments) async {
+          final timeoutMs = _optionalInteger(arguments, 'timeout-ms');
+          final result = await (await runtime.client()).executeOperation(
+            CockpitOperationInvocation(
+              kind: 'target.discover',
+              input: <String, Object?>{'timeoutMs': ?timeoutMs},
+            ),
+          );
+          runtime.success(result.toJson());
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'list',
+        description: 'List registered workspace automation targets.',
+        configure: (parser) => parser.addOption('workspace-id'),
+        action: (arguments) async {
+          final workspaceId = await runtime.workspaceId(
+            arguments.option('workspace-id'),
+          );
+          runtime.success(<String, Object?>{
+            'items': (await (await runtime.client()).targets(
+              workspaceId,
+            )).map((target) => target.toJson()).toList(),
+          });
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'get',
+        description: 'Read one registered workspace automation target.',
+        configure: (parser) => parser
+          ..addOption('workspace-id')
+          ..addOption('target-id', mandatory: true),
+        action: (arguments) async {
+          final workspaceId = await runtime.workspaceId(
+            arguments.option('workspace-id'),
+          );
+          runtime.success(
+            (await (await runtime.client()).target(
+              workspaceId,
+              arguments.option('target-id')!,
+            )).toJson(),
+          );
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+    addSubcommand(
+      CockpitLeafCommand(
         name: 'register',
         description: 'Register a workspace-owned automation target.',
         configure: (parser) => parser
@@ -320,6 +377,7 @@ final class CockpitTargetCommand extends Command<int> {
             'environment',
             allowed: const <String>[
               'development',
+              'test',
               'staging',
               'production',
               'unknown',
@@ -333,6 +391,10 @@ final class CockpitTargetCommand extends Command<int> {
           )
           ..addOption('entrypoint-document-id')
           ..addOption('flavor')
+          ..addOption(
+            'app-id',
+            help: 'Installed application or platform bundle identifier.',
+          )
           ..addOption(
             'wda-url',
             help: 'WebDriverAgent endpoint assigned to this iOS target.',
@@ -361,8 +423,84 @@ final class CockpitTargetCommand extends Command<int> {
                   ),
                 if (arguments.option('flavor') != null)
                   'flavor': arguments.option('flavor'),
+                if (arguments.option('app-id') != null)
+                  'appId': arguments.option('app-id'),
                 if (arguments.option('wda-url') != null)
                   'wdaUrl': arguments.option('wda-url'),
+              },
+            ),
+          );
+          runtime.success(result.toJson());
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'launch',
+        description: 'Launch or activate a registered automation target.',
+        configure: (parser) => parser
+          ..addOption('workspace-id')
+          ..addOption('target-id', mandatory: true)
+          ..addOption(
+            'mode',
+            allowed: const <String>['development', 'automation'],
+          )
+          ..addOption('launch-timeout-ms')
+          ..addOption('idempotency-key', mandatory: true),
+        action: (arguments) async {
+          final workspaceId = await runtime.workspaceId(
+            arguments.option('workspace-id'),
+          );
+          final timeoutMs = _optionalInteger(arguments, 'launch-timeout-ms');
+          final result = await (await runtime.client()).executeOperation(
+            CockpitOperationInvocation(
+              kind: 'target.launch',
+              workspaceId: workspaceId,
+              idempotencyKey: CockpitIdempotencyKey(
+                arguments.option('idempotency-key')!,
+              ),
+              input: <String, Object?>{
+                'targetId': arguments.option('target-id'),
+                if (arguments.option('mode') != null)
+                  'mode': arguments.option('mode'),
+                'launchTimeoutMs': ?timeoutMs,
+              },
+            ),
+          );
+          runtime.success(result.toJson());
+          return cockpitSuccessExitCode;
+        },
+      ),
+    );
+    addSubcommand(
+      CockpitLeafCommand(
+        name: 'inspect',
+        description: 'Inspect the live state of a registered target.',
+        configure: (parser) => parser
+          ..addOption('workspace-id')
+          ..addOption('target-id', mandatory: true)
+          ..addOption(
+            'profile',
+            allowed: const <String>[
+              'minimal',
+              'standard',
+              'inspect',
+              'evidence',
+            ],
+          ),
+        action: (arguments) async {
+          final workspaceId = await runtime.workspaceId(
+            arguments.option('workspace-id'),
+          );
+          final result = await (await runtime.client()).executeOperation(
+            CockpitOperationInvocation(
+              kind: 'target.inspect',
+              workspaceId: workspaceId,
+              input: <String, Object?>{
+                'targetId': arguments.option('target-id'),
+                if (arguments.option('profile') != null)
+                  'profile': arguments.option('profile'),
               },
             ),
           );
@@ -379,11 +517,19 @@ final class CockpitTargetCommand extends Command<int> {
   String get name => 'target';
 
   @override
-  String get description => 'Register workspace automation targets.';
+  String get description => 'Discover and manage automation targets.';
 }
 
 int _integer(ArgResults arguments, String name) {
   final value = int.tryParse(arguments.option(name)!);
+  if (value == null) throw FormatException('--$name is invalid.');
+  return value;
+}
+
+int? _optionalInteger(ArgResults arguments, String name) {
+  final source = arguments.option(name);
+  if (source == null) return null;
+  final value = int.tryParse(source);
   if (value == null) throw FormatException('--$name is invalid.');
   return value;
 }

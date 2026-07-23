@@ -22,25 +22,31 @@ final class CockpitSupervisorHttpApi {
     try {
       final path = request.uri.pathSegments;
       if (request.uri.path == '/api/v2/server') {
-        return _server(request);
+        await _server(request);
+        return;
       }
       if (path.length < 3 || path[0] != 'api' || path[1] != 'v2') {
-        return _notFound(request);
+        await _notFound(request);
+        return;
       }
       support.negotiate(request);
       if (path.length == 3) {
-        return _collection(request, path[2]);
+        await _collection(request, path[2]);
+        return;
       }
       if (path[2] == 'roots' && path.length == 4) {
-        return _root(request, path[3]);
+        await _root(request, path[3]);
+        return;
       }
       if (path[2] == 'workspaces') {
-        return _workspaceRoute(request, path);
+        await _workspaceRoute(request, path);
+        return;
       }
       if (path[2] == 'runs') {
-        return _runRoute(request, path);
+        await _runRoute(request, path);
+        return;
       }
-      return _notFound(request);
+      await _notFound(request);
     } on Object catch (error) {
       await support.error(request, error);
     }
@@ -179,6 +185,36 @@ final class CockpitSupervisorHttpApi {
         CockpitWorkspaceRebind.fromJson(await support.readJson(request)),
       );
       await support.json(request, HttpStatus.ok, workspace.toJson());
+      return;
+    }
+    if (path.length == 5 && path[4] == 'targets') {
+      if (request.method != 'GET') {
+        return _methodNotAllowed(request, const <String>['GET']);
+      }
+      final page = support.pageRequest(request, 'targets:$workspaceId');
+      final targets = await runtime.targets(workspaceId);
+      targets.sort((left, right) => left.targetId.compareTo(right.targetId));
+      await support.json(
+        request,
+        HttpStatus.ok,
+        support.page(
+          targets,
+          page,
+          'targets:$workspaceId',
+          (target) => target.toJson(),
+        ),
+      );
+      return;
+    }
+    if (path.length == 6 && path[4] == 'targets') {
+      if (request.method != 'GET') {
+        return _methodNotAllowed(request, const <String>['GET']);
+      }
+      await support.json(
+        request,
+        HttpStatus.ok,
+        (await runtime.target(workspaceId, path[5])).toJson(),
+      );
       return;
     }
     if (path.length == 5 && path[4] == 'documents') {

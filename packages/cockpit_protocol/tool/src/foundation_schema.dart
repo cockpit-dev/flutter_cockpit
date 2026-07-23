@@ -22,6 +22,7 @@ Map<String, Object?> buildFoundationSchema() {
         'CapabilityDocument',
         'RootResource',
         'WorkspaceResource',
+        'AutomationTargetResource',
         'DocumentResource',
         'DocumentValidationResult',
         'OperationInvocation',

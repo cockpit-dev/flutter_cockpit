@@ -17,6 +17,9 @@
       "$ref": "#/$defs/WorkspaceResource"
     },
     {
+      "$ref": "#/$defs/AutomationTargetResource"
+    },
+    {
       "$ref": "#/$defs/DocumentResource"
     },
     {
@@ -2237,6 +2240,114 @@
       ],
       "additionalProperties": false
     },
+    "AutomationTargetResource": {
+      "type": "object",
+      "properties": {
+        "targetId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "workspaceId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "platform": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "deviceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "targetKind": {
+          "type": "string",
+          "enum": [
+            "flutterApp",
+            "nativeApp",
+            "desktopApp",
+            "browserPage",
+            "systemSurface",
+            "device",
+            "hostWorkspace"
+          ],
+          "minLength": 1
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "development",
+            "automation"
+          ],
+          "minLength": 1
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "development",
+            "test",
+            "staging",
+            "production",
+            "unknown"
+          ],
+          "minLength": 1
+        },
+        "entrypoint": {
+          "$ref": "#/$defs/RelativePath"
+        },
+        "entrypointSha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "flavor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "appId": {
+          "type": "string",
+          "pattern": "\\S",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Identifier"
+        }
+      },
+      "required": [
+        "targetId",
+        "workspaceId",
+        "platform",
+        "deviceId",
+        "targetKind",
+        "mode",
+        "environment"
+      ],
+      "additionalProperties": false,
+      "dependentRequired": {
+        "entrypointSha256": [
+          "entrypoint"
+        ]
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "targetKind": {
+                "enum": [
+                  "nativeApp",
+                  "desktopApp",
+                  "browserPage"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "appId"
+            ]
+          }
+        }
+      ]
+    },
     "SourceLocation": {
       "type": "object",
       "properties": {
@@ -2560,6 +2671,29 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/WorkspaceResource"
+          },
+          "maxItems": 100
+        },
+        "nextCursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "totalCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "AutomationTargetPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AutomationTargetResource"
           },
           "maxItems": 100
         },

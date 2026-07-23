@@ -354,6 +354,22 @@ void main() {
         app.appId,
       );
       expect(appAfterLogRemoval.handle.supervisorLogPath, supervisorLog.path);
+      await reopenedAfterLogRemoval.removeApp(app.appId);
+      expect(
+        (await reopenedAfterLogRemoval.readTarget(targetId)).handle,
+        isNull,
+      );
+      expect(
+        await reopenedAfterLogRemoval.latestSessionIdsByTarget(),
+        isNot(contains(targetId)),
+      );
+      final reopenedAfterStop = CockpitWorkerRuntimeRegistry(
+        workspaceId: 'workspaceA',
+        workspaceRoot: workspaceRoot,
+        stateRoot: stateRoot.path,
+        stateStore: store,
+      );
+      expect((await reopenedAfterStop.readTarget(targetId)).handle, isNull);
     },
   );
 

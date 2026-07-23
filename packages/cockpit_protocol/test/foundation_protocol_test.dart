@@ -84,6 +84,19 @@ void main() {
         CockpitWorkspaceRemoval(drainTimeoutMs: 2500),
         CockpitWorkspaceRemoval.fromJson,
       );
+      _expectRoundTrip(
+        CockpitAutomationTargetResource(
+          targetId: 'targetA',
+          workspaceId: workspace.workspaceId,
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          targetKind: CockpitTargetKind.nativeApp,
+          mode: CockpitAutomationTargetMode.automation,
+          environment: CockpitAutomationTargetEnvironment.staging,
+          appId: 'com.example.app',
+        ),
+        CockpitAutomationTargetResource.fromJson,
+      );
 
       final document = CockpitDocumentResource(
         documentId: 'documentA',

@@ -101,6 +101,83 @@ cases:
       ]);
       final workspaceId = registeredWorkspace['workspaceId']! as String;
 
+      final registeredTarget = await _cli(packageRoot, environment, <String>[
+        'target',
+        'register',
+        '--workspace-id',
+        workspaceId,
+        '--platform',
+        'android',
+        '--device-id',
+        'smoke-device',
+        '--target-kind',
+        'nativeApp',
+        '--environment',
+        'test',
+        '--app-id',
+        'com.example.smoke',
+        '--idempotency-key',
+        'smoke-target-register',
+      ]);
+      expect(
+        registeredTarget['outcome'],
+        'succeeded',
+        reason: '$registeredTarget',
+      );
+      final targetId = registeredTarget['output']! as Map<String, Object?>;
+      final registeredTargetId = targetId['targetId']! as String;
+      final targets = await _cli(packageRoot, environment, <String>[
+        'target',
+        'list',
+        '--workspace-id',
+        workspaceId,
+      ]);
+      expect(
+        (targets['items']! as List<Object?>).cast<Map<String, Object?>>().map(
+          (target) => target['targetId'],
+        ),
+        contains(registeredTargetId),
+      );
+      final target = await _cli(packageRoot, environment, <String>[
+        'target',
+        'get',
+        '--workspace-id',
+        workspaceId,
+        '--target-id',
+        registeredTargetId,
+      ]);
+      expect(target['appId'], 'com.example.smoke');
+      final discovery =
+          jsonDecode(
+                await File(p.join(home.path, 'daemon.json')).readAsString(),
+              )
+              as Map<String, Object?>;
+      final http = HttpClient();
+      try {
+        final request = await http.getUrl(
+          Uri.parse(
+            discovery['endpoint']! as String,
+          ).resolve('/api/v2/workspaces/$workspaceId/targets/target_missing'),
+        );
+        request.headers
+          ..set(
+            HttpHeaders.authorizationHeader,
+            'Bearer ${discovery['bearerToken']}',
+          )
+          ..set('Cockpit-API-Version', '2.0');
+        final response = await request.close();
+        final body =
+            jsonDecode(await utf8.decoder.bind(response).join())
+                as Map<String, Object?>;
+        expect(response.statusCode, HttpStatus.notFound, reason: '$body');
+        expect(
+          (body['error']! as Map<String, Object?>)['code'],
+          'opaqueReferenceNotFound',
+        );
+      } finally {
+        http.close(force: true);
+      }
+
       final cases = await _cli(packageRoot, environment, <String>[
         'case',
         'list',
@@ -201,6 +278,7 @@ cases:
         environment,
         runId: runId,
         workspaceId: workspaceId,
+        targetId: registeredTargetId,
         suiteSource: suiteSource,
       );
       Map<String, Object?> response(int id) =>
@@ -234,6 +312,34 @@ cases:
         (suiteValidation['structuredContent']!
             as Map<String, Object?>)['valid'],
         isTrue,
+      );
+      final targetsResource = response(6)['result']! as Map<String, Object?>;
+      final targetsContents =
+          (targetsResource['contents']! as List<Object?>).single;
+      final targetsJson =
+          jsonDecode(
+                (targetsContents as Map<String, Object?>)['text']! as String,
+              )
+              as Map<String, Object?>;
+      expect(
+        (targetsJson['items']! as List<Object?>)
+            .cast<Map<String, Object?>>()
+            .map((target) => target['targetId']),
+        contains(registeredTargetId),
+      );
+      final targetResource = response(7)['result']! as Map<String, Object?>;
+      final targetContents =
+          (targetResource['contents']! as List<Object?>).single;
+      final targetJson =
+          jsonDecode(
+                (targetContents as Map<String, Object?>)['text']! as String,
+              )
+              as Map<String, Object?>;
+      expect(targetJson['targetId'], registeredTargetId);
+      final targetTool = response(8)['result']! as Map<String, Object?>;
+      expect(
+        (targetTool['structuredContent']! as Map<String, Object?>)['targetId'],
+        registeredTargetId,
       );
     },
     timeout: const Timeout(Duration(minutes: 2)),
@@ -270,11 +376,12 @@ Future<List<Map<String, Object?>>> _mcp(
   Map<String, String> environment, {
   required String runId,
   required String workspaceId,
+  required String targetId,
   required String suiteSource,
 }) async {
   final process = await Process.start(
     Platform.resolvedExecutable,
-    <String>[p.join(packageRoot, 'bin', 'cockpit_mcp.dart')],
+    <String>[p.join(packageRoot, 'bin', 'cockpit.dart'), 'serve-mcp'],
     workingDirectory: packageRoot,
     environment: environment,
   );
@@ -286,7 +393,7 @@ Future<List<Map<String, Object?>>> _mcp(
     output.addAll(chunk);
     final count = _decodeFrames(output).length;
     if (count >= 1 && !initialized.isCompleted) initialized.complete();
-    if (count >= 5 && !responsesReceived.isCompleted) {
+    if (count >= 8 && !responsesReceived.isCompleted) {
       responsesReceived.complete();
     }
   }).asFuture<void>();
@@ -349,6 +456,34 @@ Future<List<Map<String, Object?>>> _mcp(
         },
       },
     },
+    <String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 6,
+      'method': 'resources/read',
+      'params': <String, Object?>{
+        'uri': 'cockpit://workspaces/$workspaceId/targets',
+      },
+    },
+    <String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 7,
+      'method': 'resources/read',
+      'params': <String, Object?>{
+        'uri': 'cockpit://workspaces/$workspaceId/targets/$targetId',
+      },
+    },
+    <String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 8,
+      'method': 'tools/call',
+      'params': <String, Object?>{
+        'name': 'target_get',
+        'arguments': <String, Object?>{
+          'workspaceId': workspaceId,
+          'targetId': targetId,
+        },
+      },
+    },
   ]) {
     process.stdin.add(_frame(message));
   }
@@ -358,7 +493,7 @@ Future<List<Map<String, Object?>>> _mcp(
   await Future.wait(<Future<void>>[outputDone, errorDone]);
   expect(exitCode, 0, reason: errors.toString());
   final responses = _decodeFrames(output);
-  expect(responses, hasLength(5), reason: errors.toString());
+  expect(responses, hasLength(8), reason: errors.toString());
   return responses;
 }
 

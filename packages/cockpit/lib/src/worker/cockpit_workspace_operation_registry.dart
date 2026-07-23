@@ -143,7 +143,7 @@ final class CockpitWorkspaceOperationRegistry
   }
 
   static const Set<String> _forbiddenKinds = <String>{
-    'target.list',
+    'target.discover',
     'system.capabilities',
     'system.diagnostics',
     'project.create',
